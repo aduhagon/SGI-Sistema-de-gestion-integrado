@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================================
+   Identidad visual del SGI MSU
+   ============================================================================= */
+
+@layer base {
+  :root {
+    /* Base neutra: papel cálido, no blanco puro */
+    --background: 60 9% 98%;            /* stone-50 / off-white */
+    --foreground: 24 10% 10%;           /* stone-900 / casi negro cálido */
+
+    /* Cards y superficies elevadas */
+    --card: 0 0% 100%;
+    --card-foreground: 24 10% 10%;
+
+    /* Texto secundario */
+    --muted: 60 5% 96%;
+    --muted-foreground: 25 5% 45%;      /* stone-500 */
+
+    /* Color primario: azul profundo institucional */
+    --primary: 224 71% 31%;             /* #1E3A8A */
+    --primary-foreground: 0 0% 100%;
+
+    /* Acento agro: oliva natural */
+    --accent: 84 60% 32%;               /* #65A30D */
+    --accent-foreground: 0 0% 100%;
+
+    /* Estados destructivos */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Bordes finos */
+    --border: 20 6% 90%;                /* stone-200 */
+    --input: 20 6% 90%;
+    --ring: 224 71% 31%;
+
+    /* Radio de bordes refinado */
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "ss01", "cv01", "cv11";
+  }
+  /* Tipografía editorial: serif para títulos largos */
+  h1, h2, h3 {
+    @apply font-serif tracking-tight;
+  }
+}
+
+/* Selección de texto con color institucional */
+::selection {
+  background-color: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+}
+
+/* Scrollbar refinado */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+  border: 2px solid hsl(var(--background));
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
