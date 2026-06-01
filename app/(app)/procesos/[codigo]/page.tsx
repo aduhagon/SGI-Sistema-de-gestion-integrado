@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, FileText } from "lucide-react";
+import { ChevronLeft, FileText, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { listarDocumentosPorProceso } from "@/lib/api/documentos";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { getProcessIcon } from "@/components/procesos/icons";
+import { DocumentRow } from "@/components/documentos/DocumentRow";
 
-/**
- * Mapeo de tipo de proceso a label legible para humanos.
- */
 const TIPO_LABEL: Record<string, string> = {
   estrategico: "Proceso estratégico",
   operativo: "Proceso operativo",
@@ -19,28 +20,21 @@ type Props = {
   params: { codigo: string };
 };
 
-/**
- * Detalle de un proceso del SGI.
- *
- * Server Component que carga el proceso por su código (no por UUID) para que
- * la URL sea más amigable: /procesos/EST-DIR en lugar de un UUID opaco.
- *
- * En futuras semanas, esta pantalla va a mostrar también:
- *   - Documentos asociados al proceso
- *   - Indicadores y KPIs
- *   - Participantes del proceso (responsable, elaboradores, aprobadores)
- *   - Auditorías recientes y hallazgos abiertos
- */
 export default async function ProcesoDetallePage({ params }: Props) {
   const codigo = decodeURIComponent(params.codigo).toUpperCase();
   const supabase = createClient();
 
-  const { data: proceso, error } = await supabase
-    .from("procesos")
-    .select("id, codigo, nombre, descripcion, descripcion_corta, tipo, color_hex, icono, objetivo, entradas, salidas")
-    .eq("codigo", codigo)
-    .eq("activo", true)
-    .maybeSingle();
+  const [{ data: proceso, error }, documentos] = await Promise.all([
+    supabase
+      .from("procesos")
+      .select(
+        "id, codigo, nombre, descripcion, descripcion_corta, tipo, color_hex, icono, objetivo, entradas, salidas",
+      )
+      .eq("codigo", codigo)
+      .eq("activo", true)
+      .maybeSingle(),
+    listarDocumentosPorProceso(codigo),
+  ]);
 
   if (error) {
     return (
@@ -76,7 +70,7 @@ export default async function ProcesoDetallePage({ params }: Props) {
         </Link>
       </nav>
 
-      {/* Encabezado: icono + identidad del proceso */}
+      {/* Header: icono + identidad del proceso */}
       <header className="mb-10 flex flex-col sm:flex-row gap-6 items-start">
         <div
           className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl shadow-sm"
@@ -103,7 +97,7 @@ export default async function ProcesoDetallePage({ params }: Props) {
         </div>
       </header>
 
-      {/* Descripción larga si está presente */}
+      {/* Descripción larga */}
       {proceso.descripcion && (
         <section className="mb-10">
           <p className="text-base leading-relaxed text-foreground/90">
@@ -112,7 +106,7 @@ export default async function ProcesoDetallePage({ params }: Props) {
         </section>
       )}
 
-      {/* Objetivo del proceso */}
+      {/* Objetivo */}
       {proceso.objetivo && (
         <section className="mb-10">
           <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
@@ -126,7 +120,7 @@ export default async function ProcesoDetallePage({ params }: Props) {
         </section>
       )}
 
-      {/* Entradas y salidas en dos columnas */}
+      {/* Entradas / Salidas */}
       {(proceso.entradas || proceso.salidas) && (
         <section className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-6">
           {proceso.entradas && (
@@ -148,35 +142,49 @@ export default async function ProcesoDetallePage({ params }: Props) {
         </section>
       )}
 
-      {/* Placeholder de documentos asociados (próxima semana lo poblamos) */}
-      <Card className="border-dashed">
-        <CardHeader>
-          <div className="flex items-center gap-2 mb-1">
-            <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            <CardTitle className="text-base">Documentos asociados</CardTitle>
+      {/* Documentos asociados */}
+      <section className="mb-10">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Documentos asociados
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              {documentos.length === 0
+                ? "Todavía no hay documentos cargados para este proceso."
+                : `${documentos.length} ${documentos.length === 1 ? "documento" : "documentos"} en este proceso.`}
+            </p>
           </div>
-          <CardDescription className="leading-relaxed">
-            La documentación del SGI vinculada a este proceso aparecerá acá una vez que
-            esté disponible la pantalla de documentos. Por ahora, podés volver al{" "}
-            <Link href="/procesos" className="underline text-primary hover:no-underline">
-              mapa de procesos
-            </Link>
-            .
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-xs text-muted-foreground">
-          Próximamente · Semana 3 de Fase 1B
-        </CardContent>
-      </Card>
+          <Link
+            href="/documentos/nuevo"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            Nuevo
+          </Link>
+        </div>
+
+        {documentos.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="p-8 text-center">
+              <FileText className="h-8 w-8 text-muted-foreground mx-auto mb-3" aria-hidden="true" />
+              <p className="text-sm text-muted-foreground">
+                Cargá el primer documento de este proceso para empezar.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="rounded-lg border border-border bg-card overflow-hidden">
+            {documentos.map((doc) => (
+              <DocumentRow key={doc.id} documento={doc} />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
 
-/**
- * Caja visual de entrada/salida del proceso.
- * Las entradas alinean a la izquierda; las salidas a la derecha,
- * sugiriendo flujo de izquierda a derecha sin necesidad de flechas reales.
- */
 function FlowBox({
   titulo,
   descripcion,
