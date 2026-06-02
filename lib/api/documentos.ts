@@ -127,9 +127,6 @@ export async function listarDocumentosPorProceso(
   return (data ?? []).map((d) => normalizar(d as unknown as DocumentoRaw));
 }
 
-/**
- * Tipo documental con info adicional para el form de creación.
- */
 export type TipoDocumentalForm = {
   id: string;
   codigo: string;
@@ -138,10 +135,6 @@ export type TipoDocumentalForm = {
   puede_tener_padre: boolean;
 };
 
-/**
- * Datos necesarios para el form de creación de documento.
- * Ahora incluye país, info de jerarquía, y la posibilidad de listar padres.
- */
 export async function obtenerDatosForm() {
   const supabase = createClient();
 
@@ -179,10 +172,6 @@ export async function obtenerDatosForm() {
   };
 }
 
-/**
- * Lista los documentos que pueden ser "padre" en un proceso dado.
- * Solo se incluyen documentos de nivel jerárquico <= 3 (no hijos de otro).
- */
 export async function listarPosiblesPadres(procesoId: string) {
   const supabase = createClient();
 
@@ -203,7 +192,6 @@ export async function listarPosiblesPadres(procesoId: string) {
 
   if (error || !data) return [];
 
-  // Filtrar: solo niveles 1, 2 y 3 (los que pueden tener hijos)
   return data.filter((d) => {
     const t = d.tipo as unknown as { puede_tener_padre: boolean } | null;
     return t !== null && t.puede_tener_padre === false;
@@ -215,10 +203,6 @@ export async function listarPosiblesPadres(procesoId: string) {
   }>;
 }
 
-/**
- * Genera el código sugerido usando la función SQL del backend.
- * Retorna null si algún parámetro es inválido.
- */
 export async function obtenerCodigoSugerido(params: {
   tipoId: string;
   procesoId: string;
@@ -239,4 +223,211 @@ export async function obtenerCodigoSugerido(params: {
     return null;
   }
   return (data as string) ?? null;
+}
+
+// =============================================================================
+// SEMANA 4: Funciones para edición de metadata y nueva versión
+// =============================================================================
+
+/**
+ * Datos del documento para la pantalla de edición de metadata.
+ * NO incluye campos inmutables (código, tipo, proceso, país, padre).
+ */
+export type DocumentoParaEditar = {
+  id: string;
+  codigo: string;
+  titulo: string;
+  descripcion_corta: string | null;
+  criticidad: string;
+  confidencialidad: string;
+  idioma: string;
+  frecuencia_revision: string;
+  requiere_acuse_lectura: boolean;
+  estado_actual: string;
+  tipo: { codigo: string; nombre: string } | null;
+  proceso: { codigo: string; nombre: string } | null;
+  normas_ids: string[];
+};
+
+/**
+ * Obtiene un documento con sus normas asociadas, listo para mostrar en el form de edición.
+ */
+export async function obtenerDocumentoParaEditar(id: string): Promise<DocumentoParaEditar | null> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("documentos")
+    .select(
+      `
+      id,
+      codigo,
+      titulo,
+      descripcion_corta,
+      criticidad,
+      confidencialidad,
+      idioma,
+      frecuencia_revision,
+      requiere_acuse_lectura,
+      estado_actual,
+      tipo:tipos_documentales (codigo, nombre),
+      proceso:procesos!documentos_proceso_principal_id_fkey (codigo, nombre),
+      documento_norma (
+        version_norma:versiones_norma (
+          norma_id
+        )
+      )
+      `,
+    )
+    .eq("id", id)
+    .is("eliminado_en", null)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  const raw = data as unknown as {
+    id: string;
+    codigo: string;
+    titulo: string;
+    descripcion_corta: string | null;
+    criticidad: string;
+    confidencialidad: string;
+    idioma: string;
+    frecuencia_revision: string;
+    requiere_acuse_lectura: boolean;
+    estado_actual: string;
+    tipo: { codigo: string; nombre: string } | null;
+    proceso: { codigo: string; nombre: string } | null;
+    documento_norma: Array<{ version_norma: { norma_id: string } | null }>;
+  };
+
+  const normas_ids = raw.documento_norma
+    .map((dn) => dn.version_norma?.norma_id)
+    .filter((id): id is string => id !== null && id !== undefined);
+
+  return {
+    id: raw.id,
+    codigo: raw.codigo,
+    titulo: raw.titulo,
+    descripcion_corta: raw.descripcion_corta,
+    criticidad: raw.criticidad,
+    confidencialidad: raw.confidencialidad,
+    idioma: raw.idioma,
+    frecuencia_revision: raw.frecuencia_revision,
+    requiere_acuse_lectura: raw.requiere_acuse_lectura,
+    estado_actual: raw.estado_actual,
+    tipo: raw.tipo,
+    proceso: raw.proceso,
+    normas_ids,
+  };
+}
+
+/**
+ * Una versión del documento con su archivo, para mostrar en el historial.
+ */
+export type VersionHistorial = {
+  id: string;
+  numero_version: string;
+  numero_orden: number;
+  estado: string;
+  es_vigente: boolean;
+  creado_en: string;
+  motivo_cambio: string | null;
+  archivo: {
+    nombre_original: string;
+    "tamaño_bytes": number;
+    extension: string;
+    hash_sha256: string;
+  } | null;
+};
+
+/**
+ * Obtiene el historial completo de versiones de un documento, ordenado de más nueva a más vieja.
+ */
+export async function obtenerHistorialVersiones(documentoId: string): Promise<VersionHistorial[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("versiones")
+    .select(
+      `
+      id,
+      numero_version,
+      numero_orden,
+      estado,
+      es_vigente,
+      creado_en,
+      motivo_cambio,
+      archivos (
+        tipo_archivo,
+        nombre_original,
+        "tamaño_bytes",
+        extension,
+        hash_sha256
+      )
+      `,
+    )
+    .eq("documento_id", documentoId)
+    .eq("activo", true)
+    .order("numero_orden", { ascending: false });
+
+  if (error || !data) return [];
+
+  return data.map((v) => {
+    const archivos = (v.archivos as Array<{
+      tipo_archivo: string;
+      nombre_original: string;
+      "tamaño_bytes": number;
+      extension: string;
+      hash_sha256: string;
+    }>) ?? [];
+    const principal = archivos.find((a) => a.tipo_archivo === "principal");
+
+    return {
+      id: v.id as string,
+      numero_version: v.numero_version as string,
+      numero_orden: v.numero_orden as number,
+      estado: v.estado as string,
+      es_vigente: v.es_vigente as boolean,
+      creado_en: v.creado_en as string,
+      motivo_cambio: v.motivo_cambio as string | null,
+      archivo: principal
+        ? {
+            nombre_original: principal.nombre_original,
+            "tamaño_bytes": principal["tamaño_bytes"],
+            extension: principal.extension,
+            hash_sha256: principal.hash_sha256,
+          }
+        : null,
+    };
+  });
+}
+
+/**
+ * Obtiene el siguiente número de versión para un documento (ej: si la última es "1.0", devuelve "2.0").
+ * Según la regla MSU: cada cambio incrementa el número principal.
+ */
+export async function calcularProximoNumeroVersion(documentoId: string): Promise<{
+  numeroVersion: string;
+  numeroOrden: number;
+}> {
+  const supabase = createClient();
+
+  const { data } = await supabase
+    .from("versiones")
+    .select("numero_orden, numero_version")
+    .eq("documento_id", documentoId)
+    .eq("activo", true)
+    .order("numero_orden", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) {
+    return { numeroVersion: "1.0", numeroOrden: 1 };
+  }
+
+  const proximoOrden = (data.numero_orden as number) + 1;
+  return {
+    numeroVersion: `${proximoOrden}.0`,
+    numeroOrden: proximoOrden,
+  };
 }
