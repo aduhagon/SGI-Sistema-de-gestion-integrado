@@ -21,10 +21,6 @@ type Props = {
   searchParams: { creado?: string };
 };
 
-/**
- * Tipo del documento con relaciones embebidas tal como las devuelve Supabase.
- * Las relaciones N:1 vienen como objeto, no como array.
- */
 type DocumentoDetalle = {
   id: string;
   codigo: string;
@@ -97,7 +93,7 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
       proceso:procesos!documentos_proceso_principal_id_fkey (codigo, nombre, color_hex, tipo),
       dueno:usuarios!documentos_dueno_usuario_id_fkey (
         username,
-        persona:personas (nombre, apellido)
+        persona:personas!usuarios_persona_id_fkey (nombre, apellido)
       ),
       documento_norma (
         es_norma_principal,
@@ -148,18 +144,13 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
     notFound();
   }
 
-  // Cast a nuestro tipo: Supabase devuelve relaciones como arrays por defecto,
-  // pero sabemos que son N:1 (objeto único). El cast vía `unknown` es seguro
-  // porque conocemos la forma real de los datos.
   const doc = docRaw as unknown as DocumentoDetalle;
 
-  // Versión más reciente
   const versiones = doc.versiones.slice().sort((a, b) => b.numero_orden - a.numero_orden);
   const versionActual = versiones[0];
   const archivoPrincipal =
     versionActual?.archivos?.find((a) => a.tipo_archivo === "principal") ?? null;
 
-  // Normas asociadas
   const normas = doc.documento_norma
     .map((dn) => ({
       principal: dn.es_norma_principal,
@@ -168,14 +159,12 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
     }))
     .filter((n) => n.norma !== null);
 
-  // Dueño
   const duenoNombre = doc.dueno?.persona
     ? `${doc.dueno.persona.nombre} ${doc.dueno.persona.apellido}`.trim()
     : doc.dueno?.username ?? "—";
 
   return (
     <div className="mx-auto max-w-5xl p-6 sm:p-8 lg:p-10">
-      {/* Banner de éxito si recién se creó */}
       {searchParams.creado === "1" && (
         <div className="mb-6 flex items-center gap-3 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-700">
           <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
@@ -186,7 +175,6 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
         </div>
       )}
 
-      {/* Breadcrumb */}
       <nav aria-label="Breadcrumb" className="mb-8">
         <Link
           href="/documentos"
@@ -197,7 +185,6 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
         </Link>
       </nav>
 
-      {/* Header */}
       <header className="mb-10">
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <Badge variant="outline" className="font-mono">
@@ -228,11 +215,8 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
         )}
       </header>
 
-      {/* Grid principal */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8">
-        {/* Columna principal */}
         <div className="space-y-8">
-          {/* Archivo principal */}
           <section>
             <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
               Archivo principal {versionActual && `· Versión ${versionActual.numero_version}`}
@@ -291,7 +275,6 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
             )}
           </section>
 
-          {/* Normas cubiertas */}
           <section>
             <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
               Normas cubiertas
@@ -328,7 +311,6 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
             )}
           </section>
 
-          {/* Placeholder de próximas funcionalidades */}
           <Card className="border-dashed">
             <CardHeader>
               <CardTitle className="text-base">Próximas funcionalidades</CardTitle>
@@ -341,7 +323,6 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
           </Card>
         </div>
 
-        {/* Columna lateral */}
         <aside className="space-y-4">
           <MetaItem
             icon={<Calendar className="h-3.5 w-3.5" />}
