@@ -72,6 +72,10 @@ type DocumentoDetalle = {
 export default async function DocumentoDetallePage({ params, searchParams }: Props) {
   const supabase = createClient();
 
+  // IMPORTANTE: PostgREST necesita los FK explícitos cuando hay múltiples relaciones
+  // entre las mismas tablas:
+  //   - usuarios <-> personas: 4 FKs (usamos usuarios_persona_id_fkey)
+  //   - documentos <-> versiones: 2 FKs (usamos versiones_documento_id_fkey)
   const { data: docRaw, error } = await supabase
     .from("documentos")
     .select(
@@ -102,7 +106,7 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
           norma:normas (codigo, nombre_corto, nombre_completo)
         )
       ),
-      versiones (
+      versiones:versiones!versiones_documento_id_fkey (
         id,
         numero_version,
         numero_orden,

@@ -8,25 +8,34 @@ type Estado =
   | "rechazado"
   | "obsoleto";
 
+/**
+ * Configuración visual por estado.
+ *
+ * Cambio importante respecto a la versión anterior:
+ *   - "borrador" ahora usa un dot vacío (solo borde), no relleno, para diferenciarse
+ *     claramente del "obsoleto" que es gris claro relleno.
+ *   - Ambos usan grises pero la forma visual es distinta: contorno vs. relleno tenue.
+ */
 const ESTADO_CONFIG: Record<
   Estado,
-  { label: string; bg: string; ring: string; tooltip: string }
+  { label: string; bg: string; ring: string; tooltip: string; isOutline?: boolean }
 > = {
   borrador: {
     label: "Borrador",
-    bg: "bg-stone-400",
-    ring: "ring-stone-300",
+    bg: "bg-transparent border-2 border-stone-400",
+    ring: "ring-stone-200",
     tooltip: "En elaboración inicial",
+    isOutline: true,
   },
   confeccionado: {
     label: "Confeccionado",
-    bg: "bg-blue-400",
+    bg: "bg-blue-500",
     ring: "ring-blue-200",
     tooltip: "Confeccionado, listo para enviar a aprobación",
   },
   pendiente_aprobacion: {
     label: "Pendiente aprobación",
-    bg: "bg-amber-400",
+    bg: "bg-amber-500",
     ring: "ring-amber-200",
     tooltip: "Esperando aprobación N1 o N2",
   },
@@ -56,12 +65,6 @@ type Props = {
   className?: string;
 };
 
-/**
- * Indicador de estado del documento.
- *
- * - Solo dot: para listados densos
- * - Dot + label: para vistas con espacio (header de detalle, etc.)
- */
 export function StatusDot({ estado, showLabel = false, className }: Props) {
   const config = ESTADO_CONFIG[estado as Estado] ?? ESTADO_CONFIG.borrador;
 
@@ -73,9 +76,10 @@ export function StatusDot({ estado, showLabel = false, className }: Props) {
       <span
         aria-hidden="true"
         className={cn(
-          "h-2 w-2 rounded-full ring-2",
+          "h-2.5 w-2.5 rounded-full shrink-0",
           config.bg,
-          config.ring,
+          !config.isOutline && "ring-2",
+          !config.isOutline && config.ring,
         )}
       />
       {showLabel && (
