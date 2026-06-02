@@ -12,18 +12,28 @@ export type EstadoForm =
   | null;
 
 /**
+ * Server Action que genera un código sugerido llamando a fn_generar_codigo_documento.
+ * Se llama desde el cliente cuando cambian tipo, proceso o padre.
+ */
+export async function generarCodigoSugerido(params: {
+  tipoId: string;
+  procesoId: string;
+  paisCodigo: string;
+  padreId: string | null;
+}): Promise<{ ok: true; codigo: string } | { ok: false; error: string }> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_generar_codigo_documento", {
+    p_tipo_id: params.tipoId,
+    p_proceso_id: params.procesoId,
+    p_pais_codigo: params.paisCodigo,
+    p_padre_id: params.padreId,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, codigo: data as string };
+}
+
+/**
  * Server Action que crea un documento nuevo en estado "borrador".
- *
- * Pasos:
- *   1. Validar inputs con Zod
- *   2. Validar archivo si se subió
- *   3. INSERT documento (criticidad/confidencialidad heredadas del tipo)
- *   4. INSERT versión 1.0 en borrador
- *   5. Si hay archivo: subir a Storage + INSERT archivo
- *   6. INSERT relaciones documento_norma (si hay normas seleccionadas)
- *   7. Vincular el usuario actual como dueño y elaborador
- *
- * Si algo falla en el medio, hace rollback manual de lo creado.
  */
 export async function crearDocumento(
   _estadoPrevio: EstadoForm,
@@ -31,7 +41,7 @@ export async function crearDocumento(
 ): Promise<EstadoForm> {
   const supabase = createClient();
 
-  // ---- 0) Obtener usuario actual ----
+  // ---- 0) Usuario actual ----
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -47,18 +57,21 @@ export async function crearDocumento(
   if (!usuarioFila) {
     return {
       ok: false,
-      error: "Tu cuenta de autenticación no está vinculada a un usuario del SGI. Contactá a un administrador.",
+      error: "Tu cuenta de autenticación no está vinculada a un usuario del SGI.",
     };
   }
 
-  // ---- 1) Validar inputs con Zod ----
+  // ---- 1) Validar inputs ----
   const rawNormas = formData.getAll("normas_ids");
+  const padreRaw = formData.get("documento_padre_id");
   const parsed = crearDocumentoSchema.safeParse({
     codigo: formData.get("codigo"),
     titulo: formData.get("titulo"),
     descripcion_corta: formData.get("descripcion_corta") ?? undefined,
     tipo_documental_id: formData.get("tipo_documental_id"),
     proceso_principal_id: formData.get("proceso_principal_id"),
+    pais_codigo: formData.get("pais_codigo") ?? "A",
+    documento_padre_id: padreRaw && padreRaw !== "" ? padreRaw : undefined,
     normas_ids: rawNormas.filter((v): v is string => typeof v === "string" && v.length > 0),
     motivo_creacion: formData.get("motivo_creacion") ?? undefined,
   });
@@ -85,7 +98,7 @@ export async function crearDocumento(
     archivo = file;
   }
 
-  // ---- 3) Verificar que el código no esté duplicado ----
+  // ---- 3) Verificar código no duplicado ----
   const { data: codigoExiste } = await supabase
     .from("documentos")
     .select("id")
@@ -95,19 +108,28 @@ export async function crearDocumento(
   if (codigoExiste) {
     return {
       ok: false,
-      error: `Ya existe un documento con el código "${input.codigo}". Elegí otro.`,
+      error: `Ya existe un documento con el código "${input.codigo}".`,
       campo: "codigo",
     };
   }
 
-  // ---- 4) Buscar defaults del tipo documental ----
+  // ---- 4) Defaults del tipo ----
   const { data: tipo } = await supabase
     .from("tipos_documentales")
-    .select("criticidad_default, confidencialidad_default, frecuencia_revision_default, requiere_acuse_lectura")
+    .select("criticidad_default, confidencialidad_default, frecuencia_revision_default, requiere_acuse_lectura, puede_tener_padre")
     .eq("id", input.tipo_documental_id)
     .maybeSingle();
   if (!tipo) {
     return { ok: false, error: "El tipo documental seleccionado no existe." };
+  }
+
+  // Validar coherencia tipo vs. padre
+  if (input.documento_padre_id && !tipo.puede_tener_padre) {
+    return {
+      ok: false,
+      error: "El tipo documental seleccionado no admite documento padre.",
+      campo: "documento_padre_id",
+    };
   }
 
   // ---- 5) INSERT documento ----
@@ -119,6 +141,7 @@ export async function crearDocumento(
       descripcion_corta: input.descripcion_corta ?? null,
       tipo_documental_id: input.tipo_documental_id,
       proceso_principal_id: input.proceso_principal_id,
+      documento_padre_id: input.documento_padre_id ?? null,
       dueno_usuario_id: usuarioFila.id,
       criticidad: tipo.criticidad_default,
       confidencialidad: tipo.confidencialidad_default,
@@ -136,7 +159,7 @@ export async function crearDocumento(
     };
   }
 
-  // ---- 6) INSERT versión 1.0 borrador ----
+  // ---- 6) INSERT versión inicial ----
   const { data: version, error: errVer } = await supabase
     .from("versiones")
     .insert({
@@ -151,7 +174,6 @@ export async function crearDocumento(
     .single();
 
   if (errVer || !version) {
-    // Rollback: borrar documento creado
     await supabase.from("documentos").delete().eq("id", documento.id);
     return {
       ok: false,
@@ -159,7 +181,7 @@ export async function crearDocumento(
     };
   }
 
-  // ---- 7) Si hay archivo: subirlo a Storage + INSERT archivo ----
+  // ---- 7) Upload de archivo (si hay) ----
   if (archivo) {
     const arrayBuffer = await archivo.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -176,7 +198,6 @@ export async function crearDocumento(
       });
 
     if (errUpload) {
-      // Rollback: borrar versión y documento
       await supabase.from("versiones").delete().eq("id", version.id);
       await supabase.from("documentos").delete().eq("id", documento.id);
       return {
@@ -200,7 +221,6 @@ export async function crearDocumento(
     });
 
     if (errArchivo) {
-      // Rollback total
       await supabase.storage.from(bucket).remove([storagePath]);
       await supabase.from("versiones").delete().eq("id", version.id);
       await supabase.from("documentos").delete().eq("id", documento.id);
@@ -211,9 +231,8 @@ export async function crearDocumento(
     }
   }
 
-  // ---- 8) Asociar normas seleccionadas (usando la versión vigente de cada norma) ----
+  // ---- 8) Asociar normas (usando versión vigente) ----
   if (input.normas_ids.length > 0) {
-    // Para cada norma seleccionada, obtener su versión vigente actual
     const { data: versionesVigentes } = await supabase
       .from("versiones_norma")
       .select("id, norma_id")
@@ -224,22 +243,21 @@ export async function crearDocumento(
       const rels = versionesVigentes.map((vn, idx) => ({
         documento_id: documento.id,
         version_norma_id: vn.id,
-        es_norma_principal: idx === 0, // la primera seleccionada queda como principal
+        es_norma_principal: idx === 0,
       }));
       await supabase.from("documento_norma").insert(rels);
     }
   }
 
-  // ---- 9) Registrar usuario como elaborador ----
+  // ---- 9) Registrar elaborador ----
   await supabase.from("documento_elaborador").insert({
     documento_id: documento.id,
     usuario_id: usuarioFila.id,
   });
 
-  // ---- 10) Revalidar caches y redirigir al detalle ----
+  // ---- 10) Revalidar y redirigir ----
   revalidatePath("/documentos");
   revalidatePath("/dashboard");
-  revalidatePath(`/procesos/${input.proceso_principal_id}`);
 
   redirect(`/documentos/${documento.id}?creado=1`);
 }

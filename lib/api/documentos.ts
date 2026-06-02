@@ -26,10 +26,6 @@ export type DocumentSummary = {
   normas: Array<{ codigo: string; nombre_corto: string }>;
 };
 
-/**
- * Tipo crudo de la respuesta de Supabase con relaciones embebidas.
- * Se normaliza dentro de las funciones para devolver DocumentSummary.
- */
 type DocumentoRaw = {
   id: string;
   codigo: string;
@@ -87,9 +83,6 @@ const SELECT_DOCUMENTO = `
   )
 `;
 
-/**
- * Lista todos los documentos accesibles para el usuario logueado.
- */
 export async function listarDocumentos(): Promise<DocumentSummary[]> {
   const supabase = createClient();
 
@@ -108,9 +101,6 @@ export async function listarDocumentos(): Promise<DocumentSummary[]> {
   return (data ?? []).map((d) => normalizar(d as unknown as DocumentoRaw));
 }
 
-/**
- * Lista los documentos asociados a un proceso específico (por código).
- */
 export async function listarDocumentosPorProceso(
   procesoCodigo: string,
 ): Promise<DocumentSummary[]> {
@@ -138,33 +128,115 @@ export async function listarDocumentosPorProceso(
 }
 
 /**
- * Devuelve los datos necesarios para el form de creación de documento.
+ * Tipo documental con info adicional para el form de creación.
+ */
+export type TipoDocumentalForm = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  nivel_jerarquico: number | null;
+  puede_tener_padre: boolean;
+};
+
+/**
+ * Datos necesarios para el form de creación de documento.
+ * Ahora incluye país, info de jerarquía, y la posibilidad de listar padres.
  */
 export async function obtenerDatosForm() {
   const supabase = createClient();
 
-  const [{ data: tipos }, { data: procesos }, { data: normas }] = await Promise.all([
-    supabase
-      .from("tipos_documentales")
-      .select("id, codigo, nombre, criticidad_default, confidencialidad_default, frecuencia_revision_default, requiere_acuse_lectura")
-      .eq("activo", true)
-      .order("orden_visualizacion"),
-    supabase
-      .from("procesos")
-      .select("id, codigo, nombre, tipo")
-      .eq("activo", true)
-      .order("tipo")
-      .order("orden_visualizacion"),
-    supabase
-      .from("normas")
-      .select("id, codigo, nombre_corto, nombre_completo")
-      .eq("activo", true)
-      .order("orden_visualizacion"),
-  ]);
+  const [{ data: tipos }, { data: procesos }, { data: normas }, { data: paises }] =
+    await Promise.all([
+      supabase
+        .from("tipos_documentales")
+        .select(
+          "id, codigo, nombre, criticidad_default, confidencialidad_default, frecuencia_revision_default, requiere_acuse_lectura, nivel_jerarquico, puede_tener_padre",
+        )
+        .eq("activo", true)
+        .order("orden_visualizacion"),
+      supabase
+        .from("procesos")
+        .select("id, codigo, codigo_numerico, nombre, tipo")
+        .eq("activo", true)
+        .order("codigo_numerico"),
+      supabase
+        .from("normas")
+        .select("id, codigo, nombre_corto, nombre_completo")
+        .eq("activo", true)
+        .order("orden_visualizacion"),
+      supabase
+        .from("paises")
+        .select("id, codigo, nombre")
+        .eq("activo", true)
+        .order("orden_visualizacion"),
+    ]);
 
   return {
     tipos: tipos ?? [],
     procesos: procesos ?? [],
     normas: normas ?? [],
+    paises: paises ?? [],
   };
+}
+
+/**
+ * Lista los documentos que pueden ser "padre" en un proceso dado.
+ * Solo se incluyen documentos de nivel jerárquico <= 3 (no hijos de otro).
+ */
+export async function listarPosiblesPadres(procesoId: string) {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("documentos")
+    .select(
+      `
+      id,
+      codigo,
+      titulo,
+      tipo:tipos_documentales (codigo, nombre, nivel_jerarquico, puede_tener_padre)
+      `,
+    )
+    .eq("proceso_principal_id", procesoId)
+    .is("eliminado_en", null)
+    .is("documento_padre_id", null)
+    .order("codigo");
+
+  if (error || !data) return [];
+
+  // Filtrar: solo niveles 1, 2 y 3 (los que pueden tener hijos)
+  return data.filter((d) => {
+    const t = d.tipo as unknown as { puede_tener_padre: boolean } | null;
+    return t !== null && t.puede_tener_padre === false;
+  }) as unknown as Array<{
+    id: string;
+    codigo: string;
+    titulo: string;
+    tipo: { codigo: string; nombre: string; nivel_jerarquico: number };
+  }>;
+}
+
+/**
+ * Genera el código sugerido usando la función SQL del backend.
+ * Retorna null si algún parámetro es inválido.
+ */
+export async function obtenerCodigoSugerido(params: {
+  tipoId: string;
+  procesoId: string;
+  paisCodigo: string;
+  padreId: string | null;
+}): Promise<string | null> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase.rpc("fn_generar_codigo_documento", {
+    p_tipo_id: params.tipoId,
+    p_proceso_id: params.procesoId,
+    p_pais_codigo: params.paisCodigo,
+    p_padre_id: params.padreId,
+  });
+
+  if (error) {
+    console.error("Error generando código:", error.message);
+    return null;
+  }
+  return (data as string) ?? null;
 }
