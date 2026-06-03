@@ -8,11 +8,6 @@ type Props = {
   versiones: VersionHistorial[];
 };
 
-/**
- * Muestra el historial de versiones de un documento como un timeline vertical.
- * La versión más reciente va arriba, la más antigua abajo.
- * Cada versión muestra: número, estado, fecha, motivo del cambio, archivo (si tiene).
- */
 export function HistorialVersiones({ versiones }: Props) {
   if (versiones.length === 0) {
     return (
@@ -28,7 +23,6 @@ export function HistorialVersiones({ versiones }: Props) {
     <ol className="space-y-4 relative">
       {versiones.map((v, idx) => (
         <li key={v.id} className="relative">
-          {/* Línea conectora vertical */}
           {idx < versiones.length - 1 && (
             <span
               className="absolute left-[15px] top-10 bottom-0 w-px bg-border -mb-4"
@@ -39,7 +33,6 @@ export function HistorialVersiones({ versiones }: Props) {
           <Card>
             <CardContent className="p-5">
               <div className="flex items-start gap-4">
-                {/* Ícono lateral */}
                 <div
                   className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 ${
                     v.es_vigente
@@ -50,9 +43,7 @@ export function HistorialVersiones({ versiones }: Props) {
                   <GitBranch className="h-4 w-4" aria-hidden="true" />
                 </div>
 
-                {/* Contenido */}
                 <div className="flex-1 min-w-0">
-                  {/* Header de la versión */}
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     <Badge
                       variant={v.es_vigente ? "default" : "outline"}
@@ -76,14 +67,12 @@ export function HistorialVersiones({ versiones }: Props) {
                     </span>
                   </div>
 
-                  {/* Motivo del cambio */}
                   {v.motivo_cambio && (
                     <p className="text-sm text-foreground/90 leading-relaxed mb-3">
                       {v.motivo_cambio}
                     </p>
                   )}
 
-                  {/* Archivo de esta versión */}
                   {v.archivo ? (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground pt-3 border-t border-border">
                       <FileText className="h-3.5 w-3.5" aria-hidden="true" />

@@ -2,12 +2,6 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Serif, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-/**
- * Tipografía editorial técnica: IBM Plex family.
- * Serif para títulos (papel autoritativo).
- * Sans para body (legible, profesional, no genérico).
- * Mono para códigos y datos (consistencia con Plex).
- */
 const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -32,7 +26,7 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "SGI Multinorma — MSU",
   description: "Sistema de Gestión Documental Multinorma de MSU. ISO 9001, 14001, 45001, BRCGS, GlobalGAP, BPA.",
-  robots: "noindex, nofollow", // Sistema interno: no indexar
+  robots: "noindex, nofollow",
 };
 
 export default function RootLayout({

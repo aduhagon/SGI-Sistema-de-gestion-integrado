@@ -15,7 +15,6 @@ export function TopBar({ userEmail }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Cerrar menú al click afuera
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -37,7 +36,6 @@ export function TopBar({ userEmail }: Props) {
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-background px-4 sm:px-6">
-      {/* Búsqueda global (placeholder, funcional en próximas pantallas) */}
       <div className="flex-1 max-w-xl">
         <button
           type="button"
@@ -52,16 +50,12 @@ export function TopBar({ userEmail }: Props) {
         </button>
       </div>
 
-      {/* Acciones de usuario */}
       <div className="flex items-center gap-2 ml-4">
-        {/* Notificaciones (placeholder, funcional en próxima pantalla) */}
         <Button variant="ghost" size="icon" aria-label="Notificaciones" className="relative">
           <Bell className="h-4 w-4" />
-          {/* Badge de no leídas (placeholder visual) */}
           <span className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-accent" />
         </Button>
 
-        {/* Menú de usuario */}
         <div ref={menuRef} className="relative">
           <button
             type="button"

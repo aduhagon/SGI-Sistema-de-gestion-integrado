@@ -6,18 +6,11 @@ import { DocumentEmptyState } from "@/components/documentos/DocumentEmptyState";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/**
- * Listado de documentos del SGI.
- *
- * Estilo "lista de gmail/notion": una fila por documento, info esencial visible,
- * click navega al detalle. Sin filtros aún (se incorporan en Semana 3B).
- */
 export default async function DocumentosPage() {
   const documentos = await listarDocumentos();
 
   return (
     <div className="mx-auto max-w-7xl p-6 sm:p-8 lg:p-10">
-      {/* Encabezado de la página */}
       <header className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
@@ -46,16 +39,14 @@ export default async function DocumentosPage() {
         )}
       </header>
 
-      {/* Listado o empty state */}
       {documentos.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border bg-card">
           <DocumentEmptyState />
         </div>
       ) : (
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          {/* Header de la lista */}
           <div className="flex items-center gap-4 px-4 py-2.5 bg-muted/30 border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-            <span className="w-4">{/* Estado */}</span>
+            <span className="w-4"></span>
             <span className="w-32">Código</span>
             <span className="flex-1">Documento</span>
             <span className="hidden md:block max-w-md shrink-0">
@@ -64,10 +55,9 @@ export default async function DocumentosPage() {
             <span className="hidden lg:block w-24 text-right shrink-0">
               Actualizado
             </span>
-            <span className="w-4">{/* Chevron */}</span>
+            <span className="w-4"></span>
           </div>
 
-          {/* Filas */}
           <div>
             {documentos.map((doc) => (
               <DocumentRow key={doc.id} documento={doc} />
@@ -76,7 +66,6 @@ export default async function DocumentosPage() {
         </div>
       )}
 
-      {/* Leyenda de estados */}
       {documentos.length > 0 && (
         <footer className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">

@@ -1,18 +1,5 @@
 import { z } from "zod";
 
-/**
- * Schema de validación para EDITAR metadata de un documento existente.
- *
- * Campos que NO se pueden editar y por eso no están acá:
- *   - codigo (inmutable, identidad del documento)
- *   - tipo_documental_id (define la jerarquía)
- *   - proceso_principal_id (define a qué proceso pertenece)
- *   - pais_codigo (inmutable)
- *   - documento_padre_id (inmutable, la jerarquía no se modifica)
- *   - estado_actual (cambia solo por flujo de aprobación, no manualmente)
- *
- * Esto evita inconsistencias y mantiene la trazabilidad ISO.
- */
 export const editarMetadataSchema = z.object({
   titulo: z
     .string()
@@ -50,14 +37,6 @@ export const editarMetadataSchema = z.object({
 
 export type EditarMetadataInput = z.infer<typeof editarMetadataSchema>;
 
-/**
- * Schema de validación para crear una NUEVA VERSIÓN de un documento.
- *
- * Reglas MSU:
- *   - Motivo del cambio SIEMPRE obligatorio
- *   - El número se calcula automáticamente (1.0 -> 2.0 -> 3.0)
- *   - El archivo nuevo es opcional (puede haber versión sin archivo si se trabaja en borrador)
- */
 export const nuevaVersionSchema = z.object({
   motivo_cambio: z
     .string()

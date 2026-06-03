@@ -59,7 +59,6 @@ export default async function ProcesoDetallePage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-5xl p-6 sm:p-8 lg:p-10">
-      {/* Breadcrumb */}
       <nav aria-label="Breadcrumb" className="mb-8">
         <Link
           href="/procesos"
@@ -70,7 +69,6 @@ export default async function ProcesoDetallePage({ params }: Props) {
         </Link>
       </nav>
 
-      {/* Header: icono + identidad del proceso */}
       <header className="mb-10 flex flex-col sm:flex-row gap-6 items-start">
         <div
           className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl shadow-sm"
@@ -97,7 +95,6 @@ export default async function ProcesoDetallePage({ params }: Props) {
         </div>
       </header>
 
-      {/* Descripción larga */}
       {proceso.descripcion && (
         <section className="mb-10">
           <p className="text-base leading-relaxed text-foreground/90">
@@ -106,7 +103,6 @@ export default async function ProcesoDetallePage({ params }: Props) {
         </section>
       )}
 
-      {/* Objetivo */}
       {proceso.objetivo && (
         <section className="mb-10">
           <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
@@ -120,7 +116,6 @@ export default async function ProcesoDetallePage({ params }: Props) {
         </section>
       )}
 
-      {/* Entradas / Salidas */}
       {(proceso.entradas || proceso.salidas) && (
         <section className="mb-10 grid grid-cols-1 md:grid-cols-2 gap-6">
           {proceso.entradas && (
@@ -142,7 +137,6 @@ export default async function ProcesoDetallePage({ params }: Props) {
         </section>
       )}
 
-      {/* Documentos asociados */}
       <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
           <div>

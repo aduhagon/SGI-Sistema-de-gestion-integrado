@@ -7,22 +7,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-/**
- * Dashboard inicial del SGI.
- *
- * Server Component que carga el contexto del usuario y catálogos básicos
- * para mostrar una vista de estado inicial.
- *
- * Las próximas iteraciones van a poblar los widgets con datos reales
- * (aprobaciones pendientes, NCs vencidas, etc.) a medida que armemos
- * cada módulo.
- */
 export default async function DashboardPage() {
   const supabase = createClient();
 
-  // Datos reales del catálogo para validar conexión
   const [{ count: procesosCount }, { count: normasCount }, { count: tiposCount }, { data: user }] =
     await Promise.all([
       supabase.from("procesos").select("id", { count: "exact", head: true }).eq("activo", true),
@@ -36,7 +25,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-7xl p-6 sm:p-8 lg:p-10">
-      {/* Encabezado de bienvenida */}
       <header className="mb-10">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
           {new Date().toLocaleDateString("es-AR", {
@@ -55,7 +43,6 @@ export default async function DashboardPage() {
         </p>
       </header>
 
-      {/* Widgets de actividad pendiente */}
       <section aria-labelledby="actividad-heading" className="mb-12">
         <h2
           id="actividad-heading"
@@ -96,7 +83,6 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {/* Estado general del SGI */}
       <section aria-labelledby="sgi-heading" className="mb-12">
         <h2
           id="sgi-heading"
@@ -124,7 +110,6 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {/* Mensaje contextual */}
       <Card className="bg-primary/[0.03] border-primary/20">
         <CardHeader>
           <CardTitle className="text-base">

@@ -12,28 +12,6 @@ export type EstadoNuevaVersion =
   | { ok: false; error: string; campo?: string }
   | null;
 
-/**
- * Server Action que crea una nueva versión de un documento existente.
- *
- * Reglas MSU:
- *   - Cada nueva versión incrementa el número principal: 1.0 -> 2.0 -> 3.0
- *   - El motivo del cambio es OBLIGATORIO (mínimo 10 caracteres)
- *   - La nueva versión se crea en estado "borrador" (no automáticamente vigente)
- *   - Si se sube archivo, se calcula su SHA256 y se sube a Storage
- *
- * Pasos:
- *   1. Validar inputs
- *   2. Validar archivo si se subió
- *   3. Verificar que el documento existe
- *   4. Calcular siguiente número de versión
- *   5. INSERT en versiones (borrador, no vigente)
- *   6. Upload del archivo (si hay)
- *   7. Revalidar y redirigir al detalle
- *
- * NOTA: La nueva versión NO se vuelve vigente automáticamente. Eso pasa por flujo
- * de aprobación (Semana 7). Hasta entonces, el documento mantiene la versión
- * anterior como vigente y la nueva queda como borrador.
- */
 export async function crearNuevaVersion(
   documentoId: string,
   _estadoPrevio: EstadoNuevaVersion,
@@ -41,7 +19,6 @@ export async function crearNuevaVersion(
 ): Promise<EstadoNuevaVersion> {
   const supabase = createClient();
 
-  // ---- 0) Usuario actual ----
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -49,7 +26,6 @@ export async function crearNuevaVersion(
     return { ok: false, error: "Sesión no válida. Volvé a ingresar." };
   }
 
-  // ---- 1) Validar inputs ----
   const parsed = nuevaVersionSchema.safeParse({
     motivo_cambio: formData.get("motivo_cambio"),
   });
@@ -65,7 +41,6 @@ export async function crearNuevaVersion(
 
   const input = parsed.data;
 
-  // ---- 2) Validar archivo si se subió ----
   const file = formData.get("archivo");
   let archivo: File | null = null;
   if (file instanceof File && file.size > 0) {
@@ -76,7 +51,6 @@ export async function crearNuevaVersion(
     archivo = file;
   }
 
-  // ---- 3) Verificar que el documento existe ----
   const { data: docExiste } = await supabase
     .from("documentos")
     .select("id, codigo")
@@ -88,7 +62,6 @@ export async function crearNuevaVersion(
     return { ok: false, error: "El documento no existe o fue eliminado." };
   }
 
-  // ---- 4) Calcular siguiente número de versión ----
   const { data: ultimaVersion } = await supabase
     .from("versiones")
     .select("numero_orden")
@@ -101,7 +74,6 @@ export async function crearNuevaVersion(
   const proximoOrden = (ultimaVersion?.numero_orden ?? 0) + 1;
   const proximoNumero = `${proximoOrden}.0`;
 
-  // ---- 5) INSERT versión ----
   const { data: version, error: errVer } = await supabase
     .from("versiones")
     .insert({
@@ -122,7 +94,6 @@ export async function crearNuevaVersion(
     };
   }
 
-  // ---- 6) Upload del archivo (si hay) ----
   if (archivo) {
     const arrayBuffer = await archivo.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -139,7 +110,6 @@ export async function crearNuevaVersion(
       });
 
     if (errUpload) {
-      // Rollback: borrar versión creada
       await supabase.from("versiones").delete().eq("id", version.id);
       return {
         ok: false,
@@ -171,7 +141,6 @@ export async function crearNuevaVersion(
     }
   }
 
-  // ---- 7) Revalidar y redirigir ----
   revalidatePath("/documentos");
   revalidatePath(`/documentos/${documentoId}`);
 

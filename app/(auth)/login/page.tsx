@@ -1,21 +1,10 @@
 import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/LoginForm";
 
-/**
- * Pantalla de login del SGI.
- *
- * Composición editorial:
- *   - Columna izquierda: identidad institucional + claim del sistema
- *   - Columna derecha: formulario sobrio sobre fondo blanco puro
- *
- * En mobile, la columna izquierda colapsa a un header compacto.
- */
 export default function LoginPage() {
   return (
     <main className="min-h-screen grid grid-cols-1 lg:grid-cols-[1.1fr_1fr]">
-      {/* Columna izquierda: identidad editorial */}
       <aside className="relative hidden lg:flex flex-col justify-between p-12 bg-foreground text-background overflow-hidden">
-        {/* Trama decorativa muy sutil */}
         <div
           className="absolute inset-0 opacity-[0.04]"
           aria-hidden="true"
@@ -53,10 +42,8 @@ export default function LoginPage() {
         </div>
       </aside>
 
-      {/* Columna derecha: formulario */}
       <section className="flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-sm space-y-8">
-          {/* Encabezado en mobile */}
           <div className="lg:hidden flex items-baseline gap-3">
             <span className="font-serif text-3xl font-semibold tracking-tight text-primary">
               MSU

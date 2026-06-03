@@ -10,22 +10,6 @@ export type EstadoEditar =
   | { ok: false; error: string; campo?: string }
   | null;
 
-/**
- * Server Action que actualiza la metadata de un documento existente.
- *
- * Pasos:
- *   1. Validar inputs con Zod
- *   2. Validar que el documento existe y no está eliminado
- *   3. UPDATE documentos con los campos editables
- *   4. Sincronizar normas: borrar las viejas y crear las nuevas
- *   5. Registrar evento de auditoría manual con el motivo de la edición
- *      (Los triggers de auditoría capturan el UPDATE pero no el motivo textual)
- *
- * NOTA: El UPDATE de documentos dispara automáticamente:
- *   - trg_documentos_actualizado: actualiza actualizado_en
- *   - trg_auditoria_documentos: registra el cambio en eventos_auditoria
- *   - trg_documentos_busqueda_tsv: regenera el vector de búsqueda full-text
- */
 export async function editarMetadata(
   documentoId: string,
   _estadoPrevio: EstadoEditar,
@@ -33,7 +17,6 @@ export async function editarMetadata(
 ): Promise<EstadoEditar> {
   const supabase = createClient();
 
-  // ---- 0) Usuario actual ----
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -41,7 +24,6 @@ export async function editarMetadata(
     return { ok: false, error: "Sesión no válida. Volvé a ingresar." };
   }
 
-  // ---- 1) Validar inputs ----
   const rawNormas = formData.getAll("normas_ids");
   const parsed = editarMetadataSchema.safeParse({
     titulo: formData.get("titulo"),
@@ -67,7 +49,6 @@ export async function editarMetadata(
 
   const input = parsed.data;
 
-  // ---- 2) Verificar que el documento existe ----
   const { data: docExiste } = await supabase
     .from("documentos")
     .select("id, codigo")
@@ -79,7 +60,6 @@ export async function editarMetadata(
     return { ok: false, error: "El documento no existe o fue eliminado." };
   }
 
-  // ---- 3) UPDATE documento ----
   const { error: errUpd } = await supabase
     .from("documentos")
     .update({
@@ -100,9 +80,6 @@ export async function editarMetadata(
     };
   }
 
-  // ---- 4) Sincronizar normas ----
-  // Estrategia: borrar todas las relaciones existentes y crear las nuevas.
-  // Es seguro porque documento_norma no tiene FKs hacia ella desde otras tablas.
   await supabase.from("documento_norma").delete().eq("documento_id", documentoId);
 
   if (input.normas_ids.length > 0) {
@@ -122,7 +99,6 @@ export async function editarMetadata(
     }
   }
 
-  // ---- 5) Revalidar y redirigir ----
   revalidatePath("/documentos");
   revalidatePath(`/documentos/${documentoId}`);
   revalidatePath("/dashboard");

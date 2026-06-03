@@ -61,7 +61,6 @@ export function NuevaVersionForm({
 
   return (
     <form action={handleSubmit} className="space-y-10">
-      {/* Banner de error */}
       {estado && !estado.ok && (
         <div
           role="alert"
@@ -77,7 +76,6 @@ export function NuevaVersionForm({
         </div>
       )}
 
-      {/* Resumen del versionado */}
       <Section
         titulo="Versionado"
         descripcion="Información del cambio de versión que estás haciendo."
@@ -111,7 +109,6 @@ export function NuevaVersionForm({
         </div>
       </Section>
 
-      {/* Archivo nuevo */}
       <Section
         titulo="Archivo de la nueva versión"
         descripcion="Subí el documento modificado. Es opcional: podés crear la versión sin archivo si vas a trabajar en borrador."
@@ -166,7 +163,6 @@ export function NuevaVersionForm({
         )}
       </Section>
 
-      {/* Motivo del cambio (obligatorio) */}
       <Section
         titulo="Motivo del cambio"
         descripcion="Describí qué cambió respecto de la versión anterior. Este campo es OBLIGATORIO y queda en el historial del documento."
@@ -194,7 +190,6 @@ export function NuevaVersionForm({
         </div>
       </Section>
 
-      {/* Acciones */}
       <div className="flex items-center justify-between border-t border-border pt-6">
         <p className="text-xs text-muted-foreground flex items-center gap-2">
           <Badge variant="muted" size="sm">

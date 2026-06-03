@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     serverActions: {
-      bodySizeLimit: '52mb', // archivos principales hasta 50MB
+      bodySizeLimit: '52mb',
     },
   },
 };

@@ -1,12 +1,6 @@
 import Link from "next/link";
 import { Compass, ChevronLeft } from "lucide-react";
 
-/**
- * Página 404 específica para procesos que no existen.
- *
- * Se dispara cuando se intenta acceder a /procesos/CODIGO_INEXISTENTE.
- * Mantiene la identidad visual del SGI en lugar del 404 genérico de Next.
- */
 export default function ProcesoNoEncontrado() {
   return (
     <div className="mx-auto max-w-2xl p-6 sm:p-8 lg:p-12 mt-12">

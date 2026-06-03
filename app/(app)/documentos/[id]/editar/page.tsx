@@ -8,15 +8,6 @@ type Props = {
   params: { id: string };
 };
 
-/**
- * Pantalla de edición de metadata de un documento.
- *
- * Reglas ISO aplicadas:
- *   - Los campos identitarios (código, tipo, proceso) NO se pueden editar
- *   - El motivo de la edición es obligatorio
- *   - La edición no genera nueva versión (para eso existe "Nueva versión")
- *   - Si el documento está en estado aprobado, se muestra una advertencia
- */
 export default async function EditarDocumentoPage({ params }: Props) {
   const [documento, { normas }] = await Promise.all([
     obtenerDocumentoParaEditar(params.id),
@@ -52,7 +43,6 @@ export default async function EditarDocumentoPage({ params }: Props) {
         </p>
       </header>
 
-      {/* Advertencia si está aprobado */}
       {documento.estado_actual === "aprobado" && (
         <div
           role="alert"

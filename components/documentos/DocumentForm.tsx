@@ -68,7 +68,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
   const [normasSeleccionadas, setNormasSeleccionadas] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Estado controlado de campos clave para auto-generar el código
   const [paisCodigo, setPaisCodigo] = useState(paises[0]?.codigo ?? "A");
   const [tipoId, setTipoId] = useState<string>("");
   const [procesoId, setProcesoId] = useState<string>("");
@@ -76,11 +75,9 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
   const [codigo, setCodigo] = useState<string>("");
   const [codigoEditadoManualmente, setCodigoEditadoManualmente] = useState(false);
 
-  // Posibles padres del proceso seleccionado (se carga vía fetch a un endpoint o desde el server)
   const [posiblesPadres, setPosiblesPadres] = useState<PosiblePadre[]>([]);
   const [cargandoPadres, setCargandoPadres] = useState(false);
 
-  // Tipo actualmente seleccionado (para saber si requiere padre)
   const tipoSeleccionado = tipos.find((t) => t.id === tipoId);
   const requierePadre = tipoSeleccionado?.puede_tener_padre === true;
 
@@ -88,7 +85,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
   const procesosOperativos = procesos.filter((p) => p.tipo === "operativo");
   const procesosApoyo = procesos.filter((p) => p.tipo === "apoyo");
 
-  // Cargar posibles padres cuando cambia el proceso o el tipo (si requiere padre)
   useEffect(() => {
     if (!requierePadre || !procesoId) {
       setPosiblesPadres([]);
@@ -116,7 +112,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
     };
   }, [procesoId, requierePadre]);
 
-  // Auto-generar código cuando cambian los inputs (si el usuario no lo editó manualmente)
   const regenerarCodigo = useCallback(async () => {
     if (codigoEditadoManualmente) return;
     if (!tipoId || !procesoId) return;
@@ -201,7 +196,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
 
   return (
     <form action={handleSubmit} className="space-y-10">
-      {/* Banner de error */}
       {estado && !estado.ok && (
         <div
           role="alert"
@@ -217,7 +211,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
         </div>
       )}
 
-      {/* Sección 1: Clasificación (PRIMERO, para auto-generar código) */}
       <Section
         titulo="Clasificación"
         descripcion="Definí qué tipo de documento es y a qué proceso pertenece. El código se genera automáticamente según la nomenclatura MSU."
@@ -242,7 +235,7 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
             value={tipoId}
             onChange={(e) => {
               setTipoId(e.target.value);
-              setPadreId(""); // resetear padre al cambiar tipo
+              setPadreId("");
               setCodigoEditadoManualmente(false);
             }}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -297,7 +290,7 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
             value={procesoId}
             onChange={(e) => {
               setProcesoId(e.target.value);
-              setPadreId(""); // resetear padre al cambiar proceso
+              setPadreId("");
               setCodigoEditadoManualmente(false);
             }}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -331,7 +324,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
           </select>
         </Field>
 
-        {/* Selector de documento padre (solo si el tipo lo requiere) */}
         {requierePadre && (
           <Field
             label="Documento padre"
@@ -374,7 +366,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
         )}
       </Section>
 
-      {/* Sección 2: Código del documento (con auto-generación) */}
       <Section
         titulo="Código del documento"
         descripcion="Se genera automáticamente según la nomenclatura MSU. Podés editarlo manualmente si necesitás un código específico."
@@ -421,7 +412,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
         </Field>
       </Section>
 
-      {/* Sección 3: Identificación */}
       <Section
         titulo="Identificación"
         descripcion="Título y descripción breve del documento."
@@ -453,7 +443,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
         </Field>
       </Section>
 
-      {/* Sección 4: Cobertura normativa */}
       <Section
         titulo="Cobertura normativa"
         descripcion="Qué normas cubre este documento. Podés seleccionar múltiples."
@@ -489,7 +478,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
         )}
       </Section>
 
-      {/* Sección 5: Archivo */}
       <Section
         titulo="Archivo principal"
         descripcion="Subí el documento en PDF, Word, Excel o PowerPoint. Máximo 50 MB. Opcional."
@@ -543,7 +531,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
         )}
       </Section>
 
-      {/* Sección 6: Motivo */}
       <Section
         titulo="Motivo de creación"
         descripcion="¿Por qué se está creando este documento? Opcional."
@@ -557,7 +544,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
         />
       </Section>
 
-      {/* Acciones */}
       <div className="flex items-center justify-between border-t border-border pt-6">
         <p className="text-xs text-muted-foreground">
           <Badge variant="muted" size="sm" className="mr-2">
@@ -579,8 +565,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
     </form>
   );
 }
-
-// ---------- Helpers visuales ----------
 
 function Section({
   titulo,

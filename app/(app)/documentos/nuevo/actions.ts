@@ -11,10 +11,6 @@ export type EstadoForm =
   | { ok: false; error: string; campo?: string }
   | null;
 
-/**
- * Server Action que genera un código sugerido llamando a fn_generar_codigo_documento.
- * Se llama desde el cliente cuando cambian tipo, proceso o padre.
- */
 export async function generarCodigoSugerido(params: {
   tipoId: string;
   procesoId: string;
@@ -32,16 +28,12 @@ export async function generarCodigoSugerido(params: {
   return { ok: true, codigo: data as string };
 }
 
-/**
- * Server Action que crea un documento nuevo en estado "borrador".
- */
 export async function crearDocumento(
   _estadoPrevio: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
   const supabase = createClient();
 
-  // ---- 0) Usuario actual ----
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -61,7 +53,6 @@ export async function crearDocumento(
     };
   }
 
-  // ---- 1) Validar inputs ----
   const rawNormas = formData.getAll("normas_ids");
   const padreRaw = formData.get("documento_padre_id");
   const parsed = crearDocumentoSchema.safeParse({
@@ -87,7 +78,6 @@ export async function crearDocumento(
 
   const input = parsed.data;
 
-  // ---- 2) Validar archivo si se subió ----
   const file = formData.get("archivo");
   let archivo: File | null = null;
   if (file instanceof File && file.size > 0) {
@@ -98,7 +88,6 @@ export async function crearDocumento(
     archivo = file;
   }
 
-  // ---- 3) Verificar código no duplicado ----
   const { data: codigoExiste } = await supabase
     .from("documentos")
     .select("id")
@@ -113,7 +102,6 @@ export async function crearDocumento(
     };
   }
 
-  // ---- 4) Defaults del tipo ----
   const { data: tipo } = await supabase
     .from("tipos_documentales")
     .select("criticidad_default, confidencialidad_default, frecuencia_revision_default, requiere_acuse_lectura, puede_tener_padre")
@@ -123,7 +111,6 @@ export async function crearDocumento(
     return { ok: false, error: "El tipo documental seleccionado no existe." };
   }
 
-  // Validar coherencia tipo vs. padre
   if (input.documento_padre_id && !tipo.puede_tener_padre) {
     return {
       ok: false,
@@ -132,7 +119,6 @@ export async function crearDocumento(
     };
   }
 
-  // ---- 5) INSERT documento ----
   const { data: documento, error: errDoc } = await supabase
     .from("documentos")
     .insert({
@@ -159,7 +145,6 @@ export async function crearDocumento(
     };
   }
 
-  // ---- 6) INSERT versión inicial ----
   const { data: version, error: errVer } = await supabase
     .from("versiones")
     .insert({
@@ -181,7 +166,6 @@ export async function crearDocumento(
     };
   }
 
-  // ---- 7) Upload de archivo (si hay) ----
   if (archivo) {
     const arrayBuffer = await archivo.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -231,7 +215,6 @@ export async function crearDocumento(
     }
   }
 
-  // ---- 8) Asociar normas (usando versión vigente) ----
   if (input.normas_ids.length > 0) {
     const { data: versionesVigentes } = await supabase
       .from("versiones_norma")
@@ -249,13 +232,11 @@ export async function crearDocumento(
     }
   }
 
-  // ---- 9) Registrar elaborador ----
   await supabase.from("documento_elaborador").insert({
     documento_id: documento.id,
     usuario_id: usuarioFila.id,
   });
 
-  // ---- 10) Revalidar y redirigir ----
   revalidatePath("/documentos");
   revalidatePath("/dashboard");
 

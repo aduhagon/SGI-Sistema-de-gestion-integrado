@@ -17,15 +17,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-/**
- * Mapeo entre los nombres de iconos almacenados en la columna procesos.icono
- * y los componentes de lucide-react.
- *
- * Centralizado en un solo lugar para evitar importar dinámicamente todo el
- * paquete de iconos (lo cual aumentaría el bundle innecesariamente).
- *
- * Si se agregan procesos con iconos nuevos, agregarlos acá.
- */
 const ICON_MAP: Record<string, LucideIcon> = {
   compass: Compass,
   "shield-check": ShieldCheck,
@@ -34,7 +25,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   sprout: Sprout,
   factory: Factory,
   truck: Truck,
-  "truck-fast": Truck, // alias visual aceptado
+  "truck-fast": Truck,
   handshake: Handshake,
   "flask-conical": FlaskConical,
   users: Users,
@@ -44,10 +35,6 @@ const ICON_MAP: Record<string, LucideIcon> = {
   calculator: Calculator,
 };
 
-/**
- * Devuelve el componente de icono correspondiente al nombre dado.
- * Si el nombre no se encuentra en el mapeo, devuelve un icono por defecto.
- */
 export function getProcessIcon(iconName: string | null | undefined): LucideIcon {
   if (!iconName) return Box;
   return ICON_MAP[iconName] ?? Box;

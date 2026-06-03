@@ -2,17 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { ProcessBand } from "@/components/procesos/ProcessBand";
 import type { ProcessSummary } from "@/components/procesos/ProcessCard";
 
-/**
- * Mapa de procesos del SGI.
- *
- * Server Component que consulta los procesos activos desde Supabase
- * y los organiza en tres bandas según el modelo ISO clásico:
- *   - Estratégicos (dirección, gobierno del SGI)
- *   - Operativos (cadena de valor agroindustrial)
- *   - De apoyo (soporte a la operación)
- *
- * Cada proceso es clickeable y navega a su pantalla de detalle.
- */
 export default async function ProcesosPage() {
   const supabase = createClient();
 
@@ -42,7 +31,6 @@ export default async function ProcesosPage() {
 
   return (
     <div className="mx-auto max-w-7xl p-6 sm:p-8 lg:p-10">
-      {/* Encabezado de la página */}
       <header className="mb-10">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
           Sistema de Gestión Integrado
@@ -57,7 +45,6 @@ export default async function ProcesosPage() {
         </p>
       </header>
 
-      {/* Las tres bandas */}
       <div className="space-y-10">
         <ProcessBand
           titulo="Procesos estratégicos"
@@ -85,7 +72,6 @@ export default async function ProcesosPage() {
         />
       </div>
 
-      {/* Nota al pie */}
       <footer className="mt-16 border-t border-border pt-6 text-xs text-muted-foreground">
         Los procesos aquí listados constituyen el modelo de referencia del SGI.
         Su configuración (responsables, indicadores, documentación asociada) se
@@ -95,10 +81,6 @@ export default async function ProcesosPage() {
   );
 }
 
-/**
- * Separador visual entre bandas: una línea fina con una flechita en el centro
- * que sugiere el flujo descendente del modelo ISO.
- */
 function BandSeparator() {
   return (
     <div

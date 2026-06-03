@@ -9,15 +9,6 @@ type Props = {
   params: { id: string };
 };
 
-/**
- * Pantalla de creación de nueva versión de un documento.
- *
- * Reglas MSU aplicadas:
- *   - Cada nueva versión incrementa el número principal (1.0 -> 2.0 -> 3.0)
- *   - El motivo del cambio es obligatorio
- *   - La nueva versión nace en estado borrador, no vigente
- *   - La versión anterior sigue siendo vigente hasta que la nueva sea aprobada
- */
 export default async function NuevaVersionPage({ params }: Props) {
   const supabase = createClient();
 
@@ -32,7 +23,6 @@ export default async function NuevaVersionPage({ params }: Props) {
     notFound();
   }
 
-  // Obtener la última versión y calcular la próxima
   const { data: ultima } = await supabase
     .from("versiones")
     .select("numero_version, numero_orden")

@@ -8,14 +8,6 @@ type Estado =
   | "rechazado"
   | "obsoleto";
 
-/**
- * Configuración visual por estado.
- *
- * Cambio importante respecto a la versión anterior:
- *   - "borrador" ahora usa un dot vacío (solo borde), no relleno, para diferenciarse
- *     claramente del "obsoleto" que es gris claro relleno.
- *   - Ambos usan grises pero la forma visual es distinta: contorno vs. relleno tenue.
- */
 const ESTADO_CONFIG: Record<
   Estado,
   { label: string; bg: string; ring: string; tooltip: string; isOutline?: boolean }

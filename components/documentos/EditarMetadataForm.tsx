@@ -97,7 +97,6 @@ export function EditarMetadataForm({ documento, normas }: Props) {
         </div>
       )}
 
-      {/* Campos inmutables (solo informativos) */}
       <Section
         titulo="Identidad del documento"
         descripcion="Estos campos no se pueden modificar para preservar la trazabilidad. Si necesitás cambiar el código o el tipo, cargá un documento nuevo."
@@ -115,7 +114,6 @@ export function EditarMetadataForm({ documento, normas }: Props) {
         </div>
       </Section>
 
-      {/* Datos editables: identificación */}
       <Section
         titulo="Identificación"
         descripcion="Título y descripción que se muestran en listados y búsquedas."
@@ -143,7 +141,6 @@ export function EditarMetadataForm({ documento, normas }: Props) {
         </Field>
       </Section>
 
-      {/* Clasificación */}
       <Section
         titulo="Clasificación y manejo"
         descripcion="Cómo se debe tratar este documento dentro del SGI."
@@ -227,7 +224,6 @@ export function EditarMetadataForm({ documento, normas }: Props) {
         </div>
       </Section>
 
-      {/* Cobertura normativa */}
       <Section
         titulo="Cobertura normativa"
         descripcion="Normas que cubre este documento. La primera seleccionada queda como principal."
@@ -256,7 +252,6 @@ export function EditarMetadataForm({ documento, normas }: Props) {
         </div>
       </Section>
 
-      {/* Motivo de la edición (obligatorio) */}
       <Section
         titulo="Motivo de la edición"
         descripcion="Indicá por qué hacés esta edición de metadata. Queda registrado para trazabilidad."
@@ -273,7 +268,6 @@ export function EditarMetadataForm({ documento, normas }: Props) {
         </Field>
       </Section>
 
-      {/* Acciones */}
       <div className="flex items-center justify-between border-t border-border pt-6">
         <p className="text-xs text-muted-foreground flex items-center gap-2">
           <Badge variant="muted" size="sm">
@@ -296,8 +290,6 @@ export function EditarMetadataForm({ documento, normas }: Props) {
     </form>
   );
 }
-
-// ---------- Auxiliares ----------
 
 function Section({
   titulo,

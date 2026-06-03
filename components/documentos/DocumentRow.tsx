@@ -7,29 +7,18 @@ type Props = {
   documento: DocumentSummary;
 };
 
-/**
- * Fila del listado de documentos estilo gmail/notion.
- *
- * Estructura:
- *   [estado] [código]    [título · descripción]              [tipo · proceso · normas]  [fecha]
- *
- * Click en la fila navega al detalle. Hover state sutil.
- */
 export function DocumentRow({ documento }: Props) {
   return (
     <Link
       href={`/documentos/${documento.id}`}
       className="group flex items-center gap-4 border-b border-border px-4 py-3.5 transition-colors hover:bg-muted/40"
     >
-      {/* Status indicator */}
       <StatusDot estado={documento.estado_actual} />
 
-      {/* Código (monoespaciado) */}
       <div className="font-mono text-xs text-muted-foreground tabular-nums w-32 shrink-0 truncate">
         {documento.codigo}
       </div>
 
-      {/* Título + descripción */}
       <div className="flex-1 min-w-0">
         <div className="font-medium text-sm text-foreground truncate">
           {documento.titulo}
@@ -41,7 +30,6 @@ export function DocumentRow({ documento }: Props) {
         )}
       </div>
 
-      {/* Metadata: tipo · proceso · normas */}
       <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground shrink-0 max-w-md">
         {documento.tipo && (
           <span
@@ -77,12 +65,10 @@ export function DocumentRow({ documento }: Props) {
         )}
       </div>
 
-      {/* Fecha relativa */}
       <div className="hidden lg:block text-xs text-muted-foreground w-24 text-right shrink-0 tabular-nums">
         {formatearFechaRelativa(documento.actualizado_en ?? documento.creado_en)}
       </div>
 
-      {/* Chevron de navegación */}
       <ChevronRight
         className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors shrink-0"
         aria-hidden="true"
@@ -91,9 +77,6 @@ export function DocumentRow({ documento }: Props) {
   );
 }
 
-/**
- * Formato de fecha relativa al estilo gmail: "hace 5 min", "hace 2h", "ayer", "12 mar"
- */
 function formatearFechaRelativa(fechaIso: string): string {
   const fecha = new Date(fechaIso);
   const ahora = new Date();
@@ -108,7 +91,6 @@ function formatearFechaRelativa(fechaIso: string): string {
   if (diffDias === 1) return "ayer";
   if (diffDias < 7) return `hace ${diffDias}d`;
 
-  // Para fechas más viejas, mostrar "12 mar" o "12 mar 2025" si es de otro año
   const esMismoAnio = fecha.getFullYear() === ahora.getFullYear();
   const opciones: Intl.DateTimeFormatOptions = esMismoAnio
     ? { day: "numeric", month: "short" }

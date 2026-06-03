@@ -1,11 +1,5 @@
 import { z } from "zod";
 
-/**
- * Schema de validación para la creación de un documento.
- *
- * Soporta tanto documentos padre (sin documento_padre_id) como hijos.
- * El código sigue la convención MSU: PAIS-TIPO-PROCESO-NUMERO[-HIJO].
- */
 export const crearDocumentoSchema = z.object({
   codigo: z
     .string()

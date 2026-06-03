@@ -8,12 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-/**
- * Formulario de login con email/password (Plan B mientras se gestiona SSO Entra ID).
- *
- * El usuario debe estar previamente creado en Supabase Auth.
- * Para invitar usuarios: dashboard.supabase.com > Authentication > Users > Invite user.
- */
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,8 +39,6 @@ export function LoginForm() {
       return;
     }
 
-    // El middleware se encarga de la redirección, pero forzamos refresh para
-    // que los Server Components reciban la nueva cookie de sesión.
     router.push(redirectTo);
     router.refresh();
   }

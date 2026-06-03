@@ -1,8 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
 
-/**
- * Documento resumido para listados y vistas tabulares.
- */
 export type DocumentSummary = {
   id: string;
   codigo: string;
@@ -225,14 +222,6 @@ export async function obtenerCodigoSugerido(params: {
   return (data as string) ?? null;
 }
 
-// =============================================================================
-// SEMANA 4: Funciones para edición de metadata y nueva versión
-// =============================================================================
-
-/**
- * Datos del documento para la pantalla de edición de metadata.
- * NO incluye campos inmutables (código, tipo, proceso, país, padre).
- */
 export type DocumentoParaEditar = {
   id: string;
   codigo: string;
@@ -249,9 +238,6 @@ export type DocumentoParaEditar = {
   normas_ids: string[];
 };
 
-/**
- * Obtiene un documento con sus normas asociadas, listo para mostrar en el form de edición.
- */
 export async function obtenerDocumentoParaEditar(id: string): Promise<DocumentoParaEditar | null> {
   const supabase = createClient();
 
@@ -321,9 +307,6 @@ export async function obtenerDocumentoParaEditar(id: string): Promise<DocumentoP
   };
 }
 
-/**
- * Una versión del documento con su archivo, para mostrar en el historial.
- */
 export type VersionHistorial = {
   id: string;
   numero_version: string;
@@ -340,9 +323,6 @@ export type VersionHistorial = {
   } | null;
 };
 
-/**
- * Obtiene el historial completo de versiones de un documento, ordenado de más nueva a más vieja.
- */
 export async function obtenerHistorialVersiones(documentoId: string): Promise<VersionHistorial[]> {
   const supabase = createClient();
 
@@ -402,10 +382,6 @@ export async function obtenerHistorialVersiones(documentoId: string): Promise<Ve
   });
 }
 
-/**
- * Obtiene el siguiente número de versión para un documento (ej: si la última es "1.0", devuelve "2.0").
- * Según la regla MSU: cada cambio incrementa el número principal.
- */
 export async function calcularProximoNumeroVersion(documentoId: string): Promise<{
   numeroVersion: string;
   numeroOrden: number;

@@ -10,9 +10,6 @@ type Props = {
   descripcion?: string;
 };
 
-/**
- * Empty state mostrado cuando no hay documentos para listar.
- */
 export function DocumentEmptyState({
   hrefAction = "/documentos/nuevo",
   labelAction = "Cargar primer documento",
