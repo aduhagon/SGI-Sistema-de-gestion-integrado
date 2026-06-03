@@ -14,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusDot } from "@/components/documentos/StatusDot";
 import { buttonVariants } from "@/components/ui/button";
+import { BotonEnviarAprobacion } from "@/components/aprobaciones/BotonEnviarAprobacion";
+import { obtenerUsuariosElegibles } from "@/lib/api/envio";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -55,6 +57,7 @@ type DocumentoDetalle = {
     estado: string;
     es_vigente: boolean;
     creado_en: string;
+    creado_por: string | null;
     archivos: Array<{
       id: string;
       tipo_archivo: string;
@@ -113,6 +116,7 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
         estado,
         es_vigente,
         creado_en,
+        creado_por,
         archivos (
           id,
           tipo_archivo,
@@ -154,6 +158,13 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
   const versionActual = versiones[0];
   const archivoPrincipal =
     versionActual?.archivos?.find((a) => a.tipo_archivo === "principal") ?? null;
+
+  // La versión se puede enviar a aprobación si está en borrador o confeccionado.
+  const enviable =
+    versionActual && ["borrador", "confeccionado"].includes(versionActual.estado);
+  const usuariosElegibles = enviable
+    ? await obtenerUsuariosElegibles(versionActual.creado_por)
+    : [];
 
   const normas = doc.documento_norma
     .map((dn) => ({
@@ -315,16 +326,38 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
             )}
           </section>
 
-          <Card className="border-dashed">
-            <CardHeader>
-              <CardTitle className="text-base">Próximas funcionalidades</CardTitle>
-              <CardDescription className="leading-relaxed">
-                Las acciones de envío a aprobación, registro de elaboradores adicionales,
-                acuses de lectura y descarga del archivo se incorporan en las semanas 6-7
-                de la Fase 1B.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          {enviable && usuariosElegibles.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Enviar a aprobación</CardTitle>
+                <CardDescription className="leading-relaxed">
+                  Esta versión está en estado{" "}
+                  {versionActual.estado === "borrador" ? "borrador" : "confeccionado"}.
+                  Enviála a aprobación designando los dos aprobadores. Una vez enviada,
+                  no se podrá editar hasta que se resuelva.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BotonEnviarAprobacion
+                  documentoId={doc.id}
+                  versionId={versionActual.id}
+                  numeroVersion={versionActual.numero_version}
+                  usuarios={usuariosElegibles}
+                />
+              </CardContent>
+            </Card>
+          ) : enviable ? (
+            <Card className="border-dashed">
+              <CardHeader>
+                <CardTitle className="text-base">Enviar a aprobación</CardTitle>
+                <CardDescription className="leading-relaxed">
+                  No hay otros usuarios disponibles para designar como aprobadores. Para
+                  enviar a aprobación se necesitan al menos dos usuarios distintos del
+                  elaborador.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ) : null}
         </div>
 
         <aside className="space-y-4">
