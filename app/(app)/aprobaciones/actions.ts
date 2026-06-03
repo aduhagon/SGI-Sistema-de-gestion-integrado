@@ -43,7 +43,8 @@ export async function decidirAprobacion(
       `id, version_id, aprobador_n1_id, aprobador_n2_id,
        decision_n1, decision_n2, cerrada_en,
        versiones:versiones!aprobaciones_version_id_fkey (
-         id, estado, hash_archivo_principal
+         id, estado,
+         archivos ( tipo_archivo, hash_sha256 )
        )`,
     )
     .eq("id", aprobacionId)
@@ -58,8 +59,15 @@ export async function decidirAprobacion(
   }
 
   const version = (aprob as any).versiones as
-    | { id: string; estado: string; hash_archivo_principal: string | null }
+    | {
+        id: string;
+        estado: string;
+        archivos: Array<{ tipo_archivo: string; hash_sha256: string | null }> | null;
+      }
     | null;
+
+  const hashPrincipal =
+    version?.archivos?.find((a) => a.tipo_archivo === "principal")?.hash_sha256 ?? null;
 
   // Validaciones de turno (la DB también las protege; esto da mejor mensaje).
   if (nivel === 1) {
@@ -137,7 +145,7 @@ export async function decidirAprobacion(
     timestamp_decision: ahora,
     ip_origen: ip,
     user_agent: userAgent,
-    hash_documento_firmado: version?.hash_archivo_principal ?? null,
+    hash_documento_firmado: hashPrincipal,
     metodo_autenticacion: "supabase_password",
   });
 

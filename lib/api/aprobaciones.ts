@@ -38,7 +38,7 @@ type FilaAprobacion = {
     numero_version: string;
     motivo_cambio: string | null;
     estado: string;
-    hash_archivo_principal: string | null;
+    archivos: Array<{ tipo_archivo: string; hash_sha256: string | null }> | null;
     creado_por: string | null;
     documentos: {
       id: string;
@@ -100,7 +100,7 @@ export async function obtenerBandejaAprobaciones(usuarioId: string): Promise<{
       numero_version,
       motivo_cambio,
       estado,
-      hash_archivo_principal,
+      archivos ( tipo_archivo, hash_sha256 ),
       creado_por,
       documentos:documentos!versiones_documento_id_fkey (
         id,
@@ -147,7 +147,8 @@ export async function obtenerBandejaAprobaciones(usuarioId: string): Promise<{
       tipo: d?.tipos_documentales ?? null,
       proceso: d?.procesos ?? null,
       elaborador: v?.creado_por ?? null,
-      hashArchivo: v?.hash_archivo_principal ?? null,
+      hashArchivo:
+        v?.archivos?.find((a) => a.tipo_archivo === "principal")?.hash_sha256 ?? null,
     };
 
     const soyN1 = fila.aprobador_n1_id === usuarioId;
