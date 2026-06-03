@@ -10,6 +10,7 @@ import {
   PenSquare,
   ClipboardCheck,
   AlertOctagon,
+  Grid3x3,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ const navItems: NavItem[] = [
   { href: "/aprobaciones",  label: "Aprobaciones",  icon: CheckSquare,     section: "principal" },
   { href: "/acuses",        label: "Acuses",        icon: PenSquare,       section: "principal" },
 
+  { href: "/cumplimiento",  label: "Cumplimiento",  icon: Grid3x3,         section: "calidad" },
   { href: "/auditorias",    label: "Auditorías",    icon: ClipboardCheck,  section: "calidad" },
   { href: "/ncs",           label: "No conformidades", icon: AlertOctagon, section: "calidad" },
 
