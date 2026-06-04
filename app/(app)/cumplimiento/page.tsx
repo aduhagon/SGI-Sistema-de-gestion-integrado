@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, FileWarning } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileWarning, Download } from "lucide-react";
 import {
   obtenerNormasConRequisitos,
   obtenerMatriz,
@@ -57,13 +57,33 @@ export default async function CumplimientoPage({ searchParams }: Props) {
         <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Cumplimiento multinorma
         </p>
-        <h1 className="mb-3 font-serif text-4xl font-semibold tracking-tight">
-          Matriz de cumplimiento
-        </h1>
-        <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
-          Qué documento cubre cada requisito de la norma. Los requisitos sin documento
-          asociado son huecos de cumplimiento que conviene resolver antes de una auditoría.
-        </p>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="mb-3 font-serif text-4xl font-semibold tracking-tight">
+              Matriz de cumplimiento
+            </h1>
+            <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
+              Qué documento cubre cada requisito de la norma. Los requisitos sin documento
+              asociado son huecos de cumplimiento que conviene resolver antes de una auditoría.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <a
+              href={`/api/cumplimiento/export?norma=${versionNormaId}`}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              Exportar esta norma
+            </a>
+            <a
+              href="/api/cumplimiento/export"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/50"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              Exportar todo
+            </a>
+          </div>
+        </div>
       </header>
 
       {/* Selector de norma */}
