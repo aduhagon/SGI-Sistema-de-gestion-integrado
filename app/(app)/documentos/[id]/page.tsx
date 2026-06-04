@@ -16,6 +16,9 @@ import { StatusDot } from "@/components/documentos/StatusDot";
 import { buttonVariants } from "@/components/ui/button";
 import { BotonEnviarAprobacion } from "@/components/aprobaciones/BotonEnviarAprobacion";
 import { obtenerUsuariosElegibles } from "@/lib/api/envio";
+import { GestionCoberturas } from "@/components/coberturas/GestionCoberturas";
+import { obtenerCoberturasDeDocumento, obtenerRequisitosDeNorma } from "@/lib/api/coberturas";
+import { obtenerNormasConRequisitos } from "@/lib/api/matriz";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -165,6 +168,21 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
   const usuariosElegibles = enviable
     ? await obtenerUsuariosElegibles(versionActual.creado_por)
     : [];
+
+  // Datos para la gestión de coberturas (matriz documento-requisito).
+  const [coberturasActuales, normasConReq] = await Promise.all([
+    obtenerCoberturasDeDocumento(doc.id),
+    obtenerNormasConRequisitos(),
+  ]);
+  const requisitosPorNorma: Record<
+    string,
+    Awaited<ReturnType<typeof obtenerRequisitosDeNorma>>
+  > = {};
+  for (const n of normasConReq) {
+    requisitosPorNorma[n.versionNormaId] = await obtenerRequisitosDeNorma(
+      n.versionNormaId,
+    );
+  }
 
   const normas = doc.documento_norma
     .map((dn) => ({
@@ -325,6 +343,13 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
               </Card>
             )}
           </section>
+
+          <GestionCoberturas
+            documentoId={doc.id}
+            coberturas={coberturasActuales}
+            normas={normasConReq}
+            requisitosPorNorma={requisitosPorNorma}
+          />
 
           {enviable && usuariosElegibles.length > 0 ? (
             <Card>
