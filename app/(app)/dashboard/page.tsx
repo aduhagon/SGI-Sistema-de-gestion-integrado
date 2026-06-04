@@ -8,6 +8,10 @@ import {
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { obtenerUsuarioActualId, contarAprobacionesPendientes } from "@/lib/api/aprobaciones";
+import { contarAcusesPendientes } from "@/lib/api/acuses";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const supabase = createClient();
@@ -19,6 +23,37 @@ export default async function DashboardPage() {
       supabase.from("tipos_documentales").select("id", { count: "exact", head: true }).eq("activo", true),
       supabase.auth.getUser(),
     ]);
+
+  // Datos de actividad pendiente del usuario actual.
+  const usuarioId = await obtenerUsuarioActualId();
+
+  let aprobacionesPend = 0;
+  let acusesPend = 0;
+  let misDocumentos = 0;
+  let ncsAsignadas = 0;
+
+  if (usuarioId) {
+    const [aprob, acuses, { count: docsCount }] = await Promise.all([
+      contarAprobacionesPendientes(usuarioId).catch(() => 0),
+      contarAcusesPendientes(usuarioId).catch(() => 0),
+      supabase
+        .from("documentos")
+        .select("id", { count: "exact", head: true })
+        .eq("dueno_usuario_id", usuarioId)
+        .is("eliminado_en", null),
+    ]);
+    aprobacionesPend = aprob;
+    acusesPend = acuses;
+    misDocumentos = docsCount ?? 0;
+
+    // NCs asignadas al usuario (la tabla existe; el módulo de gestión llega en Fase 3).
+    const { count: ncsCount } = await supabase
+      .from("no_conformidades")
+      .select("id", { count: "exact", head: true })
+      .eq("responsable_tratamiento_id", usuarioId)
+      .is("eliminado_en", null);
+    ncsAsignadas = ncsCount ?? 0;
+  }
 
   const greeting = getGreeting();
   const userName = user.user?.email?.split("@")[0] ?? "Usuario";
@@ -54,28 +89,28 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <PendingWidget
             label="Aprobaciones N1/N2"
-            value={0}
+            value={aprobacionesPend}
             icon={CheckSquare}
             href="/aprobaciones"
             accentClass="text-primary"
           />
           <PendingWidget
             label="Acuses pendientes"
-            value={0}
+            value={acusesPend}
             icon={PenSquare}
             href="/acuses"
             accentClass="text-accent"
           />
           <PendingWidget
             label="Mis documentos"
-            value={0}
+            value={misDocumentos}
             icon={FileText}
             href="/documentos"
             accentClass="text-foreground"
           />
           <PendingWidget
             label="NCs asignadas"
-            value={0}
+            value={ncsAsignadas}
             icon={AlertOctagon}
             href="/ncs"
             accentClass="text-destructive"
@@ -113,14 +148,13 @@ export default async function DashboardPage() {
       <Card className="bg-primary/[0.03] border-primary/20">
         <CardHeader>
           <CardTitle className="text-base">
-            Sistema en construcción · Fase 1B
+            Módulo documental y de cumplimiento operativos
           </CardTitle>
           <CardDescription className="leading-relaxed">
-            Estás viendo la primera versión del frontend del SGI. Las pantallas
-            de documentos, procesos, aprobaciones y auditorías se van a
-            habilitar en las próximas semanas. La base de datos ya está
-            completamente operativa con sus 39 tablas, 117 policies de
-            seguridad y 64 triggers automáticos.
+            Ya están disponibles la gestión documental completa (alta, versionado,
+            envío a aprobación), las bandejas de aprobación y acuses con firma
+            electrónica, y la matriz de cumplimiento multinorma. Los módulos de
+            auditorías y no conformidades se incorporan en la próxima fase.
           </CardDescription>
         </CardHeader>
       </Card>
