@@ -3,7 +3,12 @@ import { notFound } from "next/navigation";
 import { ChevronLeft, CheckCircle2, Calendar, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SeccionHallazgos } from "@/components/auditorias/SeccionHallazgos";
+import {
+  obtenerHallazgosDeAuditoria,
+  obtenerRequisitosDeAuditoria,
+  obtenerProcesosDeAuditoria,
+} from "@/lib/api/hallazgos";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +55,13 @@ export default async function AuditoriaDetallePage({ params, searchParams }: Pro
 
   const normas = alcance.filter((a) => a.version_norma);
   const procesos = alcance.filter((a) => a.proceso);
+
+  // Datos del módulo de hallazgos.
+  const [hallazgos, requisitosVinc, procesosVinc] = await Promise.all([
+    obtenerHallazgosDeAuditoria(params.id),
+    obtenerRequisitosDeAuditoria(params.id),
+    obtenerProcesosDeAuditoria(params.id),
+  ]);
 
   return (
     <div className="mx-auto max-w-4xl p-6 sm:p-8 lg:p-10">
@@ -141,16 +153,12 @@ export default async function AuditoriaDetallePage({ params, searchParams }: Pro
         </div>
       </section>
 
-      <Card className="border-dashed">
-        <CardHeader>
-          <CardTitle className="text-base">Hallazgos y equipo auditor</CardTitle>
-          <CardDescription className="leading-relaxed">
-            El registro de hallazgos (no conformidades, observaciones, oportunidades de
-            mejora) y la asignación del equipo auditor se incorporan en la próxima
-            iteración del módulo de auditorías.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <SeccionHallazgos
+        auditoriaId={params.id}
+        hallazgos={hallazgos}
+        requisitos={requisitosVinc}
+        procesos={procesosVinc}
+      />
     </div>
   );
 }
