@@ -2,8 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, CheckCircle2, Calendar, Network, AlertTriangle, Microscope } from "lucide-react";
 import { obtenerNCDetalle } from "@/lib/api/ncs";
+import { obtenerAccionesDeNC, obtenerVerificacionesDeNC } from "@/lib/api/acciones";
+import { obtenerUsuariosElegibles } from "@/lib/api/envio";
 import { Badge } from "@/components/ui/badge";
 import { AnalisisCausaForm } from "@/components/ncs/AnalisisCausaForm";
+import { GestionAcciones } from "@/components/ncs/GestionAcciones";
+import { VerificacionEficaciaSection } from "@/components/ncs/VerificacionEficacia";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +34,12 @@ const METODO: Record<string, string> = {
 export default async function NCDetallePage({ params, searchParams }: Props) {
   const nc = await obtenerNCDetalle(params.id);
   if (!nc) notFound();
+
+  const [acciones, verificaciones, usuarios] = await Promise.all([
+    obtenerAccionesDeNC(params.id),
+    obtenerVerificacionesDeNC(params.id),
+    obtenerUsuariosElegibles(null),
+  ]);
 
   const meta = ESTADO_META[nc.estado] ?? ESTADO_META.abierta;
 
@@ -93,11 +103,15 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
         <AnalisisCausaForm ncId={nc.id} metodoActual={nc.metodoAnalisis} analisisActual={nc.analisisCausaRaiz} />
       </section>
 
-      <div className="rounded-lg border border-dashed border-border p-5 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">Próximos pasos: </span>
-        las acciones correctivas/preventivas y la verificación de eficacia se incorporan
-        en la próxima iteración del módulo.
+      <div className="mb-10">
+        <GestionAcciones ncId={nc.id} acciones={acciones} usuarios={usuarios} />
       </div>
+
+      <VerificacionEficaciaSection
+        ncId={nc.id}
+        verificaciones={verificaciones}
+        acciones={acciones}
+      />
     </div>
   );
 }
