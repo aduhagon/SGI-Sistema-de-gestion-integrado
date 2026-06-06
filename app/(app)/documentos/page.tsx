@@ -1,13 +1,50 @@
 import Link from "next/link";
 import { Plus, FileText } from "lucide-react";
-import { listarDocumentos } from "@/lib/api/documentos";
+import { listarDocumentos, obtenerDatosForm } from "@/lib/api/documentos";
 import { DocumentRow } from "@/components/documentos/DocumentRow";
 import { DocumentEmptyState } from "@/components/documentos/DocumentEmptyState";
+import { DocumentFilters } from "@/components/documentos/DocumentFilters";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export default async function DocumentosPage() {
-  const documentos = await listarDocumentos();
+export const dynamic = "force-dynamic";
+
+type Props = {
+  searchParams: {
+    q?: string;
+    estado?: string;
+    proceso?: string;
+    tipo?: string;
+  };
+};
+
+export default async function DocumentosPage({ searchParams }: Props) {
+  const [documentos, datosForm] = await Promise.all([
+    listarDocumentos({
+      texto: searchParams.q,
+      estado: searchParams.estado,
+      procesoId: searchParams.proceso,
+      tipoId: searchParams.tipo,
+    }),
+    obtenerDatosForm(),
+  ]);
+
+  const procesosOpc = datosForm.procesos.map((p: any) => ({
+    id: p.id,
+    codigo: p.codigo,
+    nombre: p.nombre,
+  }));
+  const tiposOpc = datosForm.tipos.map((t: any) => ({
+    id: t.id,
+    codigo: t.codigo,
+    nombre: t.nombre,
+  }));
+
+  const hayFiltros =
+    !!searchParams.q ||
+    !!searchParams.estado ||
+    !!searchParams.proceso ||
+    !!searchParams.tipo;
 
   return (
     <div className="mx-auto max-w-7xl p-6 sm:p-8 lg:p-10">
@@ -22,27 +59,39 @@ export default async function DocumentosPage() {
           <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
             {documentos.length > 0
               ? `${documentos.length} ${
-                  documentos.length === 1 ? "documento cargado" : "documentos cargados"
-                } en el sistema.`
-              : "Repositorio único del SGI. Cada documento es trazable, versionado y auditable."}
+                  documentos.length === 1 ? "documento" : "documentos"
+                }${hayFiltros ? " (filtrados)" : " en el sistema"}.`
+              : hayFiltros
+                ? "Ningún documento coincide con los filtros."
+                : "Repositorio único del SGI. Cada documento es trazable, versionado y auditable."}
           </p>
         </div>
 
-        {documentos.length > 0 && (
-          <Link
-            href="/documentos/nuevo"
-            className={cn(buttonVariants({ variant: "default" }), "shrink-0")}
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Cargar documento
-          </Link>
-        )}
+        <Link
+          href="/documentos/nuevo"
+          className={cn(buttonVariants({ variant: "default" }), "shrink-0")}
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Cargar documento
+        </Link>
       </header>
 
+      <DocumentFilters procesos={procesosOpc} tipos={tiposOpc} />
+
       {documentos.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-card">
-          <DocumentEmptyState />
-        </div>
+        hayFiltros ? (
+          <div className="rounded-lg border border-dashed border-border bg-card py-16 text-center">
+            <FileText className="mx-auto mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
+            <p className="font-medium">Sin resultados</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Probá ajustar o limpiar los filtros.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-border bg-card">
+            <DocumentEmptyState />
+          </div>
+        )
       ) : (
         <div className="rounded-lg border border-border bg-card overflow-hidden">
           <div className="flex items-center gap-4 px-4 py-2.5 bg-muted/30 border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground font-medium">

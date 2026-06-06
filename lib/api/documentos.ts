@@ -80,13 +80,39 @@ const SELECT_DOCUMENTO = `
   )
 `;
 
-export async function listarDocumentos(): Promise<DocumentSummary[]> {
+export type FiltrosDocumentos = {
+  texto?: string;
+  estado?: string;
+  procesoId?: string;
+  tipoId?: string;
+};
+
+export async function listarDocumentos(
+  filtros: FiltrosDocumentos = {},
+): Promise<DocumentSummary[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("documentos")
     .select(SELECT_DOCUMENTO)
-    .is("eliminado_en", null)
+    .is("eliminado_en", null);
+
+  if (filtros.estado) {
+    query = query.eq("estado_actual", filtros.estado);
+  }
+  if (filtros.procesoId) {
+    query = query.eq("proceso_principal_id", filtros.procesoId);
+  }
+  if (filtros.tipoId) {
+    query = query.eq("tipo_documental_id", filtros.tipoId);
+  }
+  if (filtros.texto && filtros.texto.trim() !== "") {
+    const t = filtros.texto.trim();
+    // Busca el texto en el código o en el título.
+    query = query.or(`codigo.ilike.%${t}%,titulo.ilike.%${t}%`);
+  }
+
+  const { data, error } = await query
     .order("creado_en", { ascending: false })
     .limit(200);
 
