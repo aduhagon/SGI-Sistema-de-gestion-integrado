@@ -8,10 +8,14 @@ export const runtime = "nodejs";
 // La RLS de la tabla archivos garantiza que solo se resuelvan archivos visibles
 // para el usuario autenticado.
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { id: string } },
 ) {
   const supabase = createClient();
+
+  // modo: "ver" abre inline en el navegador; por defecto fuerza descarga.
+  const modo = req.nextUrl.searchParams.get("modo");
+  const esVer = modo === "ver";
 
   const {
     data: { user },
@@ -23,7 +27,7 @@ export async function GET(
   // Traer el archivo (RLS limita a los visibles para el usuario).
   const { data: archivo, error } = await supabase
     .from("archivos")
-    .select("nombre_original, storage_bucket, storage_path, activo, eliminado_en")
+    .select("nombre_original, mime_type, storage_bucket, storage_path, activo, eliminado_en")
     .eq("id", params.id)
     .maybeSingle();
 
@@ -41,17 +45,20 @@ export async function GET(
     );
   }
 
-  // URL firmada con expiración corta (300 s = 5 minutos), forzando descarga
-  // con el nombre original del archivo.
+  // URL firmada con expiración corta (300 s = 5 minutos).
+  // En modo descarga forzamos el nombre original; en modo ver dejamos que el
+  // navegador renderice el contenido inline (sirve para PDF e imágenes).
+  const opciones = esVer
+    ? undefined
+    : { download: archivo.nombre_original as string };
+
   const { data: signed, error: errSigned } = await supabase.storage
     .from(archivo.storage_bucket as string)
-    .createSignedUrl(archivo.storage_path as string, 300, {
-      download: archivo.nombre_original as string,
-    });
+    .createSignedUrl(archivo.storage_path as string, 300, opciones);
 
   if (errSigned || !signed?.signedUrl) {
     return NextResponse.json(
-      { error: `No se pudo generar el enlace de descarga: ${errSigned?.message ?? "desconocido"}` },
+      { error: `No se pudo generar el enlace: ${errSigned?.message ?? "desconocido"}` },
       { status: 500 },
     );
   }

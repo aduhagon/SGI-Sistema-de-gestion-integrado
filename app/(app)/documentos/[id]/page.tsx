@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   FileText,
   Download,
+  Eye,
   Hash,
   Calendar,
   User,
@@ -162,6 +163,15 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
   const archivoPrincipal =
     versionActual?.archivos?.find((a) => a.tipo_archivo === "principal") ?? null;
 
+  // PDF e imágenes se pueden ver embebidos en el navegador; Office no.
+  const visualizable =
+    archivoPrincipal != null &&
+    (archivoPrincipal.mime_type === "application/pdf" ||
+      archivoPrincipal.mime_type.startsWith("image/") ||
+      ["pdf", "png", "jpg", "jpeg", "gif", "webp", "svg"].includes(
+        (archivoPrincipal.extension ?? "").toLowerCase(),
+      ));
+
   // La versión se puede enviar a aprobación si está en borrador o confeccionado.
   const enviable =
     versionActual && ["borrador", "confeccionado"].includes(versionActual.estado);
@@ -280,14 +290,28 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
                         </span>
                       </div>
                     </div>
-                    <a
-                      href={`/api/archivos/${archivoPrincipal.id}/descargar`}
-                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-                      title={`Descargar ${archivoPrincipal.nombre_original}`}
-                    >
-                      <Download className="h-3.5 w-3.5" aria-hidden="true" />
-                      Descargar
-                    </a>
+                    <div className="flex shrink-0 gap-2">
+                      {visualizable && (
+                        <a
+                          href={`/api/archivos/${archivoPrincipal.id}/descargar?modo=ver`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                          title={`Ver ${archivoPrincipal.nombre_original}`}
+                        >
+                          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                          Ver
+                        </a>
+                      )}
+                      <a
+                        href={`/api/archivos/${archivoPrincipal.id}/descargar`}
+                        className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                        title={`Descargar ${archivoPrincipal.nombre_original}`}
+                      >
+                        <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                        Descargar
+                      </a>
+                    </div>
                   </div>
                   <div className="mt-3 pt-3 border-t border-border text-[11px] text-muted-foreground">
                     Hash SHA256 completo:{" "}
