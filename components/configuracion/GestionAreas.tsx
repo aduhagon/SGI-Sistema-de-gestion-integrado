@@ -94,7 +94,21 @@ export function GestionAreas({ areas }: { areas: Area[] }) {
                 {editando && <input type="hidden" name="id" value={editando.id} />}
                 <div className="space-y-2">
                   <label htmlFor="codigo" className="text-sm font-medium">Código</label>
-                  <input id="codigo" name="codigo" required defaultValue={editando?.codigo ?? ""} placeholder="Ej: RRHH, CAL, PROD" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                  <input
+                    id="codigo"
+                    name="codigo"
+                    required
+                    defaultValue={editando?.codigo ?? ""}
+                    placeholder="Ej: RRHH, CAL, PROD"
+                    onInput={(e) => {
+                      const el = e.currentTarget;
+                      el.value = el.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+                    }}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Mayúsculas, números, guion (-) y guion bajo (_). Sin espacios ni puntos. Entre 2 y 20 caracteres.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="nombre" className="text-sm font-medium">Nombre</label>

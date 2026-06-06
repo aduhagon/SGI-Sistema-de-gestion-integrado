@@ -99,13 +99,27 @@ export function GestionSedes({ sedes }: { sedes: Sede[] }) {
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2">
                     <label htmlFor="codigo" className="text-sm font-medium">Código</label>
-                    <input id="codigo" name="codigo" required defaultValue={editando?.codigo ?? ""} placeholder="SEDE-01" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                    <input
+                      id="codigo"
+                      name="codigo"
+                      required
+                      defaultValue={editando?.codigo ?? ""}
+                      placeholder="SEDE-01"
+                      onInput={(e) => {
+                        const el = e.currentTarget;
+                        el.value = el.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+                      }}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
                   </div>
                   <div className="col-span-2 space-y-2">
                     <label htmlFor="nombre" className="text-sm font-medium">Nombre</label>
                     <input id="nombre" name="nombre" required defaultValue={editando?.nombre ?? ""} placeholder="Planta Central" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
                   </div>
                 </div>
+                <p className="-mt-1 text-xs text-muted-foreground">
+                  Código: mayúsculas, números, guion y guion bajo. Sin espacios ni puntos.
+                </p>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2">
                     <label htmlFor="localidad" className="text-sm font-medium">Localidad</label>
