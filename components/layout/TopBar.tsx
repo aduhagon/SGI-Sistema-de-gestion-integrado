@@ -13,7 +13,9 @@ type Props = {
 export function TopBar({ userEmail }: Props) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -25,6 +27,18 @@ export function TopBar({ userEmail }: Props) {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // Atajo ⌘K / Ctrl+K para enfocar el buscador.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   async function handleSignOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -32,22 +46,36 @@ export function TopBar({ userEmail }: Props) {
     router.refresh();
   }
 
+  function handleBuscar(e: React.FormEvent) {
+    e.preventDefault();
+    const q = busqueda.trim();
+    if (q.length >= 2) {
+      router.push(`/buscar?q=${encodeURIComponent(q)}`);
+    }
+  }
+
   const initials = userEmail.slice(0, 2).toUpperCase();
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-background px-4 sm:px-6">
       <div className="flex-1 max-w-xl">
-        <button
-          type="button"
-          className="group flex w-full items-center gap-2.5 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground hover:border-foreground/20 hover:bg-muted transition-colors"
-          aria-label="Buscar en el SGI"
-        >
-          <Search className="h-4 w-4" />
-          <span>Buscar documentos, requisitos, procesos…</span>
-          <kbd className="ml-auto rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
-            ⌘K
-          </kbd>
-        </button>
+        <form onSubmit={handleBuscar}>
+          <div className="group flex w-full items-center gap-2.5 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm focus-within:border-foreground/30 focus-within:bg-background transition-colors">
+            <Search className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar documentos, requisitos, procesos…"
+              aria-label="Buscar en el SGI"
+              className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground outline-none"
+            />
+            <kbd className="ml-auto rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+              ⌘K
+            </kbd>
+          </div>
+        </form>
       </div>
 
       <div className="flex items-center gap-2 ml-4">
