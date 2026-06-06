@@ -23,6 +23,7 @@ export async function guardarArea(
     codigo: formData.get("codigo"),
     nombre: formData.get("nombre"),
     descripcion: formData.get("descripcion") || undefined,
+    gerenciaId: formData.get("gerenciaId") || undefined,
   });
   if (!parsed.success) {
     const p = parsed.error.issues[0];
@@ -31,6 +32,7 @@ export async function guardarArea(
 
   const input = parsed.data;
   const esEdicion = input.id && input.id !== "";
+  const gerenciaId = input.gerenciaId && input.gerenciaId !== "" ? input.gerenciaId : null;
 
   if (esEdicion) {
     const { error } = await supabase
@@ -39,6 +41,7 @@ export async function guardarArea(
         codigo: input.codigo,
         nombre: input.nombre,
         descripcion: input.descripcion ?? null,
+        area_padre_id: gerenciaId,
         actualizado_en: new Date().toISOString(),
         actualizado_por: usuarioId,
       })
@@ -49,6 +52,7 @@ export async function guardarArea(
       codigo: input.codigo,
       nombre: input.nombre,
       descripcion: input.descripcion ?? null,
+      area_padre_id: gerenciaId,
       creado_por: usuarioId,
     });
     if (error) return { ok: false, error: traducir(error.message) };

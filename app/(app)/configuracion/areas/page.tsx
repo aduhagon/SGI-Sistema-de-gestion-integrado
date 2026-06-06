@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { listarAreas } from "@/lib/api/configuracion";
+import { listarAreas, listarGerencias } from "@/lib/api/configuracion";
 import { GestionAreas } from "@/components/configuracion/GestionAreas";
 
 export const dynamic = "force-dynamic";
 
 export default async function AreasPage() {
-  const areas = await listarAreas();
+  const [areas, gerencias] = await Promise.all([listarAreas(), listarGerencias()]);
   return (
     <div className="mx-auto max-w-4xl p-6 sm:p-8 lg:p-10">
       <nav aria-label="Breadcrumb" className="mb-8">
@@ -21,7 +21,7 @@ export default async function AreasPage() {
           Unidades organizativas de la empresa. Se usan para indicar qué áreas afecta cada documento.
         </p>
       </header>
-      <GestionAreas areas={areas} />
+      <GestionAreas areas={areas} gerencias={gerencias} />
     </div>
   );
 }

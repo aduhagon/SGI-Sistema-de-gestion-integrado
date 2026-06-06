@@ -17,7 +17,9 @@ function SubmitButton({ edicion }: { edicion: boolean }) {
   );
 }
 
-export function GestionAreas({ areas }: { areas: Area[] }) {
+type Gerencia = { id: string; codigo: string; nombre: string };
+
+export function GestionAreas({ areas, gerencias }: { areas: Area[]; gerencias: Gerencia[] }) {
   const router = useRouter();
   const [editando, setEditando] = useState<Area | null>(null);
   const [abierto, setAbierto] = useState(false);
@@ -51,7 +53,7 @@ export function GestionAreas({ areas }: { areas: Area[] }) {
               <tr className="border-b border-border bg-muted/40 text-left">
                 <th className="px-4 py-2.5 font-medium text-muted-foreground">Código</th>
                 <th className="px-4 py-2.5 font-medium text-muted-foreground">Nombre</th>
-                <th className="px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">Descripción</th>
+                <th className="px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">Gerencia</th>
                 <th className="px-4 py-2.5 w-20"></th>
               </tr>
             </thead>
@@ -60,7 +62,9 @@ export function GestionAreas({ areas }: { areas: Area[] }) {
                 <tr key={a.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-2.5 font-mono text-xs">{a.codigo}</td>
                   <td className="px-4 py-2.5 font-medium">{a.nombre}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground hidden sm:table-cell">{a.descripcion ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground hidden sm:table-cell">
+                    {a.gerenciaNombre ?? <span className="text-muted-foreground/50">Sin asignar</span>}
+                  </td>
                   <td className="px-4 py-2.5">
                     <div className="flex justify-end gap-1">
                       <button onClick={() => abrirEdicion(a)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Editar" aria-label="Editar">
@@ -117,6 +121,24 @@ export function GestionAreas({ areas }: { areas: Area[] }) {
                 <div className="space-y-2">
                   <label htmlFor="descripcion" className="text-sm font-medium">Descripción <span className="text-muted-foreground">(opcional)</span></label>
                   <textarea id="descripcion" name="descripcion" rows={2} defaultValue={editando?.descripcion ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="gerenciaId" className="text-sm font-medium">
+                    Gerencia <span className="text-muted-foreground">(opcional)</span>
+                  </label>
+                  <select
+                    id="gerenciaId"
+                    name="gerenciaId"
+                    defaultValue={editando?.gerenciaId ?? ""}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="">Sin gerencia asignada</option>
+                    {gerencias
+                      .filter((g) => g.id !== editando?.id)
+                      .map((g) => (
+                        <option key={g.id} value={g.id}>{g.nombre}</option>
+                      ))}
+                  </select>
                 </div>
                 {estado && !estado.ok && (
                   <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>

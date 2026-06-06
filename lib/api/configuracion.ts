@@ -42,18 +42,45 @@ export type Area = {
   codigo: string;
   nombre: string;
   descripcion: string | null;
+  gerenciaId: string | null;
+  gerenciaNombre: string | null;
 };
 
 export async function listarAreas(): Promise<Area[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("areas")
-    .select("id, codigo, nombre, descripcion")
+    .select(
+      `id, codigo, nombre, descripcion, area_padre_id,
+       gerencia:areas!areas_area_padre_id_fkey (nombre)`,
+    )
     .eq("activo", true)
     .is("eliminado_en", null)
     .order("codigo", { ascending: true });
   if (error) return [];
-  return (data ?? []) as Area[];
+  return ((data ?? []) as any[]).map((a) => ({
+    id: a.id,
+    codigo: a.codigo,
+    nombre: a.nombre,
+    descripcion: a.descripcion,
+    gerenciaId: a.area_padre_id,
+    gerenciaNombre: a.gerencia?.nombre ?? null,
+  }));
+}
+
+export async function listarGerencias(): Promise<
+  Array<{ id: string; codigo: string; nombre: string }>
+> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("areas")
+    .select("id, codigo, nombre")
+    .eq("activo", true)
+    .is("eliminado_en", null)
+    .like("codigo", "GER-%")
+    .order("nombre", { ascending: true });
+  if (error) return [];
+  return (data ?? []) as Array<{ id: string; codigo: string; nombre: string }>;
 }
 
 // ---- Sedes ----

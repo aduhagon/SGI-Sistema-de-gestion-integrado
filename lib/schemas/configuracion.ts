@@ -14,6 +14,7 @@ export const areaSchema = z.object({
     .regex(CODIGO_REGEX, mensajeCodigo),
   nombre: z.string().trim().min(2, "El nombre es obligatorio.").max(200),
   descripcion: z.string().trim().max(2000).optional(),
+  gerenciaId: z.string().uuid().optional().or(z.literal("")),
 });
 
 export type AreaInput = z.infer<typeof areaSchema>;
