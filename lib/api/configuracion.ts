@@ -50,21 +50,25 @@ export async function listarAreas(): Promise<Area[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("areas")
-    .select(
-      `id, codigo, nombre, descripcion, area_padre_id,
-       gerencia:areas!areas_area_padre_id_fkey (nombre)`,
-    )
+    .select("id, codigo, nombre, descripcion, area_padre_id")
     .eq("activo", true)
     .is("eliminado_en", null)
     .order("codigo", { ascending: true });
   if (error) return [];
-  return ((data ?? []) as any[]).map((a) => ({
+
+  const filas = (data ?? []) as any[];
+  // Mapa id -> nombre para resolver la gerencia (área padre) en memoria,
+  // evitando el join autorreferente de PostgREST que es frágil.
+  const nombrePorId = new Map<string, string>();
+  for (const a of filas) nombrePorId.set(a.id, a.nombre);
+
+  return filas.map((a) => ({
     id: a.id,
     codigo: a.codigo,
     nombre: a.nombre,
     descripcion: a.descripcion,
     gerenciaId: a.area_padre_id,
-    gerenciaNombre: a.gerencia?.nombre ?? null,
+    gerenciaNombre: a.area_padre_id ? nombrePorId.get(a.area_padre_id) ?? null : null,
   }));
 }
 
