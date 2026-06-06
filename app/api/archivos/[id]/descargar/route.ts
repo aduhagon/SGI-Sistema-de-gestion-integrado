@@ -1,0 +1,60 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+// Genera una URL firmada de corta duración para descargar el archivo y redirige a ella.
+// La RLS de la tabla archivos garantiza que solo se resuelvan archivos visibles
+// para el usuario autenticado.
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "No autenticado." }, { status: 401 });
+  }
+
+  // Traer el archivo (RLS limita a los visibles para el usuario).
+  const { data: archivo, error } = await supabase
+    .from("archivos")
+    .select("nombre_original, storage_bucket, storage_path, activo, eliminado_en")
+    .eq("id", params.id)
+    .maybeSingle();
+
+  if (error || !archivo) {
+    return NextResponse.json(
+      { error: "Archivo no encontrado o sin permisos." },
+      { status: 404 },
+    );
+  }
+
+  if (!archivo.activo || archivo.eliminado_en) {
+    return NextResponse.json(
+      { error: "El archivo no está disponible." },
+      { status: 410 },
+    );
+  }
+
+  // URL firmada con expiración corta (300 s = 5 minutos), forzando descarga
+  // con el nombre original del archivo.
+  const { data: signed, error: errSigned } = await supabase.storage
+    .from(archivo.storage_bucket as string)
+    .createSignedUrl(archivo.storage_path as string, 300, {
+      download: archivo.nombre_original as string,
+    });
+
+  if (errSigned || !signed?.signedUrl) {
+    return NextResponse.json(
+      { error: `No se pudo generar el enlace de descarga: ${errSigned?.message ?? "desconocido"}` },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.redirect(signed.signedUrl);
+}

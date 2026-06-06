@@ -280,18 +280,14 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
                         </span>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      className={cn(
-                        buttonVariants({ variant: "outline", size: "sm" }),
-                        "cursor-not-allowed opacity-60",
-                      )}
-                      disabled
-                      title="La descarga estará disponible próximamente"
+                    <a
+                      href={`/api/archivos/${archivoPrincipal.id}/descargar`}
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+                      title={`Descargar ${archivoPrincipal.nombre_original}`}
                     >
                       <Download className="h-3.5 w-3.5" aria-hidden="true" />
                       Descargar
-                    </button>
+                    </a>
                   </div>
                   <div className="mt-3 pt-3 border-t border-border text-[11px] text-muted-foreground">
                     Hash SHA256 completo:{" "}
