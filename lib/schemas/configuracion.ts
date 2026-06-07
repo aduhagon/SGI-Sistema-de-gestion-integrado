@@ -37,3 +37,15 @@ export const sedeSchema = z.object({
 });
 
 export type SedeInput = z.infer<typeof sedeSchema>;
+
+export const participacionSchema = z.object({
+  procesoId: z.string().uuid("Proceso inválido."),
+  usuarioId: z.string().uuid("Elegí un usuario."),
+  rol: z.enum(
+    ["responsable_proceso", "elaborador", "aprobador_n1", "aprobador_n2", "lector"],
+    { errorMap: () => ({ message: "Elegí un rol." }) },
+  ),
+  motivoAsignacion: z.string().trim().max(500).optional(),
+});
+
+export type ParticipacionInput = z.infer<typeof participacionSchema>;

@@ -9,6 +9,11 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getProcessIcon } from "@/components/procesos/icons";
 import { DocumentRow } from "@/components/documentos/DocumentRow";
+import { PerfilesProceso } from "@/components/procesos/PerfilesProceso";
+import {
+  obtenerParticipacionesDeProceso,
+  obtenerUsuariosParaAsignar,
+} from "@/lib/api/participaciones";
 
 const TIPO_LABEL: Record<string, string> = {
   estrategico: "Proceso estratégico",
@@ -52,6 +57,11 @@ export default async function ProcesoDetallePage({ params }: Props) {
   if (!proceso) {
     notFound();
   }
+
+  const [participaciones, usuariosAsignables] = await Promise.all([
+    obtenerParticipacionesDeProceso(proceso.id),
+    obtenerUsuariosParaAsignar(),
+  ]);
 
   const Icon = getProcessIcon(proceso.icono);
   const color = proceso.color_hex ?? "#475569";
@@ -136,6 +146,12 @@ export default async function ProcesoDetallePage({ params }: Props) {
           )}
         </section>
       )}
+
+      <PerfilesProceso
+        procesoId={proceso.id}
+        participaciones={participaciones}
+        usuarios={usuariosAsignables}
+      />
 
       <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
