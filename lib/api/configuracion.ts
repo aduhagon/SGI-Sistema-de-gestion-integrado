@@ -7,6 +7,7 @@ export type ConteosConfig = {
   normas: number;
   areas: number;
   sedes: number;
+  puestos: number;
   participaciones: number;
   politicas: number;
 };
@@ -21,7 +22,7 @@ export async function obtenerConteosConfig(): Promise<ConteosConfig> {
     return count ?? 0;
   };
 
-  const [usuarios, procesos, tipos, normas, areas, sedes, participaciones, politicas] =
+  const [usuarios, procesos, tipos, normas, areas, sedes, puestos, participaciones, politicas] =
     await Promise.all([
       cuenta("usuarios", (q) => q.is("eliminado_en", null)),
       cuenta("procesos", (q) => q.eq("activo", true).is("eliminado_en", null)),
@@ -29,11 +30,12 @@ export async function obtenerConteosConfig(): Promise<ConteosConfig> {
       cuenta("normas", (q) => q.eq("activo", true)),
       cuenta("areas", (q) => q.eq("activo", true).is("eliminado_en", null)),
       cuenta("sedes", (q) => q.eq("activo", true).is("eliminado_en", null)),
+      cuenta("puestos", (q) => q.eq("activo", true).is("eliminado_en", null)),
       cuenta("participacion_usuario_proceso", (q) => q.is("vigente_hasta", null)),
       cuenta("politicas_retencion"),
     ]);
 
-  return { usuarios, procesos, tipos, normas, areas, sedes, participaciones, politicas };
+  return { usuarios, procesos, tipos, normas, areas, sedes, puestos, participaciones, politicas };
 }
 
 // ---- Áreas ----
@@ -120,4 +122,61 @@ export async function listarSedes(): Promise<Sede[]> {
     tipoSede: s.tipo_sede,
     esSedePrincipal: s.es_sede_principal,
   }));
+}
+
+// ---- Puestos ----
+export type Puesto = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  descripcion: string | null;
+  areaId: string | null;
+  areaNombre: string | null;
+};
+
+export async function listarPuestos(): Promise<Puesto[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("puestos")
+    .select("id, codigo, nombre, descripcion, area_id")
+    .eq("activo", true)
+    .is("eliminado_en", null)
+    .order("codigo", { ascending: true });
+  if (error) return [];
+
+  // Resolver nombre de área en memoria (evita join frágil).
+  const filas = (data ?? []) as any[];
+  const areaIds = [...new Set(filas.map((p) => p.area_id).filter(Boolean))];
+  const nombreArea = new Map<string, string>();
+  if (areaIds.length > 0) {
+    const { data: areas } = await supabase
+      .from("areas")
+      .select("id, nombre")
+      .in("id", areaIds);
+    for (const a of (areas ?? []) as any[]) nombreArea.set(a.id, a.nombre);
+  }
+
+  return filas.map((p) => ({
+    id: p.id,
+    codigo: p.codigo,
+    nombre: p.nombre,
+    descripcion: p.descripcion,
+    areaId: p.area_id,
+    areaNombre: p.area_id ? nombreArea.get(p.area_id) ?? null : null,
+  }));
+}
+
+// Áreas para el selector del formulario de puesto (todas las áreas activas).
+export async function listarAreasParaSelector(): Promise<
+  Array<{ id: string; codigo: string; nombre: string }>
+> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("areas")
+    .select("id, codigo, nombre")
+    .eq("activo", true)
+    .is("eliminado_en", null)
+    .order("nombre", { ascending: true });
+  if (error) return [];
+  return (data ?? []) as Array<{ id: string; codigo: string; nombre: string }>;
 }

@@ -49,3 +49,18 @@ export const participacionSchema = z.object({
 });
 
 export type ParticipacionInput = z.infer<typeof participacionSchema>;
+
+export const puestoSchema = z.object({
+  id: z.string().uuid().optional().or(z.literal("")),
+  codigo: z
+    .string()
+    .trim()
+    .min(2, "El código debe tener al menos 2 caracteres.")
+    .max(30, "El código no puede superar los 30 caracteres.")
+    .regex(CODIGO_REGEX, mensajeCodigo),
+  nombre: z.string().trim().min(2, "El nombre es obligatorio.").max(200),
+  descripcion: z.string().trim().max(2000).optional(),
+  areaId: z.string().uuid().optional().or(z.literal("")),
+});
+
+export type PuestoInput = z.infer<typeof puestoSchema>;
