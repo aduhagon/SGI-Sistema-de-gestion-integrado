@@ -14,7 +14,7 @@ export default async function ConfiguracionPage() {
     { href: "/configuracion/areas", icon: Building, label: "Áreas", desc: "Unidades organizativas de la empresa.", conteo: c.areas, disponible: true },
     { href: "/configuracion/sedes", icon: MapPin, label: "Sedes", desc: "Ubicaciones físicas: plantas, oficinas, campos.", conteo: c.sedes, disponible: true },
     { href: "/configuracion/puestos", icon: Briefcase, label: "Puestos", desc: "Cargos formales (Jefe de Calidad, etc.) con roles en procesos.", conteo: c.puestos, disponible: true },
-    { href: "#", icon: Users, label: "Usuarios y personas", desc: "Cuentas del sistema y sus roles globales.", conteo: c.usuarios, disponible: false },
+    { href: "/configuracion/personas", icon: Users, label: "Personas", desc: "Padrón de personas, su área y su historial de puestos.", conteo: c.usuarios, disponible: true },
     { href: "#", icon: UserCheck, label: "Participación en procesos", desc: "Quién es elaborador, aprobador o lector en cada proceso.", conteo: c.participaciones, disponible: false },
     { href: "#", icon: Network, label: "Procesos", desc: "Mapa de procesos del SGI.", conteo: c.procesos, disponible: false },
     { href: "#", icon: FileType, label: "Tipos documentales", desc: "Políticas, manuales, procedimientos, registros.", conteo: c.tipos, disponible: false },
