@@ -136,7 +136,14 @@ export async function quitarPersonaDePuesto(
   const usuarioId = await obtenerUsuarioActualId();
   if (!usuarioId) return { ok: false, error: "Sesión no válida." };
 
-  // Cerrar la vigencia del vínculo (SCD2).
+  // Datos del vínculo antes de cerrarlo: necesitamos la persona.
+  const { data: vinculo } = await supabase
+    .from("persona_puesto")
+    .select("persona_id")
+    .eq("id", personaPuestoId)
+    .maybeSingle();
+
+  // Cerrar la vigencia del vínculo persona-puesto (SCD2).
   const { error } = await supabase
     .from("persona_puesto")
     .update({
@@ -147,13 +154,43 @@ export async function quitarPersonaDePuesto(
 
   if (error) return { ok: false, error: `No se pudo quitar: ${error.message}` };
 
-  // Nota: las participaciones materializadas NO se revocan automáticamente,
-  // porque participacion_usuario_proceso no tiene policy de UPDATE (requiere
-  // Edge Function). Se avisa al usuario.
+  // Revocar las participaciones materializadas: buscar el usuario de la
+  // persona y llamar a la función de revocación (SECURITY DEFINER).
+  let revocadas = 0;
+  let avisoExtra = "";
+  if (vinculo?.persona_id) {
+    const { data: usuario } = await supabase
+      .from("usuarios")
+      .select("id")
+      .eq("persona_id", vinculo.persona_id)
+      .eq("activo", true)
+      .is("eliminado_en", null)
+      .maybeSingle();
+
+    if (usuario) {
+      const { data: cerradas, error: errRpc } = await supabase.rpc(
+        "fn_revocar_participaciones_de_puesto",
+        {
+          p_usuario_id: usuario.id,
+          p_puesto_id: puestoId,
+          p_motivo: "Baja de puesto",
+        },
+      );
+      if (errRpc) {
+        avisoExtra =
+          " No se pudieron revocar automáticamente las participaciones: " + errRpc.message;
+      } else {
+        revocadas = (cerradas as number) ?? 0;
+      }
+    }
+  }
+
   revalidatePath(`/configuracion/puestos/${puestoId}`);
   return {
     ok: true,
     aviso:
-      "Persona quitada del puesto. Las participaciones que ya se habían generado en procesos siguen vigentes y deben revocarse aparte (requiere la función de revocación pendiente).",
+      revocadas > 0
+        ? `Persona quitada del puesto. Se cerraron ${revocadas} participación(es) en procesos con fecha de hoy.`
+        : "Persona quitada del puesto." + avisoExtra,
   };
 }
