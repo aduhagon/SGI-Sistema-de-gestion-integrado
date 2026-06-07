@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, Loader2, Save, Briefcase } from "lucide-react";
@@ -58,7 +59,11 @@ export function GestionPuestos({ puestos, areas }: { puestos: Puesto[]; areas: A
               {puestos.map((p) => (
                 <tr key={p.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-2.5 font-mono text-xs">{p.codigo}</td>
-                  <td className="px-4 py-2.5 font-medium">{p.nombre}</td>
+                  <td className="px-4 py-2.5 font-medium">
+                    <Link href={`/configuracion/puestos/${p.id}`} className="hover:underline">
+                      {p.nombre}
+                    </Link>
+                  </td>
                   <td className="px-4 py-2.5 text-muted-foreground hidden sm:table-cell">
                     {p.areaNombre ?? <span className="text-muted-foreground/50">Sin área</span>}
                   </td>
