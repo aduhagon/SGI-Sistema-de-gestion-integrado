@@ -4,6 +4,7 @@ import { ChevronLeft, UserCircle, Mail, Building2 } from "lucide-react";
 import { obtenerPersona, obtenerHistorialPuestos } from "@/lib/api/personas";
 import { Badge } from "@/components/ui/badge";
 import { HistorialPuestos } from "@/components/configuracion/HistorialPuestos";
+import { CrearCuentaUsuario } from "@/components/configuracion/CrearCuentaUsuario";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,21 @@ export default async function PersonaDetallePage({ params }: Props) {
           {persona.areaNombre && <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />{persona.areaNombre}{persona.gerenciaNombre ? ` · ${persona.gerenciaNombre}` : ""}</span>}
         </div>
       </header>
+
+      {!persona.tieneUsuario && !persona.esExterna && (
+        <div className="mb-8 flex items-center justify-between rounded-lg border border-border bg-muted/20 p-4">
+          <div>
+            <p className="text-sm font-medium">Esta persona no tiene cuenta de acceso</p>
+            <p className="text-xs text-muted-foreground">Creale una cuenta para que pueda ingresar al sistema.</p>
+          </div>
+          <CrearCuentaUsuario
+            personaId={persona.id}
+            nombreCompleto={persona.nombreCompleto}
+            emailSugerido={persona.email}
+            usernameSugerido={`${persona.nombre.charAt(0)}${persona.apellido}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9._-]/g, "").slice(0, 50)}
+          />
+        </div>
+      )}
 
       <section>
         <h2 className="mb-4 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
