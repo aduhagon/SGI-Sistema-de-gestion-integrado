@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, Briefcase } from "lucide-react";
-import { obtenerPuesto, obtenerRolesDePuesto, obtenerProcesosParaSelector } from "@/lib/api/puestos";
+import { obtenerPuesto, obtenerRolesDePuesto, obtenerProcesosParaSelector,
+  obtenerPersonasDePuesto, obtenerPersonasCandidatas, obtenerGerenciasYAreas } from "@/lib/api/puestos";
 import { Badge } from "@/components/ui/badge";
 import { RolesPuesto } from "@/components/configuracion/RolesPuesto";
+import { PersonasPuesto } from "@/components/configuracion/PersonasPuesto";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +15,12 @@ export default async function PuestoDetallePage({ params }: Props) {
   const puesto = await obtenerPuesto(params.id);
   if (!puesto) notFound();
 
-  const [roles, procesos] = await Promise.all([
+  const [roles, procesos, personas, candidatas, gyA] = await Promise.all([
     obtenerRolesDePuesto(params.id),
     obtenerProcesosParaSelector(),
+    obtenerPersonasDePuesto(params.id),
+    obtenerPersonasCandidatas(),
+    obtenerGerenciasYAreas(),
   ]);
 
   return (
@@ -40,11 +45,13 @@ export default async function PuestoDetallePage({ params }: Props) {
 
       <RolesPuesto puestoId={puesto.id} roles={roles} procesos={procesos} />
 
-      <div className="mt-10 rounded-lg border border-dashed border-border p-5 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">Próximo paso: </span>
-        asignar personas a este puesto. Lo incorporamos en la siguiente capa, con el
-        buscador filtrable por gerencia y área.
-      </div>
+      <PersonasPuesto
+        puestoId={puesto.id}
+        personas={personas}
+        candidatas={candidatas}
+        gerencias={gyA.gerencias}
+        areas={gyA.areas}
+      />
     </div>
   );
 }
