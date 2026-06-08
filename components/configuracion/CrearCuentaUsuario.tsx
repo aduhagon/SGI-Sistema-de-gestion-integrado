@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { KeyRound, Loader2, UserPlus, Copy, Check, RefreshCw } from "lucide-react";
+import { KeyRound, Loader2, UserPlus, Copy, Check, Mail, Link2 } from "lucide-react";
 import { crearCuentaUsuario, type EstadoUsuario } from "@/app/(app)/configuracion/personas/[id]/usuario-actions";
 import { Button } from "@/components/ui/button";
 
@@ -14,25 +14,11 @@ type Props = {
   usernameSugerido: string;
 };
 
-function genPassword(): string {
-  // Contraseña temporal legible: 3 letras + 4 dígitos + símbolo.
-  const letras = "abcdefghijkmnpqrstuvwxyz";
-  const May = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  const nums = "23456789";
-  const sym = "@#$%&*";
-  const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
-  return (
-    pick(May) + pick(letras) + pick(letras) +
-    pick(nums) + pick(nums) + pick(nums) + pick(nums) +
-    pick(sym)
-  );
-}
-
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending} className="flex-1">
-      {pending ? <><Loader2 className="h-4 w-4 animate-spin" />Creando…</> : <><UserPlus className="h-4 w-4" />Crear cuenta</>}
+      {pending ? <><Loader2 className="h-4 w-4 animate-spin" />Invitando…</> : <><UserPlus className="h-4 w-4" />Invitar usuario</>}
     </Button>
   );
 }
@@ -40,22 +26,19 @@ function SubmitButton() {
 export function CrearCuentaUsuario({ personaId, nombreCompleto, emailSugerido, usernameSugerido }: Props) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
-  const [password, setPassword] = useState("");
   const [copiado, setCopiado] = useState(false);
   const [estado, formAction] = useFormState<EstadoUsuario, FormData>(crearCuentaUsuario, null);
-
-  useEffect(() => {
-    if (abierto && !password) setPassword(genPassword());
-  }, [abierto, password]);
 
   useEffect(() => {
     if (estado?.ok) router.refresh();
   }, [estado, router]);
 
-  function copiar() {
-    navigator.clipboard.writeText(password);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
+  function copiarEnlace() {
+    if (estado?.ok && estado.enlaceInvitacion) {
+      navigator.clipboard.writeText(estado.enlaceInvitacion);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    }
   }
 
   return (
@@ -69,25 +52,38 @@ export function CrearCuentaUsuario({ personaId, nombreCompleto, emailSugerido, u
           <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAbierto(false)} />
           <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Crear cuenta de usuario</h2>
+              <h2 className="font-serif text-2xl font-semibold tracking-tight">Invitar usuario</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Para <span className="font-medium text-foreground">{nombreCompleto}</span>. Se crea con una
-                contraseña temporal que la persona debería cambiar en su primer ingreso.
+                Para <span className="font-medium text-foreground">{nombreCompleto}</span>. Se le enviará un email
+                para que defina su propia contraseña. Vos no manejás su clave.
               </p>
 
               {estado?.ok ? (
                 <div className="mt-6 space-y-4">
                   <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>{estado.mensaje}</span>
+                    <Mail className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{estado.mensaje} Se envió a <span className="font-mono">{estado.email}</span>.</span>
                   </div>
-                  <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
-                    <p className="mb-1 font-medium">Credenciales para entregar:</p>
-                    <p className="text-muted-foreground">Email: <span className="font-mono text-foreground">{(document.getElementById("email-cuenta") as HTMLInputElement)?.value}</span></p>
-                    <p className="text-muted-foreground">Contraseña temporal: <span className="font-mono text-foreground">{password}</span></p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Guardá estos datos ahora: la contraseña no se vuelve a mostrar.</p>
-                  <Button type="button" onClick={() => { setAbierto(false); setPassword(""); }} className="w-full">Listo</Button>
+
+                  {estado.enlaceInvitacion && (
+                    <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
+                      <div className="flex items-center gap-1.5 text-sm font-medium">
+                        <Link2 className="h-4 w-4" />Enlace de respaldo
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Si el email no llega (por ejemplo, si el envío de correos aún no está configurado),
+                        pasale este enlace a la persona para que defina su contraseña:
+                      </p>
+                      <div className="flex gap-2">
+                        <input readOnly value={estado.enlaceInvitacion} className="flex-1 rounded-md border border-input bg-background px-2 py-1.5 font-mono text-xs outline-none" />
+                        <button type="button" onClick={copiarEnlace} className="rounded-md border border-border px-2 text-muted-foreground hover:text-foreground" title="Copiar">
+                          {copiado ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <Button type="button" onClick={() => setAbierto(false)} className="w-full">Listo</Button>
                 </div>
               ) : (
                 <form action={formAction} className="mt-6 space-y-4">
@@ -100,22 +96,10 @@ export function CrearCuentaUsuario({ personaId, nombreCompleto, emailSugerido, u
                     <p className="text-xs text-muted-foreground">Minúsculas, números, punto, guion. Entre 3 y 50 caracteres.</p>
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="email-cuenta" className="text-sm font-medium">Email de acceso</label>
+                    <label htmlFor="email-cuenta" className="text-sm font-medium">Email de la persona</label>
                     <input id="email-cuenta" name="email" type="email" required defaultValue={emailSugerido ?? ""}
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="password" className="text-sm font-medium">Contraseña temporal</label>
-                    <div className="flex gap-2">
-                      <input id="password" name="password" value={password} onChange={(e) => setPassword(e.target.value)} required
-                        className="flex-1 rounded-md border border-input bg-background px-3 py-2 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-                      <button type="button" onClick={() => setPassword(genPassword())} className="rounded-md border border-border px-2 text-muted-foreground hover:text-foreground" title="Generar otra">
-                        <RefreshCw className="h-4 w-4" />
-                      </button>
-                      <button type="button" onClick={copiar} className="rounded-md border border-border px-2 text-muted-foreground hover:text-foreground" title="Copiar">
-                        {copiado ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                      </button>
-                    </div>
+                    <p className="text-xs text-muted-foreground">A esta dirección le llega la invitación para definir su contraseña.</p>
                   </div>
                   {estado && !estado.ok && (
                     <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>

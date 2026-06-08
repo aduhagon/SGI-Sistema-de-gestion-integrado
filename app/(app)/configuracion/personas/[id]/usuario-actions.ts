@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export type EstadoUsuario =
-  | { ok: true; mensaje: string }
+  | { ok: true; mensaje: string; email: string; enlaceInvitacion: string | null }
   | { ok: false; error: string }
   | null;
 
@@ -17,20 +17,18 @@ export async function crearCuentaUsuario(
   const personaId = String(formData.get("personaId") ?? "");
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const password = String(formData.get("password") ?? "");
 
-  if (!personaId || !username || !email || !password) {
-    return { ok: false, error: "Completá username, email y contraseña." };
+  if (!personaId || !username || !email) {
+    return { ok: false, error: "Completá username y email." };
   }
 
   // Invocar la Edge Function. El SDK adjunta el token del usuario actual,
   // que la función usa para verificar permisos (admin/SGI).
   const { data, error } = await supabase.functions.invoke("crear-usuario", {
-    body: { personaId, username, email, password },
+    body: { personaId, username, email },
   });
 
   if (error) {
-    // La Edge Function devuelve el detalle en el cuerpo aun con status de error.
     let detalle = error.message;
     try {
       const ctx = (error as any).context;
@@ -50,5 +48,10 @@ export async function crearCuentaUsuario(
 
   revalidatePath(`/configuracion/personas/${personaId}`);
   revalidatePath("/configuracion/personas");
-  return { ok: true, mensaje: data?.mensaje ?? "Usuario creado." };
+  return {
+    ok: true,
+    mensaje: data?.mensaje ?? "Invitación enviada.",
+    email: data?.email ?? email,
+    enlaceInvitacion: data?.enlaceInvitacion ?? null,
+  };
 }
