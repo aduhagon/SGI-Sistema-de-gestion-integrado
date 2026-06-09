@@ -156,18 +156,13 @@ export function GestionPersonas({ personas, areas, incluyeInactivas }: {
                     <input id="documentoIdentidad" name="documentoIdentidad" defaultValue={editando?.documentoIdentidad ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <label htmlFor="areaId" className="text-sm font-medium">Área <span className="text-muted-foreground">(opcional)</span></label>
-                    <select id="areaId" name="areaId" defaultValue={editando?.areaId ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      <option value="">Sin área</option>
-                      {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="cargo" className="text-sm font-medium">Cargo <span className="text-muted-foreground">(texto libre)</span></label>
-                    <input id="cargo" name="cargo" defaultValue={editando?.cargo ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-                  </div>
+                <div className="space-y-2">
+                  <label htmlFor="areaId" className="text-sm font-medium">Área <span className="text-muted-foreground">(opcional)</span></label>
+                  <select id="areaId" name="areaId" defaultValue={editando?.areaId ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <option value="">Sin área</option>
+                    {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                  </select>
+                  <p className="text-xs text-muted-foreground">El cargo de la persona surge del puesto que ocupa (se asigna desde Puestos), no se escribe acá.</p>
                 </div>
                 <label className="flex cursor-pointer items-center gap-2 text-sm">
                   <input type="checkbox" name="esExterna" checked={esExterna} onChange={(e) => setEsExterna(e.target.checked)} className="h-4 w-4" />

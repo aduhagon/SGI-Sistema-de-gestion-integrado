@@ -15,6 +15,7 @@ export default async function PersonaDetallePage({ params }: Props) {
   if (!persona) notFound();
 
   const historial = await obtenerHistorialPuestos(params.id);
+  const puestoVigente = historial.find((h) => h.vigenteHasta === null) ?? null;
 
   return (
     <div className="mx-auto max-w-3xl p-6 sm:p-8 lg:p-10">
@@ -30,7 +31,7 @@ export default async function PersonaDetallePage({ params }: Props) {
           <div>
             <h1 className="font-serif text-3xl font-semibold tracking-tight">{persona.nombreCompleto}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              {persona.cargo && <span>{persona.cargo}</span>}
+              {puestoVigente && <span className="font-medium text-foreground">{puestoVigente.puestoNombre}</span>}
               {!persona.activo && <Badge variant="muted">Dada de baja</Badge>}
               {persona.esExterna && <Badge variant="outline">Externa</Badge>}
               {persona.tieneUsuario ? <Badge variant="accent">Con cuenta</Badge> : <Badge variant="muted">Sin cuenta</Badge>}

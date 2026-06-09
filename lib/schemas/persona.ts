@@ -12,7 +12,6 @@ export const personaSchema = z.object({
     .optional()
     .or(z.literal("")),
   documentoIdentidad: z.string().trim().max(50).optional().or(z.literal("")),
-  cargo: z.string().trim().max(200).optional().or(z.literal("")),
   telefono: z.string().trim().max(50).optional().or(z.literal("")),
   areaId: z.string().uuid().optional().or(z.literal("")),
   esExterna: z.boolean().default(false),
