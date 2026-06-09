@@ -302,3 +302,75 @@ export async function listarAreasParaSelector(): Promise<
   if (error) return [];
   return (data ?? []) as Array<{ id: string; codigo: string; nombre: string }>;
 }
+
+// ---- Políticas de retención ----
+export type PoliticaRetencion = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  descripcion: string | null;
+  tipoDocumentalId: string | null;
+  tipoDocumentalNombre: string | null;
+  normaId: string | null;
+  normaNombre: string | null;
+  procesoId: string | null;
+  procesoNombre: string | null;
+  criticidadAplicable: string | null;
+  aniosVersionesObsoletas: number;
+  aniosEventosAuditoria: number;
+  aniosFirmas: number;
+  aniosAcuses: number;
+  aniosDocumentosInactivos: number | null;
+  politicaPurga: string;
+  fundamentoAprobacion: string | null;
+  vigente: boolean;
+};
+
+export async function listarPoliticasRetencion(): Promise<PoliticaRetencion[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("politicas_retencion")
+    .select(
+      `id, codigo, nombre, descripcion, tipo_documental_id, norma_id, proceso_id,
+       criticidad_aplicable, "años_retencion_versiones_obsoletas", "años_retencion_eventos_auditoria",
+       "años_retencion_firmas", "años_retencion_acuses", "años_retencion_documentos_inactivos",
+       politica_purga, fundamento_aprobacion, vigente_hasta`,
+    )
+    .is("vigente_hasta", null)
+    .order("codigo", { ascending: true });
+  if (error) return [];
+
+  const filas = (data ?? []) as any[];
+
+  // Resolver nombres de ámbito en memoria.
+  const [tiposR, normasR, procesosR] = await Promise.all([
+    supabase.from("tipos_documentales").select("id, nombre"),
+    supabase.from("normas").select("id, nombre_corto"),
+    supabase.from("procesos").select("id, nombre"),
+  ]);
+  const tiposMap = new Map(((tiposR.data ?? []) as any[]).map((t) => [t.id, t.nombre]));
+  const normasMap = new Map(((normasR.data ?? []) as any[]).map((n) => [n.id, n.nombre_corto]));
+  const procesosMap = new Map(((procesosR.data ?? []) as any[]).map((p) => [p.id, p.nombre]));
+
+  return filas.map((p) => ({
+    id: p.id,
+    codigo: p.codigo,
+    nombre: p.nombre,
+    descripcion: p.descripcion,
+    tipoDocumentalId: p.tipo_documental_id,
+    tipoDocumentalNombre: p.tipo_documental_id ? (tiposMap.get(p.tipo_documental_id) ?? null) : null,
+    normaId: p.norma_id,
+    normaNombre: p.norma_id ? (normasMap.get(p.norma_id) ?? null) : null,
+    procesoId: p.proceso_id,
+    procesoNombre: p.proceso_id ? (procesosMap.get(p.proceso_id) ?? null) : null,
+    criticidadAplicable: p.criticidad_aplicable,
+    aniosVersionesObsoletas: p["años_retencion_versiones_obsoletas"],
+    aniosEventosAuditoria: p["años_retencion_eventos_auditoria"],
+    aniosFirmas: p["años_retencion_firmas"],
+    aniosAcuses: p["años_retencion_acuses"],
+    aniosDocumentosInactivos: p["años_retencion_documentos_inactivos"],
+    politicaPurga: p.politica_purga,
+    fundamentoAprobacion: p.fundamento_aprobacion,
+    vigente: p.vigente_hasta === null,
+  }));
+}

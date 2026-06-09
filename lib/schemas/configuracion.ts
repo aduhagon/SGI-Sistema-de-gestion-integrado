@@ -142,3 +142,22 @@ export const normaSchema = z.object({
 });
 
 export type NormaInput = z.infer<typeof normaSchema>;
+
+export const politicaRetencionSchema = z.object({
+  codigo: z.string().trim().min(1, "El código es obligatorio.").max(40),
+  nombre: z.string().trim().min(2, "El nombre es obligatorio.").max(200),
+  descripcion: z.string().trim().max(2000).optional().or(z.literal("")),
+  tipoDocumentalId: z.string().uuid().optional().or(z.literal("")),
+  normaId: z.string().uuid().optional().or(z.literal("")),
+  procesoId: z.string().uuid().optional().or(z.literal("")),
+  criticidadAplicable: z.string().trim().optional().or(z.literal("")),
+  aniosVersionesObsoletas: z.coerce.number().int().min(1, "Debe ser un número positivo."),
+  aniosEventosAuditoria: z.coerce.number().int().min(1, "Debe ser un número positivo."),
+  aniosFirmas: z.coerce.number().int().min(1, "Debe ser un número positivo."),
+  aniosAcuses: z.coerce.number().int().min(1, "Debe ser un número positivo."),
+  aniosDocumentosInactivos: z.coerce.number().int().min(1).optional().or(z.literal("")),
+  politicaPurga: z.enum(["nunca", "marcar_para_purga", "purga_automatica"]),
+  fundamentoAprobacion: z.string().trim().max(2000).optional().or(z.literal("")),
+});
+
+export type PoliticaRetencionInput = z.infer<typeof politicaRetencionSchema>;

@@ -15,11 +15,11 @@ export default async function ConfiguracionPage() {
     { href: "/configuracion/sedes", icon: MapPin, label: "Sedes", desc: "Ubicaciones físicas: plantas, oficinas, campos.", conteo: c.sedes, disponible: true },
     { href: "/configuracion/puestos", icon: Briefcase, label: "Puestos", desc: "Cargos formales (Jefe de Calidad, etc.) con roles en procesos.", conteo: c.puestos, disponible: true },
     { href: "/configuracion/personas", icon: Users, label: "Personas", desc: "Padrón de personas, su área y su historial de puestos.", conteo: c.usuarios, disponible: true },
-    { href: "#", icon: UserCheck, label: "Participación en procesos", desc: "Quién es elaborador, aprobador o lector en cada proceso.", conteo: c.participaciones, disponible: false },
+    { href: "/configuracion/participacion", icon: UserCheck, label: "Participación en procesos", desc: "Quién es elaborador, aprobador o lector en cada proceso.", conteo: c.participaciones, disponible: true },
     { href: "/configuracion/procesos", icon: Network, label: "Procesos", desc: "Mapa de procesos del SGI.", conteo: c.procesos, disponible: true },
     { href: "/configuracion/tipos", icon: FileType, label: "Tipos documentales", desc: "Políticas, manuales, procedimientos, registros.", conteo: c.tipos, disponible: true },
     { href: "/configuracion/normas", icon: BookOpen, label: "Normas", desc: "Normas certificadas y sus versiones.", conteo: c.normas, disponible: true },
-    { href: "#", icon: Archive, label: "Políticas de retención", desc: "Cuánto se conserva cada tipo de información.", conteo: c.politicas, disponible: false },
+    { href: "/configuracion/retencion", icon: Archive, label: "Políticas de retención", desc: "Cuánto se conserva cada tipo de información.", conteo: c.politicas, disponible: true },
   ];
 
   return (

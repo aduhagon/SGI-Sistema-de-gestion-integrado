@@ -65,3 +65,44 @@ export async function obtenerUsuariosParaAsignar(): Promise<UsuarioParaAsignar[]
     }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre));
 }
+
+// Vista global: todas las participaciones vigentes del sistema, con proceso y persona.
+export type ParticipacionGlobal = {
+  id: string;
+  usuarioNombre: string;
+  procesoId: string;
+  procesoNombre: string;
+  procesoTipo: string;
+  rol: string;
+  vigenteDesde: string;
+};
+
+export async function listarParticipacionesVigentes(): Promise<ParticipacionGlobal[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("participacion_usuario_proceso")
+    .select(
+      `id, rol_en_proceso, vigente_desde,
+       usuario:usuarios!participacion_usuario_proceso_usuario_id_fkey (
+         username, personas:personas!usuarios_persona_id_fkey (nombre, apellido)
+       ),
+       proceso:procesos!participacion_usuario_proceso_proceso_id_fkey (
+         id, nombre, tipo
+       )`,
+    )
+    .is("vigente_hasta", null);
+
+  if (error) return [];
+
+  return ((data ?? []) as any[]).map((p) => ({
+    id: p.id,
+    usuarioNombre: p.usuario?.personas
+      ? `${p.usuario.personas.nombre} ${p.usuario.personas.apellido}`.trim()
+      : p.usuario?.username ?? "—",
+    procesoId: p.proceso?.id ?? "",
+    procesoNombre: p.proceso?.nombre ?? "—",
+    procesoTipo: p.proceso?.tipo ?? "",
+    rol: p.rol_en_proceso,
+    vigenteDesde: p.vigente_desde,
+  }));
+}
