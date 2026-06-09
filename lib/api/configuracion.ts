@@ -124,6 +124,128 @@ export async function listarSedes(): Promise<Sede[]> {
   }));
 }
 
+// ---- Normas ----
+export type NormaCatalogo = {
+  id: string;
+  codigo: string;
+  nombreCorto: string;
+  nombreCompleto: string;
+  descripcion: string | null;
+  organismoEmisor: string | null;
+  sitioWeb: string | null;
+  ambito: string | null;
+  certificadaPorMsu: boolean;
+  ordenVisualizacion: number;
+};
+
+export async function listarNormasCatalogo(): Promise<NormaCatalogo[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("normas")
+    .select("id, codigo, nombre_corto, nombre_completo, descripcion, organismo_emisor, sitio_web, ambito, certificada_por_msu, orden_visualizacion")
+    .eq("activo", true)
+    .is("eliminado_en", null)
+    .order("orden_visualizacion", { ascending: true })
+    .order("codigo", { ascending: true });
+  if (error) return [];
+  return ((data ?? []) as any[]).map((n) => ({
+    id: n.id,
+    codigo: n.codigo,
+    nombreCorto: n.nombre_corto,
+    nombreCompleto: n.nombre_completo,
+    descripcion: n.descripcion,
+    organismoEmisor: n.organismo_emisor,
+    sitioWeb: n.sitio_web,
+    ambito: n.ambito,
+    certificadaPorMsu: n.certificada_por_msu,
+    ordenVisualizacion: n.orden_visualizacion,
+  }));
+}
+
+// ---- Procesos (catálogo) ----
+export type ProcesoCatalogo = {
+  id: string;
+  codigo: string;
+  codigoNumerico: string | null;
+  nombre: string;
+  descripcionCorta: string | null;
+  tipo: string;
+  procesoPadreId: string | null;
+  procesoPadreNombre: string | null;
+  ordenVisualizacion: number;
+};
+
+export async function listarProcesosCatalogo(): Promise<ProcesoCatalogo[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("procesos")
+    .select("id, codigo, codigo_numerico, nombre, descripcion_corta, tipo, proceso_padre_id, orden_visualizacion")
+    .eq("activo", true)
+    .is("eliminado_en", null)
+    .order("tipo", { ascending: true })
+    .order("orden_visualizacion", { ascending: true });
+  if (error) return [];
+
+  const filas = (data ?? []) as any[];
+  // Resolver nombre del proceso padre en memoria (join autorreferente falla en PostgREST).
+  const nombrePorId = new Map(filas.map((p) => [p.id, p.nombre]));
+  return filas.map((p) => ({
+    id: p.id,
+    codigo: p.codigo,
+    codigoNumerico: p.codigo_numerico,
+    nombre: p.nombre,
+    descripcionCorta: p.descripcion_corta,
+    tipo: p.tipo,
+    procesoPadreId: p.proceso_padre_id,
+    procesoPadreNombre: p.proceso_padre_id ? (nombrePorId.get(p.proceso_padre_id) ?? null) : null,
+    ordenVisualizacion: p.orden_visualizacion,
+  }));
+}
+
+// ---- Tipos documentales ----
+export type TipoDocumental = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  nombrePlural: string;
+  descripcion: string | null;
+  requiereAprobacion: boolean;
+  requiereAcuseLectura: boolean;
+  frecuenciaRevisionDefault: string | null;
+  criticidadDefault: string | null;
+  confidencialidadDefault: string | null;
+  ordenVisualizacion: number;
+  nivelJerarquico: number | null;
+};
+
+export async function listarTiposDocumentales(): Promise<TipoDocumental[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("tipos_documentales")
+    .select(
+      "id, codigo, nombre, nombre_plural, descripcion, requiere_aprobacion, requiere_acuse_lectura, frecuencia_revision_default, criticidad_default, confidencialidad_default, orden_visualizacion, nivel_jerarquico",
+    )
+    .eq("activo", true)
+    .is("eliminado_en", null)
+    .order("orden_visualizacion", { ascending: true })
+    .order("codigo", { ascending: true });
+  if (error) return [];
+  return ((data ?? []) as any[]).map((t) => ({
+    id: t.id,
+    codigo: t.codigo,
+    nombre: t.nombre,
+    nombrePlural: t.nombre_plural,
+    descripcion: t.descripcion,
+    requiereAprobacion: t.requiere_aprobacion,
+    requiereAcuseLectura: t.requiere_acuse_lectura,
+    frecuenciaRevisionDefault: t.frecuencia_revision_default,
+    criticidadDefault: t.criticidad_default,
+    confidencialidadDefault: t.confidencialidad_default,
+    ordenVisualizacion: t.orden_visualizacion,
+    nivelJerarquico: t.nivel_jerarquico,
+  }));
+}
+
 // ---- Puestos ----
 export type Puesto = {
   id: string;

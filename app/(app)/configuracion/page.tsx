@@ -16,9 +16,9 @@ export default async function ConfiguracionPage() {
     { href: "/configuracion/puestos", icon: Briefcase, label: "Puestos", desc: "Cargos formales (Jefe de Calidad, etc.) con roles en procesos.", conteo: c.puestos, disponible: true },
     { href: "/configuracion/personas", icon: Users, label: "Personas", desc: "Padrón de personas, su área y su historial de puestos.", conteo: c.usuarios, disponible: true },
     { href: "#", icon: UserCheck, label: "Participación en procesos", desc: "Quién es elaborador, aprobador o lector en cada proceso.", conteo: c.participaciones, disponible: false },
-    { href: "#", icon: Network, label: "Procesos", desc: "Mapa de procesos del SGI.", conteo: c.procesos, disponible: false },
-    { href: "#", icon: FileType, label: "Tipos documentales", desc: "Políticas, manuales, procedimientos, registros.", conteo: c.tipos, disponible: false },
-    { href: "#", icon: BookOpen, label: "Normas", desc: "Normas certificadas y sus versiones.", conteo: c.normas, disponible: false },
+    { href: "/configuracion/procesos", icon: Network, label: "Procesos", desc: "Mapa de procesos del SGI.", conteo: c.procesos, disponible: true },
+    { href: "/configuracion/tipos", icon: FileType, label: "Tipos documentales", desc: "Políticas, manuales, procedimientos, registros.", conteo: c.tipos, disponible: true },
+    { href: "/configuracion/normas", icon: BookOpen, label: "Normas", desc: "Normas certificadas y sus versiones.", conteo: c.normas, disponible: true },
     { href: "#", icon: Archive, label: "Políticas de retención", desc: "Cuánto se conserva cada tipo de información.", conteo: c.politicas, disponible: false },
   ];
 
