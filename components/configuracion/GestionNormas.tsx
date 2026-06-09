@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, Loader2, Save, BookOpen, ExternalLink } from "lucide-react";
@@ -58,7 +59,7 @@ export function GestionNormas({ normas }: { normas: NormaCatalogo[] }) {
                   <td className="px-4 py-2.5 font-mono text-xs">{n.codigo}</td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-1.5 font-medium">
-                      {n.nombreCorto}
+                      <Link href={`/configuracion/normas/${n.id}`} className="hover:underline">{n.nombreCorto}</Link>
                       {n.sitioWeb && <a href={n.sitioWeb} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" title="Sitio web"><ExternalLink className="h-3 w-3" /></a>}
                     </div>
                     <div className="text-xs text-muted-foreground line-clamp-1">{n.nombreCompleto}</div>
