@@ -17,11 +17,21 @@ export default async function AppLayout({
     redirect("/login");
   }
 
+  // El id público (usuarios.id) es distinto del auth.uid(); la campana de
+  // notificaciones lo necesita para el filtro de Realtime.
+  let usuarioId: string | null = null;
+  const { data: filaUsuario } = await supabase
+    .from("usuarios")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+  if (filaUsuario) usuarioId = filaUsuario.id;
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <TopBar userEmail={user.email ?? "—"} />
+        <TopBar userEmail={user.email ?? "—"} usuarioId={usuarioId} />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>

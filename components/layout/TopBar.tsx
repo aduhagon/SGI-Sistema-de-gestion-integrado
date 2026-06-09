@@ -2,15 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
-import { Search, Bell, LogOut, User as UserIcon, ChevronDown } from "lucide-react";
+import { Search, LogOut, User as UserIcon, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { CampanaNotificaciones } from "@/components/layout/CampanaNotificaciones";
 
 type Props = {
   userEmail: string;
+  usuarioId: string | null;
 };
 
-export function TopBar({ userEmail }: Props) {
+export function TopBar({ userEmail, usuarioId }: Props) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [busqueda, setBusqueda] = useState("");
@@ -79,10 +81,7 @@ export function TopBar({ userEmail }: Props) {
       </div>
 
       <div className="flex items-center gap-2 ml-4">
-        <Button variant="ghost" size="icon" aria-label="Notificaciones" className="relative">
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-2.5 right-2.5 h-1.5 w-1.5 rounded-full bg-accent" />
-        </Button>
+        <CampanaNotificaciones usuarioId={usuarioId} />
 
         <div ref={menuRef} className="relative">
           <button
