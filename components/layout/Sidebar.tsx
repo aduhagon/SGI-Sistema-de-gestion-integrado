@@ -12,6 +12,7 @@ import {
   AlertOctagon,
   Grid3x3,
   ShieldAlert,
+  Gauge,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
 
   { href: "/cumplimiento",  label: "Cumplimiento",  icon: Grid3x3,         section: "calidad" },
   { href: "/riesgos",       label: "Riesgos",       icon: ShieldAlert,     section: "calidad" },
+  { href: "/indicadores",   label: "Indicadores",   icon: Gauge,           section: "calidad" },
   { href: "/auditorias",    label: "Auditorías",    icon: ClipboardCheck,  section: "calidad" },
   { href: "/ncs",           label: "No conformidades", icon: AlertOctagon, section: "calidad" },
 
