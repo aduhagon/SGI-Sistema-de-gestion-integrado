@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, Loader2, Save, ShieldAlert, TrendingUp, Search } from "lucide-react";
-import type { Riesgo, ProcesoOpcion, UsuarioOpcion } from "@/lib/api/riesgos";
+import type { Riesgo, ProcesoOpcion, PuestoOpcion } from "@/lib/api/riesgos";
 import { clasificarNivel, type NivelRiesgo } from "@/lib/riesgos-utils";
 import { guardarRiesgo, eliminarRiesgo, type EstadoRiesgo } from "@/app/(app)/riesgos/actions";
 import { Button } from "@/components/ui/button";
@@ -38,10 +38,10 @@ function celdaColor(nivel: NivelRiesgo): string {
   return "bg-red-300";
 }
 
-export function GestionRiesgos({ riesgos, procesos, usuarios }: {
+export function GestionRiesgos({ riesgos, procesos, puestos }: {
   riesgos: Riesgo[];
   procesos: ProcesoOpcion[];
-  usuarios: UsuarioOpcion[];
+  puestos: PuestoOpcion[];
 }) {
   const router = useRouter();
   const [editando, setEditando] = useState<Riesgo | null>(null);
@@ -192,10 +192,10 @@ export function GestionRiesgos({ riesgos, procesos, usuarios }: {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="responsableId" className="text-sm font-medium">Responsable <span className="text-muted-foreground">(opc.)</span></label>
+                    <label htmlFor="responsableId" className="text-sm font-medium">Puesto responsable <span className="text-muted-foreground">(opc.)</span></label>
                     <select id="responsableId" name="responsableId" defaultValue={editando?.responsableId ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
                       <option value="">Sin asignar</option>
-                      {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+                      {puestos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                     </select>
                   </div>
                 </div>

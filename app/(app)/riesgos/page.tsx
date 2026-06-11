@@ -4,7 +4,7 @@ import { GestionRiesgos } from "@/components/riesgos/GestionRiesgos";
 export const dynamic = "force-dynamic";
 
 export default async function RiesgosPage() {
-  const [riesgos, { procesos, usuarios }] = await Promise.all([
+  const [riesgos, { procesos, puestos }] = await Promise.all([
     listarRiesgos(),
     obtenerDatosFormRiesgo(),
   ]);
@@ -28,7 +28,7 @@ export default async function RiesgosPage() {
           </div>
         )}
       </header>
-      <GestionRiesgos riesgos={riesgos} procesos={procesos} usuarios={usuarios} />
+      <GestionRiesgos riesgos={riesgos} procesos={procesos} puestos={puestos} />
     </div>
   );
 }
