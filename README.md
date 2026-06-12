@@ -1,147 +1,88 @@
-# SGI Multinorma — MSU
+# Paquete frontend SGI — Backlog cerrado
 
-Sistema de Gestión Documental Multinorma para empresa agroindustrial.
-Soporta ISO 9001, ISO 14001, ISO 45001, BRCGS, GlobalGAP y BPA simultáneamente.
+Generado para Ale · MSU SGI Multinorma
 
-## Stack
+Este paquete cubre los puntos del backlog frontend que pediste:
 
-- **Next.js 14** (App Router) + **TypeScript**
-- **Supabase** (PostgreSQL + Auth + Storage + Realtime)
-- **Tailwind CSS** + **shadcn/ui** (estilo personalizado)
-- **IBM Plex** (Sans + Serif + Mono) como sistema tipográfico
-- **Vercel** para hosting
-
----
-
-## Cómo deployar este proyecto (paso a paso)
-
-> ✋ **No necesitás Node.js local.** Todo se hace online: GitHub + Vercel + Supabase.
-
-### Paso 1 — Subir el código a GitHub
-
-1. Andá a [github.com/new](https://github.com/new) y creá un repo nuevo:
-   - **Repository name**: `sgi-msu` (o el que prefieras)
-   - **Privacy**: **Private** (es código interno de MSU)
-   - **NO** marqués "Add a README" ni "Add a .gitignore" (este zip ya los trae).
-   - Click **Create repository**.
-
-2. Vas a ver una página con instrucciones. **Ignorá las de línea de comandos.** En su lugar, hacé scroll hasta encontrar el link **"uploading an existing file"** (o entrá a la página del repo y click en **"Add file" → "Upload files"**).
-
-3. **Arrastrá TODO el contenido del zip extraído** (archivos y carpetas) al área de upload de GitHub. No el zip — los archivos descomprimidos.
-
-4. En el comentario del commit poné: `Setup inicial del proyecto SGI`.
-
-5. Click **Commit changes**. GitHub sube todo y queda en la rama `main`.
-
-### Paso 2 — Conectar Vercel
-
-1. Andá a [vercel.com/new](https://vercel.com/new).
-2. Si nunca usaste Vercel: registrate con tu cuenta de GitHub (más simple).
-3. **Import Git Repository** → buscá `sgi-msu` y click **Import**.
-4. En la pantalla de configuración:
-   - **Framework Preset**: Next.js (se detecta automáticamente).
-   - **Build & Output Settings**: dejá los defaults.
-   - **Environment Variables**: hacé click en **Add** y agregá las **dos variables** del paso 3 antes de hacer Deploy. ⚠️ Si lo hacés Deploy sin las variables, el build falla.
-
-### Paso 3 — Configurar variables de entorno
-
-Necesitás dos valores de Supabase:
-
-1. Andá a [supabase.com/dashboard/project/hghzpuvxggvpgwzpzaqw/settings/api](https://supabase.com/dashboard/project/hghzpuvxggvpgwzpzaqw/settings/api)
-2. Buscá la sección **Project API keys**.
-3. Copiá los dos valores que necesitás:
-   - **Project URL**: `https://hghzpuvxggvpgwzpzaqw.supabase.co`
-   - **anon / public**: una cadena larga JWT (empieza con `eyJ...`)
-
-En Vercel, agregá las dos variables:
-
-| Variable | Valor |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | `https://hghzpuvxggvpgwzpzaqw.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | la clave anon pública (la del paso anterior) |
-
-Asegurate que **ambas estén marcadas para "Production", "Preview" y "Development"**.
-
-### Paso 4 — Deploy
-
-1. Click **Deploy**.
-2. Esperá ~90 segundos. Vas a ver el logo de Vercel haciendo la animación.
-3. Cuando termine, click en **Visit** o copiá la URL pública (algo como `sgi-msu-tunombre.vercel.app`).
-
-### Paso 5 — Crear tu primer usuario
-
-Como todavía no tenés SSO con Microsoft Entra ID, los usuarios se crean manualmente en Supabase:
-
-1. Andá a [supabase.com/dashboard/project/hghzpuvxggvpgwzpzaqw/auth/users](https://supabase.com/dashboard/project/hghzpuvxggvpgwzpzaqw/auth/users)
-2. Click **Add user** → **Create new user**.
-3. Email + contraseña. Marcá **Auto Confirm User** para saltearte la verificación por email.
-4. Click **Create user**.
-
-Volvé a la URL de Vercel, ingresá con esas credenciales, y debería llevarte al dashboard. 🎉
+1. ✅ **Confirmación de eliminado** con componente reutilizable
+   `ConfirmarEliminacion` (motivo obligatorio → `eliminado_motivo`).
+2. ✅ **Menú lateral por rol** usando `fn_perfil_menu_usuario`.
+3. ✅ **Códigos sugeridos** en riesgos (`fn_sugerir_codigo_riesgo`) e
+   indicadores (`fn_sugerir_codigo_indicador`).
+4. ✅ **Ícono para `documento_rechazado`** en la campana.
+5. ✅ **Retoques de lenguaje llano** (en el componente nuevo; sugerencias para
+   el resto en el instructivo).
 
 ---
 
-## Lo que viene (próximas pantallas)
+## ⚠️ Leé esto primero
 
-Este zip es la **Semana 1 de Fase 1B**. Las siguientes semanas van a agregar:
+Este NO es un zip de "reemplazá las carpetas y listo". Es deliberadamente
+**mixto**, por una razón de seguridad para tu producción:
 
-| Semana | Pantalla |
-|---|---|
-| 2 | Dashboard con datos reales (aprobaciones, acuses pendientes) |
-| 3 | Mapa de procesos interactivo |
-| 4 | Listado y detalle de documentos |
-| 5 | Wizard de alta de documento |
-| 6 | Edición y nueva versión |
-| 7 | Bandeja de aprobaciones + acuses con firma |
-| 8 | Piloto interno |
+- **Archivos nuevos** (carpetas `components/`, `lib/`): subílos tal cual, son
+  completos y ya pasaron chequeo de tipos.
+- **Cambios sobre archivos existentes**: van como **instructivo de diff** en
+  `INSTRUCCIONES/INTEGRACION.md`, no como archivos para pisar. Esto evita que
+  reemplaces tus actions/componentes reales (que tienen lógica que no conviene
+  sobrescribir, como las funciones `traducir` de cada módulo) con versiones
+  reconstruidas. Cada cambio está descripto como "buscá esto → poné esto".
+- **Snippets** (carpeta `snippets/`): funciones nuevas y cortas para **agregar**
+  al final de tus actions de riesgos e indicadores.
+
+Todo lo que toca la base fue verificado contra tu proyecto Supabase real
+(`hghzpuvxggvpgwzpzaqw`): existen las tres funciones, el valor
+`documento_rechazado` del enum, y las funciones de sugerencia devuelven los
+códigos esperados (`R-01-01`, `O-01-01`, `KPI-01-01`).
 
 ---
 
-## Estructura del proyecto
+## Contenido del zip
 
 ```
-sgi-msu/
-├── app/
-│   ├── (auth)/login/          → Pantalla de login
-│   ├── (app)/                 → Rutas autenticadas
-│   │   ├── layout.tsx         → Layout con sidebar + topbar
-│   │   └── dashboard/         → Página principal
-│   ├── globals.css            → Estilos globales y tema
-│   ├── layout.tsx             → Root layout con tipografía
-│   └── page.tsx               → Redirige a /dashboard
+paquete/
+├── README.md                          ← este archivo
+├── INSTRUCCIONES/
+│   └── INTEGRACION.md                 ← el paso a paso con todos los diffs
 ├── components/
-│   ├── auth/LoginForm.tsx     → Form de login
-│   ├── layout/
-│   │   ├── Sidebar.tsx        → Navegación lateral
-│   │   └── TopBar.tsx         → Topbar con search + user menu
-│   └── ui/                    → Componentes base (button, input, card)
+│   ├── ui/
+│   │   └── ConfirmarEliminacion.tsx   ← NUEVO · diálogo reutilizable
+│   └── layout/
+│       └── SidebarNav.tsx             ← NUEVO · navegación por rol
 ├── lib/
-│   ├── supabase/              → Clientes (browser, server, middleware)
-│   └── utils.ts               → Util cn() para combinar clases
-└── middleware.ts              → Protección de rutas y refresh de JWT
+│   └── api/
+│       └── perfil-menu.ts             ← NUEVO · helper de fn_perfil_menu_usuario
+└── snippets/
+    ├── sugerir-codigo-riesgo.ts       ← agregar a riesgos/actions.ts
+    └── sugerir-codigo-indicador.ts    ← agregar a indicadores/actions.ts
 ```
 
 ---
 
-## Generar tipos TypeScript desde Supabase
+## Orden recomendado para subir (de menor a mayor riesgo)
 
-Cuando agregues columnas o tablas, regenerá los tipos:
+1. **Campana** (1 archivo, 2 líneas) — bajo riesgo, efecto inmediato.
+   → `INTEGRACION.md` §4
+2. **Archivos nuevos** — subí `ConfirmarEliminacion.tsx`, `perfil-menu.ts` y
+   `SidebarNav.tsx`. No rompen nada por sí solos.
+3. **Snippets de sugerencia** — pegá las dos funciones en sus actions.
+   → `INTEGRACION.md` §6.2 / §7.2
+4. **Riesgos e indicadores** — código sugerido + confirmación. → §6 y §7
+5. **Sidebar por rol** — el cambio en `Sidebar.tsx`. → §5
+6. **ABMs de configuración** — confirmación de eliminado (patrón uniforme). → §8
+7. **Lenguaje llano** — opcional. → §9
 
-```bash
-npx supabase gen types typescript --project-id hghzpuvxggvpgwzpzaqw --schema public > lib/supabase/database.types.ts
-```
-
-O usá el script abreviado:
-
-```bash
-npm run types
-```
+Después de cada bloque conviene dejar que Vercel buildee, así si algo falla
+sabés exactamente qué commit lo introdujo.
 
 ---
 
-## Credenciales y secretos
+## Nota sobre lo que dejé fuera a propósito
 
-- **Nunca commitees `.env.local`** (ya está en .gitignore).
-- Las credenciales viven solo en **Vercel → Project Settings → Environment Variables**.
-- El `anon key` de Supabase es **público por diseño** (es seguro exponerlo en el frontend): RLS limita lo que cada usuario puede leer/escribir.
-- El `service role key` de Supabase **NUNCA va en el frontend**. Solo en Edge Functions y backend.
+- **persona-puesto**: usa `motivo_revocacion` (cierre de vigencia SCD2), no
+  soft-delete. Para no tocar el flujo de revocación de participaciones (que
+  llama al RPC `fn_revocar_participaciones_de_puesto`), lo dejé fuera. Si querés
+  que también pida motivo al usuario, decímelo y lo armo aparte.
+- **Coberturas y versiones de norma**: tienen soft-delete y entran en el mismo
+  patrón del §8 si querés sumarlas; no las incluí en el checklist principal para
+  mantener el primer deploy acotado. Avisame y las agrego.
