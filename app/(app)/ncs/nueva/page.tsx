@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { obtenerProcesosParaAlcance } from "@/lib/api/auditorias";
 import { obtenerHallazgosSinNC } from "@/lib/api/ncs";
+import { obtenerNormasConRequisitos } from "@/lib/api/matriz";
+import { obtenerRequisitosDeNorma } from "@/lib/api/coberturas";
 import { NCForm } from "@/components/ncs/NCForm";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +13,18 @@ export default async function NuevaNCPage() {
     obtenerProcesosParaAlcance(),
     obtenerHallazgosSinNC(),
   ]);
+
+  // Normas con requisitos + requisitos por norma, para el selector encadenado.
+  const normasConReq = await obtenerNormasConRequisitos();
+  const requisitosPorNorma: Record<
+    string,
+    Awaited<ReturnType<typeof obtenerRequisitosDeNorma>>
+  > = {};
+  for (const n of normasConReq) {
+    requisitosPorNorma[n.versionNormaId] = await obtenerRequisitosDeNorma(
+      n.versionNormaId,
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl p-6 sm:p-8 lg:p-10">
@@ -27,7 +41,12 @@ export default async function NuevaNCPage() {
           causa raíz y, más adelante, las acciones correctivas.
         </p>
       </header>
-      <NCForm procesos={procesos} hallazgos={hallazgos} />
+      <NCForm
+        procesos={procesos}
+        hallazgos={hallazgos}
+        normas={normasConReq}
+        requisitosPorNorma={requisitosPorNorma}
+      />
     </div>
   );
 }

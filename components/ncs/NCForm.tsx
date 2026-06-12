@@ -6,12 +6,16 @@ import { Loader2, Save } from "lucide-react";
 import type { ProcesoParaAlcance } from "@/lib/api/auditorias";
 import { crearNC, type EstadoCrearNC } from "@/app/(app)/ncs/nueva/actions";
 import { Button } from "@/components/ui/button";
+import { SelectorRequisitoNC } from "@/components/ncs/SelectorRequisitoNC";
+import type { NormaOpcionNC, RequisitoOpcionNC } from "@/components/ncs/SelectorRequisitoNC";
 
 type HallazgoOpcion = { id: string; codigo: string; titulo: string; tipo: string };
 
 type Props = {
   procesos: ProcesoParaAlcance[];
   hallazgos: HallazgoOpcion[];
+  normas: NormaOpcionNC[];
+  requisitosPorNorma: Record<string, RequisitoOpcionNC[]>;
 };
 
 const ORIGENES = [
@@ -39,7 +43,7 @@ function SubmitButton() {
   );
 }
 
-export function NCForm({ procesos, hallazgos }: Props) {
+export function NCForm({ procesos, hallazgos, normas, requisitosPorNorma }: Props) {
   const [estado, formAction] = useFormState<EstadoCrearNC, FormData>(crearNC, null);
   const [origen, setOrigen] = useState("control_interno");
   const [accionInmediata, setAccionInmediata] = useState(false);
@@ -93,6 +97,9 @@ export function NCForm({ procesos, hallazgos }: Props) {
           </select>
         </div>
       </div>
+
+      {/* Selector encadenado Norma → Requisito incumplido (obligatorio) */}
+      <SelectorRequisitoNC normas={normas} requisitosPorNorma={requisitosPorNorma} />
 
       {esAuditoria && (
         <div className="space-y-2">
