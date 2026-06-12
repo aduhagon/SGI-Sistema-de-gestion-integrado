@@ -86,3 +86,4 @@ sabés exactamente qué commit lo introdujo.
 - **Coberturas y versiones de norma**: tienen soft-delete y entran en el mismo
   patrón del §8 si querés sumarlas; no las incluí en el checklist principal para
   mantener el primer deploy acotado. Avisame y las agrego.
+  
