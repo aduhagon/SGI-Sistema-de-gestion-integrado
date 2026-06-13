@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Mail, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -84,6 +85,15 @@ export function LoginForm() {
             className="pl-9"
           />
         </div>
+      </div>
+
+      <div className="flex justify-end -mt-2">
+        <Link
+          href="/recuperar"
+          className="text-xs text-muted-foreground transition-colors hover:text-foreground hover:underline"
+        >
+          ¿Olvidaste tu contraseña?
+        </Link>
       </div>
 
       {error && (
