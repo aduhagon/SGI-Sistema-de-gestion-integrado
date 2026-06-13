@@ -31,7 +31,7 @@ const navItems: NavItem[] = [
   { href: "/aprobaciones",  label: "Aprobaciones",  icon: CheckSquare,     section: "principal" },
   { href: "/acuses",        label: "Acuses",        icon: PenSquare,       section: "principal" },
 
-  { href: "/cumplimiento",  label: "Cumplimiento",  icon: Grid3x3,         section: "calidad" },
+  { href: "/cumplimiento/panorama",  label: "Cumplimiento",  icon: Grid3x3,         section: "calidad" },
   { href: "/riesgos",       label: "Riesgos",       icon: ShieldAlert,     section: "calidad" },
   { href: "/indicadores",   label: "Indicadores",   icon: Gauge,           section: "calidad" },
   { href: "/auditorias",    label: "Auditorías",    icon: ClipboardCheck,  section: "calidad" },
