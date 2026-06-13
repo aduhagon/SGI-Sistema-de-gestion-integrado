@@ -29,27 +29,27 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   // Operación: visible para todos.
-  { href: "/dashboard",    label: "Dashboard",        icon: LayoutDashboard, section: "principal" },
-  { href: "/procesos",     label: "Procesos",         icon: Network,         section: "principal" },
-  { href: "/documentos",   label: "Documentos",       icon: FileText,        section: "principal" },
-  { href: "/aprobaciones", label: "Aprobaciones",     icon: CheckSquare,     section: "principal",
+  { href: "/dashboard",     label: "Dashboard",        icon: LayoutDashboard, section: "principal" },
+  { href: "/procesos",      label: "Procesos",         icon: Network,         section: "principal" },
+  { href: "/documentos",    label: "Documentos",       icon: FileText,        section: "principal" },
+  { href: "/aprobaciones",  label: "Aprobaciones",     icon: CheckSquare,     section: "principal",
     visible: (p) => p.esAprobador || p.esGestor },
-  { href: "/acuses",       label: "Acuses",           icon: PenSquare,       section: "principal" },
+  { href: "/acuses",        label: "Acuses",           icon: PenSquare,       section: "principal" },
 
   // Calidad & Auditoría: gestores (admin / responsable_sgi / auditor).
-  { href: "/cumplimiento", label: "Cumplimiento",     icon: Grid3x3,         section: "calidad",
+  { href: "/cumplimiento/panorama", label: "Cumplimiento", icon: Grid3x3,     section: "calidad",
     visible: (p) => p.esGestor },
-  { href: "/riesgos",      label: "Riesgos",          icon: ShieldAlert,     section: "calidad",
+  { href: "/riesgos",       label: "Riesgos",          icon: ShieldAlert,     section: "calidad",
     visible: (p) => p.esGestor },
-  { href: "/indicadores",  label: "Indicadores",      icon: Gauge,           section: "calidad",
+  { href: "/indicadores",   label: "Indicadores",      icon: Gauge,           section: "calidad",
     visible: (p) => p.esGestor },
-  { href: "/auditorias",   label: "Auditorías",       icon: ClipboardCheck,  section: "calidad",
+  { href: "/auditorias",    label: "Auditorías",       icon: ClipboardCheck,  section: "calidad",
     visible: (p) => p.esGestor },
-  { href: "/ncs",          label: "No conformidades", icon: AlertOctagon,    section: "calidad",
+  { href: "/ncs",           label: "No conformidades", icon: AlertOctagon,    section: "calidad",
     visible: (p) => p.esGestor },
 
   // Sistema: solo gestores.
-  { href: "/configuracion", label: "Configuración",   icon: Settings,        section: "admin",
+  { href: "/configuracion", label: "Configuración",    icon: Settings,        section: "admin",
     visible: (p) => p.esGestor },
 ];
 
@@ -151,5 +151,8 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === href;
+  // "Cumplimiento" apunta a /cumplimiento/panorama pero debe quedar activo
+  // también en la matriz detallada (/cumplimiento y /cumplimiento?norma=...).
+  if (href === "/cumplimiento/panorama") return pathname.startsWith("/cumplimiento");
   return pathname.startsWith(href);
 }
