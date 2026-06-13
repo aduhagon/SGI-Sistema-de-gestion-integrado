@@ -5,6 +5,7 @@ import { Plus, AlertOctagon, Eye, Lightbulb, Award, FileText, Network, BookOpen 
 import type { Hallazgo } from "@/lib/api/hallazgos";
 import { Button } from "@/components/ui/button";
 import { AgregarHallazgoDialog } from "./AgregarHallazgoDialog";
+import { BotonCrearNC } from "./BotonCrearNC";
 
 type ReqOpcion = { id: string; clausula: string; titulo: string; norma: string };
 type ProcOpcion = { id: string; codigo: string; nombre: string };
@@ -94,6 +95,18 @@ export function SeccionHallazgos({ auditoriaId, hallazgos, requisitos, procesos 
                         </span>
                       )}
                     </div>
+                    {(h.tipo === "no_conformidad_mayor" || h.tipo === "no_conformidad_menor") &&
+                      !h.noConformidadId && (
+                        <BotonCrearNC hallazgoId={h.id} />
+                      )}
+                    {h.noConformidadId && (
+                      <a
+                        href={`/ncs/${h.noConformidadId}`}
+                        className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        Ver no conformidad asociada
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>

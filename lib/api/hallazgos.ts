@@ -13,6 +13,7 @@ export type Hallazgo = {
   procesoNombre: string | null;
   documentoCodigo: string | null;
   detectadoEn: string;
+  noConformidadId: string | null;
 };
 
 export async function obtenerHallazgosDeAuditoria(
@@ -22,7 +23,7 @@ export async function obtenerHallazgosDeAuditoria(
   const { data, error } = await supabase
     .from("hallazgos")
     .select(
-      `id, codigo, tipo, severidad, titulo, descripcion, evidencia, estado, detectado_en,
+      `id, codigo, tipo, severidad, titulo, descripcion, evidencia, estado, detectado_en, no_conformidad_id,
        requisitos:requisitos!hallazgos_requisito_id_fkey (clausula),
        procesos:procesos!hallazgos_proceso_id_fkey (nombre),
        documentos:documentos!hallazgos_documento_id_fkey (codigo)`,
@@ -44,6 +45,7 @@ export async function obtenerHallazgosDeAuditoria(
     evidencia: string | null;
     estado: string;
     detectado_en: string;
+    no_conformidad_id: string | null;
     requisitos: { clausula: string } | null;
     procesos: { nombre: string } | null;
     documentos: { codigo: string } | null;
@@ -62,6 +64,7 @@ export async function obtenerHallazgosDeAuditoria(
     procesoNombre: h.procesos?.nombre ?? null,
     documentoCodigo: h.documentos?.codigo ?? null,
     detectadoEn: h.detectado_en,
+    noConformidadId: h.no_conformidad_id,
   }));
 }
 
