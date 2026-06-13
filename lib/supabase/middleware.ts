@@ -31,7 +31,14 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isLoginRoute = path.startsWith("/login");
-  const isPublicRoute = isLoginRoute || path === "/" || path.startsWith("/auth/");
+  // Rutas públicas de autenticación (no requieren sesión): login, raíz,
+  // callbacks de auth, y el flujo de recuperación de contraseña.
+  const isPublicRoute =
+    isLoginRoute ||
+    path === "/" ||
+    path.startsWith("/auth/") ||
+    path.startsWith("/recuperar") ||
+    path.startsWith("/restablecer");
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
