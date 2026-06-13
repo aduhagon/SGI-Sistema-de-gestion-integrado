@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, FileText, AlertOctagon, Gauge } from "lucide-react";
 import { getProcessIcon } from "./icons";
 
 export type ProcessSummary = {
@@ -10,6 +10,12 @@ export type ProcessSummary = {
   tipo: "estrategico" | "operativo" | "apoyo";
   color_hex: string | null;
   icono: string | null;
+  // Indicadores de salud (opcional: si no se pasan, no se muestran chips).
+  salud?: {
+    documentos: number;
+    ncAbiertas: number;
+    indicadores: number;
+  };
 };
 
 type Props = {
@@ -19,6 +25,7 @@ type Props = {
 export function ProcessCard({ proceso }: Props) {
   const Icon = getProcessIcon(proceso.icono);
   const color = proceso.color_hex ?? "#475569";
+  const salud = proceso.salud;
 
   return (
     <Link
@@ -57,6 +64,60 @@ export function ProcessCard({ proceso }: Props) {
           {proceso.descripcion_corta}
         </p>
       )}
+
+      {/* Indicadores de salud */}
+      {salud && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 pl-2">
+          <ChipSalud
+            icon={FileText}
+            valor={salud.documentos}
+            etiqueta={salud.documentos === 1 ? "documento" : "documentos"}
+            tono="neutro"
+          />
+          {salud.indicadores > 0 && (
+            <ChipSalud
+              icon={Gauge}
+              valor={salud.indicadores}
+              etiqueta={salud.indicadores === 1 ? "indicador" : "indicadores"}
+              tono="neutro"
+            />
+          )}
+          {salud.ncAbiertas > 0 && (
+            <ChipSalud
+              icon={AlertOctagon}
+              valor={salud.ncAbiertas}
+              etiqueta={salud.ncAbiertas === 1 ? "NC abierta" : "NC abiertas"}
+              tono="alerta"
+            />
+          )}
+        </div>
+      )}
     </Link>
+  );
+}
+
+function ChipSalud({
+  icon: Icon,
+  valor,
+  etiqueta,
+  tono,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  valor: number;
+  etiqueta: string;
+  tono: "neutro" | "alerta";
+}) {
+  const clases =
+    tono === "alerta"
+      ? "bg-destructive/10 text-destructive"
+      : "bg-muted text-muted-foreground";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${clases}`}
+      title={`${valor} ${etiqueta}`}
+    >
+      <Icon className="h-3 w-3" aria-hidden="true" />
+      {valor}
+    </span>
   );
 }

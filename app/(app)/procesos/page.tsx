@@ -1,15 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { ProcessBand } from "@/components/procesos/ProcessBand";
 import type { ProcessSummary } from "@/components/procesos/ProcessCard";
+import { obtenerSaludProcesos } from "@/lib/api/saludProcesos";
+
+export const dynamic = "force-dynamic";
 
 export default async function ProcesosPage() {
   const supabase = createClient();
 
-  const { data: procesos, error } = await supabase
-    .from("procesos")
-    .select("id, codigo, nombre, descripcion_corta, tipo, color_hex, icono, orden_visualizacion")
-    .eq("activo", true)
-    .order("orden_visualizacion", { ascending: true });
+  const [{ data: procesos, error }, salud] = await Promise.all([
+    supabase
+      .from("procesos")
+      .select("id, codigo, nombre, descripcion_corta, tipo, color_hex, icono, orden_visualizacion")
+      .eq("activo", true)
+      .order("orden_visualizacion", { ascending: true }),
+    obtenerSaludProcesos(),
+  ]);
 
   if (error) {
     return (
@@ -24,7 +30,12 @@ export default async function ProcesosPage() {
     );
   }
 
-  const procesosList: ProcessSummary[] = procesos ?? [];
+  // Inyectar los indicadores de salud en cada proceso.
+  const procesosList: ProcessSummary[] = (procesos ?? []).map((p) => ({
+    ...p,
+    salud: salud[p.id] ?? { documentos: 0, ncAbiertas: 0, indicadores: 0 },
+  }));
+
   const estrategicos = procesosList.filter((p) => p.tipo === "estrategico");
   const operativos = procesosList.filter((p) => p.tipo === "operativo");
   const apoyo = procesosList.filter((p) => p.tipo === "apoyo");
