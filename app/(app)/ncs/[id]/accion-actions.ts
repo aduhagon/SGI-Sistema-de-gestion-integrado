@@ -77,16 +77,27 @@ export async function crearAccion(
 export async function completarAccion(
   ncId: string,
   accionId: string,
+  resultado: string,
 ): Promise<EstadoAccion> {
   const supabase = createClient();
   const usuarioId = await obtenerUsuarioActualId();
   if (!usuarioId) return { ok: false, error: "Sesión no válida." };
+
+  // La acción requiere un resultado obtenido para poder completarse
+  // (constraint chk_acciones_completada_tiene_resultado).
+  if (!resultado || resultado.trim().length < 3) {
+    return {
+      ok: false,
+      error: "Indicá el resultado obtenido para completar la acción (mínimo 3 caracteres).",
+    };
+  }
 
   const { error } = await supabase
     .from("acciones")
     .update({
       estado: "completada",
       fecha_completada: new Date().toISOString(),
+      resultado_obtenido: resultado.trim(),
       actualizado_por: usuarioId,
       actualizado_en: new Date().toISOString(),
     })

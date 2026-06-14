@@ -40,16 +40,31 @@ export function GestionAcciones({ ncId, acciones, usuarios }: Props) {
   const [abierto, setAbierto] = useState(false);
   const [estado, formAction] = useFormState<EstadoAccion, FormData>(crearAccion, null);
   const [completando, setCompletando] = useState<string | null>(null);
+  const [accionACompletar, setAccionACompletar] = useState<Accion | null>(null);
+  const [resultado, setResultado] = useState("");
+  const [errorCompletar, setErrorCompletar] = useState<string | null>(null);
 
   useEffect(() => {
     if (estado?.ok) { setAbierto(false); router.refresh(); }
   }, [estado, router]);
 
-  async function completar(accionId: string) {
-    setCompletando(accionId);
-    const r = await completarAccion(ncId, accionId);
+  async function confirmarCompletar() {
+    if (!accionACompletar) return;
+    setErrorCompletar(null);
+    if (resultado.trim().length < 3) {
+      setErrorCompletar("Indicá el resultado obtenido (mínimo 3 caracteres).");
+      return;
+    }
+    setCompletando(accionACompletar.id);
+    const r = await completarAccion(ncId, accionACompletar.id, resultado);
     setCompletando(null);
-    if (r?.ok) router.refresh();
+    if (r?.ok) {
+      setAccionACompletar(null);
+      setResultado("");
+      router.refresh();
+    } else {
+      setErrorCompletar(r?.ok === false ? r.error : "No se pudo completar la acción.");
+    }
   }
 
   return (
@@ -87,10 +102,11 @@ export function GestionAcciones({ ncId, acciones, usuarios }: Props) {
                   </div>
                   {a.estado !== "completada" && a.estado !== "cancelada" && (
                     <button
-                      type="button" onClick={() => completar(a.id)} disabled={completando === a.id}
+                      type="button"
+                      onClick={() => { setAccionACompletar(a); setResultado(""); setErrorCompletar(null); }}
                       className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted/50 disabled:opacity-50"
                     >
-                      {completando === a.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                      <CheckCircle2 className="h-3 w-3" />
                       Completar
                     </button>
                   )}
@@ -106,6 +122,46 @@ export function GestionAcciones({ ncId, acciones, usuarios }: Props) {
           <p className="mt-1 max-w-sm text-xs text-muted-foreground">
             Definí las acciones correctivas, preventivas o inmediatas para tratar esta no conformidad.
           </p>
+        </div>
+      )}
+
+      {accionACompletar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAccionACompletar(null)} />
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl">
+            <div className="p-6">
+              <h2 className="font-serif text-xl font-semibold tracking-tight">Completar acción</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {accionACompletar.codigo} · {accionACompletar.titulo}
+              </p>
+              <div className="mt-4 space-y-2">
+                <label htmlFor="resultado-obtenido" className="text-sm font-medium">
+                  Resultado obtenido
+                </label>
+                <textarea
+                  id="resultado-obtenido"
+                  rows={4}
+                  value={resultado}
+                  onChange={(e) => setResultado(e.target.value)}
+                  placeholder="Describí qué se hizo y qué resultado se obtuvo con esta acción…"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+              {errorCompletar && (
+                <div role="alert" className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                  {errorCompletar}
+                </div>
+              )}
+              <div className="mt-5 flex gap-3">
+                <Button type="button" variant="outline" onClick={() => setAccionACompletar(null)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button type="button" onClick={confirmarCompletar} disabled={completando === accionACompletar.id} className="flex-1">
+                  {completando === accionACompletar.id ? <><Loader2 className="h-4 w-4 animate-spin" />Completando…</> : <><CheckCircle2 className="h-4 w-4" />Completar acción</>}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
