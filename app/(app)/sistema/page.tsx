@@ -5,7 +5,7 @@ import {
   obtenerConfiguracion,
   obtenerModulos,
   obtenerNormasDisponibles,
-} from "@/lib/api/configuracion";
+} from "@/lib/api/config-sistema";
 import { PanelConfiguracion } from "@/components/sistema/PanelConfiguracion";
 
 export const dynamic = "force-dynamic";

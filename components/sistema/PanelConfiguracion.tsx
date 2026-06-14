@@ -15,7 +15,7 @@ import {
 import type {
   ConfiguracionSistema,
   ModuloSistema,
-} from "@/lib/api/configuracion";
+} from "@/lib/api/config-sistema";
 import { setConfiguracion, setModulo } from "@/app/(app)/sistema/config-actions";
 
 type Props = {
