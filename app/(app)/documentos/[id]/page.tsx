@@ -16,7 +16,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatusDot } from "@/components/documentos/StatusDot";
 import { buttonVariants } from "@/components/ui/button";
 import { BotonEnviarAprobacion } from "@/components/aprobaciones/BotonEnviarAprobacion";
+import { BotonAprobarAdmin } from "@/components/documentos/BotonAprobarAdmin";
 import { obtenerUsuariosElegibles } from "@/lib/api/envio";
+import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
 import { GestionCoberturas } from "@/components/coberturas/GestionCoberturas";
 import { obtenerCoberturasDeDocumento, obtenerRequisitosDeNorma } from "@/lib/api/coberturas";
 import { obtenerNormasConRequisitos } from "@/lib/api/matriz";
@@ -178,6 +180,15 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
   const usuariosElegibles = enviable
     ? await obtenerUsuariosElegibles(versionActual.creado_por)
     : [];
+
+  // Perfil para el atajo de aprobación administrativa (solo gestores).
+  const perfil = await obtenerPerfilMenu();
+  // El documento se puede aprobar administrativamente si todavía no está vigente.
+  const puedeAprobarAdmin =
+    perfil.esGestor &&
+    ["borrador", "confeccionado", "pendiente_aprobacion", "rechazado"].includes(
+      doc.estado_actual,
+    );
 
   // Datos para la gestión de coberturas (matriz documento-requisito).
   const [coberturasActuales, normasConReq] = await Promise.all([
@@ -403,6 +414,22 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
               </CardHeader>
             </Card>
           ) : null}
+
+          {puedeAprobarAdmin && (
+            <Card className="border-emerald-500/30">
+              <CardHeader>
+                <CardTitle className="text-base">Aprobación administrativa</CardTitle>
+                <CardDescription className="leading-relaxed">
+                  Atajo de gestor para poner el documento vigente sin pasar por el
+                  circuito de firmas. Pensado para la puesta en marcha. Queda registrado
+                  el motivo.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BotonAprobarAdmin documentoId={doc.id} />
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <aside className="space-y-4">
