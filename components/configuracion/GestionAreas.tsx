@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, Loader2, Save, Building } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Save, Building, ChevronDown, ChevronRight } from "lucide-react";
 import type { Area } from "@/lib/api/configuracion";
 import { guardarArea, eliminarArea, type EstadoConfig } from "@/app/(app)/configuracion/areas/actions";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,36 @@ export function GestionAreas({ areas, gerencias }: { areas: Area[]; gerencias: G
   const [eliminando, setEliminando] = useState<string | null>(null);
   const [estado, formAction] = useFormState<EstadoConfig, FormData>(guardarArea, null);
 
+  // Agrupar las áreas por gerencia. Las gerencias mismas (código GER-*) y las
+  // áreas sin gerencia van a un grupo aparte para no perderlas.
+  const grupos = useMemo(() => {
+    const porGerencia = new Map<string, { titulo: string; areas: Area[] }>();
+    const sinGerencia: Area[] = [];
+
+    for (const a of areas) {
+      // Una "gerencia" (área cuyo código empieza con GER-) no se agrupa dentro de
+      // otra: encabeza su propio grupo. El resto se agrupa por su gerencia padre.
+      if (a.gerenciaNombre) {
+        const clave = a.gerenciaId ?? a.gerenciaNombre;
+        if (!porGerencia.has(clave)) {
+          porGerencia.set(clave, { titulo: a.gerenciaNombre, areas: [] });
+        }
+        porGerencia.get(clave)!.areas.push(a);
+      } else {
+        sinGerencia.push(a);
+      }
+    }
+
+    const lista = Array.from(porGerencia.entries())
+      .map(([clave, g]) => ({ clave, titulo: g.titulo, areas: g.areas }))
+      .sort((x, y) => x.titulo.localeCompare(y.titulo));
+
+    if (sinGerencia.length > 0) {
+      lista.push({ clave: "__sin__", titulo: "Sin gerencia asignada", areas: sinGerencia });
+    }
+    return lista;
+  }, [areas]);
+
   useEffect(() => {
     if (estado?.ok) { setAbierto(false); setEditando(null); router.refresh(); }
   }, [estado, router]);
@@ -47,38 +77,17 @@ export function GestionAreas({ areas, gerencias }: { areas: Area[]; gerencias: G
       </div>
 
       {areas.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-left">
-                <th className="px-4 py-2.5 font-medium text-muted-foreground">Código</th>
-                <th className="px-4 py-2.5 font-medium text-muted-foreground">Nombre</th>
-                <th className="px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">Gerencia</th>
-                <th className="px-4 py-2.5 w-20"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {areas.map((a) => (
-                <tr key={a.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-2.5 font-mono text-xs">{a.codigo}</td>
-                  <td className="px-4 py-2.5 font-medium">{a.nombre}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground hidden sm:table-cell">
-                    {a.gerenciaNombre ?? <span className="text-muted-foreground/50">Sin asignar</span>}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex justify-end gap-1">
-                      <button onClick={() => abrirEdicion(a)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Editar" aria-label="Editar">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={() => quitar(a.id)} disabled={eliminando === a.id} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title="Eliminar" aria-label="Eliminar">
-                        {eliminando === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-3">
+          {grupos.map((grupo) => (
+            <GrupoGerencia
+              key={grupo.clave}
+              titulo={grupo.titulo}
+              areas={grupo.areas}
+              onEditar={abrirEdicion}
+              onEliminar={quitar}
+              eliminando={eliminando}
+            />
+          ))}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-12 text-center">
@@ -151,6 +160,66 @@ export function GestionAreas({ areas, gerencias }: { areas: Area[]; gerencias: G
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function GrupoGerencia({
+  titulo,
+  areas,
+  onEditar,
+  onEliminar,
+  eliminando,
+}: {
+  titulo: string;
+  areas: Area[];
+  onEditar: (a: Area) => void;
+  onEliminar: (id: string) => void;
+  eliminando: string | null;
+}) {
+  const [abierto, setAbierto] = useState(true);
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <button
+        type="button"
+        onClick={() => setAbierto((v) => !v)}
+        className="flex w-full items-center gap-3 bg-muted/40 px-4 py-3 text-left transition-colors hover:bg-muted/60"
+      >
+        {abierto ? (
+          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+        )}
+        <Building className="h-4 w-4 text-muted-foreground shrink-0" />
+        <span className="flex-1 font-medium text-sm">{titulo}</span>
+        <span className="rounded-full bg-background px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+          {areas.length} {areas.length === 1 ? "área" : "áreas"}
+        </span>
+      </button>
+
+      {abierto && (
+        <table className="w-full text-sm">
+          <tbody>
+            {areas.map((a) => (
+              <tr key={a.id} className="border-t border-border">
+                <td className="px-4 py-2.5 font-mono text-xs w-32">{a.codigo}</td>
+                <td className="px-4 py-2.5 font-medium">{a.nombre}</td>
+                <td className="px-4 py-2.5 w-20">
+                  <div className="flex justify-end gap-1">
+                    <button onClick={() => onEditar(a)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Editar" aria-label="Editar">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => onEliminar(a.id)} disabled={eliminando === a.id} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title="Eliminar" aria-label="Eliminar">
+                      {eliminando === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
