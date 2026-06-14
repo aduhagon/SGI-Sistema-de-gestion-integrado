@@ -1,0 +1,21 @@
+-- ============================================================================
+-- Migración 025 — Cierre de NC y auditorías con validación estricta
+-- ============================================================================
+-- YA APLICADA en producción vía MCP el 14/06/2026. Respaldo para el repo.
+--
+-- fn_cerrar_nc(p_nc_id, p_motivo):
+--   Cierra una NC (estado 'cerrada') SOLO si no tiene acciones abiertas
+--   (planificada/en_curso/vencida). Requiere motivo. Registra fecha_cierre_real.
+--
+-- fn_cerrar_auditoria(p_auditoria_id, p_conclusiones):
+--   Cierra una auditoría SOLO si no tiene NCs abiertas (vinculadas via hallazgos)
+--   ni acciones abiertas. Requiere conclusiones.
+--
+-- Probadas contra datos reales:
+--   NC-2026-003 (0 acciones) -> cierra; NC-2026-002 (1 acción) -> bloquea;
+--   AUD-2026-001 (1 NC abierta) -> bloquea.
+-- ============================================================================
+
+-- [Cuerpos completos aplicados en la base. Para regenerarlos:
+--  SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname IN
+--  ('fn_cerrar_nc','fn_cerrar_auditoria');]
