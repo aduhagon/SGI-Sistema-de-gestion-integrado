@@ -25,9 +25,14 @@ import { obsoletarDocumentosEnLote } from "@/app/(app)/documentos/obsoletar-lote
 
 type Props = {
   documentos: DocumentSummary[];
+  /** Si es false, no muestra checkboxes ni acciones en lote (listado normal). */
+  puedeObsoletar?: boolean;
 };
 
-export function GrillaDocumentosSeleccionable({ documentos }: Props) {
+export function GrillaDocumentosSeleccionable({
+  documentos,
+  puedeObsoletar = false,
+}: Props) {
   const router = useRouter();
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
@@ -102,15 +107,17 @@ export function GrillaDocumentosSeleccionable({ documentos }: Props) {
 
       {/* Encabezado con seleccionar todos */}
       <div className="flex items-center gap-4 border-b border-border bg-muted/30 px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground">
-        <input
-          type="checkbox"
-          checked={todosSeleccionados}
-          onChange={toggleTodos}
-          disabled={seleccionables.length === 0}
-          className="h-4 w-4 rounded border-input"
-          aria-label="Seleccionar todos"
-          title="Seleccionar todos"
-        />
+        {puedeObsoletar && (
+          <input
+            type="checkbox"
+            checked={todosSeleccionados}
+            onChange={toggleTodos}
+            disabled={seleccionables.length === 0}
+            className="h-4 w-4 rounded border-input"
+            aria-label="Seleccionar todos"
+            title="Seleccionar todos"
+          />
+        )}
         <span className="w-32 shrink-0">Código</span>
         <span className="flex-1">Documento</span>
         <span className="hidden md:block max-w-md shrink-0">Tipo · Proceso · Normas</span>
@@ -131,15 +138,17 @@ export function GrillaDocumentosSeleccionable({ documentos }: Props) {
                 (tildado ? "bg-primary/5" : "hover:bg-muted/40")
               }
             >
-              <input
-                type="checkbox"
-                checked={tildado}
-                onChange={() => toggle(doc.id)}
-                disabled={esObsoleto}
-                className="h-4 w-4 rounded border-input"
-                aria-label={`Seleccionar ${doc.codigo}`}
-                title={esObsoleto ? "Ya está obsoleto" : `Seleccionar ${doc.codigo}`}
-              />
+              {puedeObsoletar && (
+                <input
+                  type="checkbox"
+                  checked={tildado}
+                  onChange={() => toggle(doc.id)}
+                  disabled={esObsoleto}
+                  className="h-4 w-4 rounded border-input"
+                  aria-label={`Seleccionar ${doc.codigo}`}
+                  title={esObsoleto ? "Ya está obsoleto" : `Seleccionar ${doc.codigo}`}
+                />
+              )}
 
               <Link
                 href={`/documentos/${doc.id}`}
@@ -212,7 +221,7 @@ export function GrillaDocumentosSeleccionable({ documentos }: Props) {
       </div>
 
       {/* Barra de acciones flotante */}
-      {seleccion.size > 0 && (
+      {puedeObsoletar && seleccion.size > 0 && (
         <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-full border border-border bg-card px-5 py-3 shadow-lg">
           <span className="text-sm font-medium">
             {seleccion.size} seleccionado{seleccion.size !== 1 ? "s" : ""}

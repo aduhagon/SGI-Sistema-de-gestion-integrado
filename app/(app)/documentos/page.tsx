@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Plus, FileText } from "lucide-react";
+import { Plus, FileText, FolderTree } from "lucide-react";
 import { listarDocumentos, obtenerDatosForm } from "@/lib/api/documentos";
-import { DocumentRow } from "@/components/documentos/DocumentRow";
+import { GrillaDocumentosSeleccionable } from "@/components/documentos/GrillaDocumentosSeleccionable";
+import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
 import { DocumentEmptyState } from "@/components/documentos/DocumentEmptyState";
 import { DocumentFilters } from "@/components/documentos/DocumentFilters";
 import { buttonVariants } from "@/components/ui/button";
@@ -19,7 +20,7 @@ type Props = {
 };
 
 export default async function DocumentosPage({ searchParams }: Props) {
-  const [documentos, datosForm] = await Promise.all([
+  const [documentos, datosForm, perfil] = await Promise.all([
     listarDocumentos({
       texto: searchParams.q,
       estado: searchParams.estado,
@@ -27,6 +28,7 @@ export default async function DocumentosPage({ searchParams }: Props) {
       tipoId: searchParams.tipo,
     }),
     obtenerDatosForm(),
+    obtenerPerfilMenu(),
   ]);
 
   const procesosOpc = datosForm.procesos.map((p: any) => ({
@@ -67,13 +69,22 @@ export default async function DocumentosPage({ searchParams }: Props) {
           </p>
         </div>
 
-        <Link
-          href="/documentos/nuevo"
-          className={cn(buttonVariants({ variant: "default" }), "shrink-0")}
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Cargar documento
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/documentos/maestro"
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            <FolderTree className="h-4 w-4" aria-hidden="true" />
+            Listado maestro
+          </Link>
+          <Link
+            href="/documentos/nuevo"
+            className={cn(buttonVariants({ variant: "default" }))}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Cargar documento
+          </Link>
+        </div>
       </header>
 
       <DocumentFilters procesos={procesosOpc} tipos={tiposOpc} />
@@ -94,24 +105,10 @@ export default async function DocumentosPage({ searchParams }: Props) {
         )
       ) : (
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <div className="flex items-center gap-4 px-4 py-2.5 bg-muted/30 border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-            <span className="w-4"></span>
-            <span className="w-32">Código</span>
-            <span className="flex-1">Documento</span>
-            <span className="hidden md:block max-w-md shrink-0">
-              Tipo · Proceso · Normas
-            </span>
-            <span className="hidden lg:block w-24 text-right shrink-0">
-              Actualizado
-            </span>
-            <span className="w-4"></span>
-          </div>
-
-          <div>
-            {documentos.map((doc) => (
-              <DocumentRow key={doc.id} documento={doc} />
-            ))}
-          </div>
+          <GrillaDocumentosSeleccionable
+            documentos={documentos}
+            puedeObsoletar={perfil.esGestor}
+          />
         </div>
       )}
 
