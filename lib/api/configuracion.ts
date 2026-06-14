@@ -254,6 +254,8 @@ export type Puesto = {
   descripcion: string | null;
   areaId: string | null;
   areaNombre: string | null;
+  gerenciaId: string | null;
+  gerenciaNombre: string | null;
 };
 
 export async function listarPuestos(): Promise<Puesto[]> {
@@ -266,26 +268,44 @@ export async function listarPuestos(): Promise<Puesto[]> {
     .order("codigo", { ascending: true });
   if (error) return [];
 
-  // Resolver nombre de área en memoria (evita join frágil).
+  // Resolver nombre de área + su gerencia (área padre) en memoria.
   const filas = (data ?? []) as any[];
   const areaIds = [...new Set(filas.map((p) => p.area_id).filter(Boolean))];
   const nombreArea = new Map<string, string>();
+  const padreDeArea = new Map<string, string | null>();
+  const nombrePorAreaId = new Map<string, string>();
   if (areaIds.length > 0) {
     const { data: areas } = await supabase
       .from("areas")
-      .select("id, nombre")
+      .select("id, nombre, area_padre_id")
       .in("id", areaIds);
-    for (const a of (areas ?? []) as any[]) nombreArea.set(a.id, a.nombre);
+    for (const a of (areas ?? []) as any[]) {
+      nombreArea.set(a.id, a.nombre);
+      padreDeArea.set(a.id, a.area_padre_id ?? null);
+    }
+    const padreIds = [...new Set([...padreDeArea.values()].filter(Boolean) as string[])];
+    if (padreIds.length > 0) {
+      const { data: padres } = await supabase
+        .from("areas")
+        .select("id, nombre")
+        .in("id", padreIds);
+      for (const g of (padres ?? []) as any[]) nombrePorAreaId.set(g.id, g.nombre);
+    }
   }
 
-  return filas.map((p) => ({
-    id: p.id,
-    codigo: p.codigo,
-    nombre: p.nombre,
-    descripcion: p.descripcion,
-    areaId: p.area_id,
-    areaNombre: p.area_id ? nombreArea.get(p.area_id) ?? null : null,
-  }));
+  return filas.map((p) => {
+    const gerenciaId = p.area_id ? padreDeArea.get(p.area_id) ?? null : null;
+    return {
+      id: p.id,
+      codigo: p.codigo,
+      nombre: p.nombre,
+      descripcion: p.descripcion,
+      areaId: p.area_id,
+      areaNombre: p.area_id ? nombreArea.get(p.area_id) ?? null : null,
+      gerenciaId,
+      gerenciaNombre: gerenciaId ? nombrePorAreaId.get(gerenciaId) ?? null : null,
+    };
+  });
 }
 
 // Áreas para el selector del formulario de puesto (todas las áreas activas).
