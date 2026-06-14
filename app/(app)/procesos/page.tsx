@@ -45,13 +45,13 @@ export default async function ProcesosPage() {
       {/* Fondo atenuado: mapa antiguo, sutil, no compite con los procesos. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-0 bg-center bg-no-repeat bg-cover opacity-[0.10]"
+        className="pointer-events-none absolute inset-0 z-0 bg-center bg-no-repeat bg-cover opacity-[0.18]"
         style={{ backgroundImage: "url('/mapa-procesos-fondo.webp')" }}
       />
       {/* Velo para asegurar contraste del contenido sobre el fondo. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-background/50 via-background/30 to-background/60"
+        className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-background/40 via-background/25 to-background/50"
       />
 
       <div className="relative z-10 mx-auto max-w-7xl p-6 sm:p-8 lg:p-10">
