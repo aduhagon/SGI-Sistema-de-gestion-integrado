@@ -19,6 +19,22 @@ function SubmitButton({ edicion }: { edicion: boolean }) {
 
 type Gerencia = { id: string; codigo: string; nombre: string };
 
+// Orden de negocio para mostrar las gerencias (no alfabético).
+const ORDEN_GERENCIAS = [
+  "Gerencia General",
+  "Gerencia Producción Agrícola",
+  "Gerencia Producción Industrial",
+  "Gerencia Comercial",
+  "Gerencia Financiera",
+  "Gerencia de Administración",
+];
+
+function ordenGerencia(titulo: string): number {
+  const i = ORDEN_GERENCIAS.indexOf(titulo);
+  // Las que no están en la lista van al final, alfabéticas entre sí.
+  return i === -1 ? ORDEN_GERENCIAS.length : i;
+}
+
 export function GestionAreas({ areas, gerencias }: { areas: Area[]; gerencias: Gerencia[] }) {
   const router = useRouter();
   const [editando, setEditando] = useState<Area | null>(null);
@@ -48,7 +64,12 @@ export function GestionAreas({ areas, gerencias }: { areas: Area[]; gerencias: G
 
     const lista = Array.from(porGerencia.entries())
       .map(([clave, g]) => ({ clave, titulo: g.titulo, areas: g.areas }))
-      .sort((x, y) => x.titulo.localeCompare(y.titulo));
+      .sort((x, y) => {
+        const ox = ordenGerencia(x.titulo);
+        const oy = ordenGerencia(y.titulo);
+        if (ox !== oy) return ox - oy;
+        return x.titulo.localeCompare(y.titulo);
+      });
 
     if (sinGerencia.length > 0) {
       lista.push({ clave: "__sin__", titulo: "Sin gerencia asignada", areas: sinGerencia });
