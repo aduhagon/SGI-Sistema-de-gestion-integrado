@@ -41,20 +41,20 @@ export default async function ProcesosPage() {
   const apoyo = procesosList.filter((p) => p.tipo === "apoyo");
 
   return (
-    <div className="relative">
+    <div className="relative min-h-screen">
       {/* Fondo atenuado: mapa antiguo, sutil, no compite con los procesos. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-center bg-no-repeat bg-cover opacity-[0.07]"
+        className="pointer-events-none absolute inset-0 z-0 bg-center bg-no-repeat bg-cover opacity-[0.10]"
         style={{ backgroundImage: "url('/mapa-procesos-fondo.webp')" }}
       />
       {/* Velo para asegurar contraste del contenido sobre el fondo. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-background/60 via-background/40 to-background/70"
+        className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-b from-background/50 via-background/30 to-background/60"
       />
 
-      <div className="mx-auto max-w-7xl p-6 sm:p-8 lg:p-10">
+      <div className="relative z-10 mx-auto max-w-7xl p-6 sm:p-8 lg:p-10">
       <header className="mb-10">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
           Sistema de Gestión Integrado
