@@ -82,3 +82,13 @@ export async function obtenerNormasDisponibles(): Promise<
     nombre: n.nombre_corto,
   }));
 }
+
+/**
+ * Helper liviano: ¿el sistema está en modo multinorma? Para condicionar las
+ * vistas comparativas (panorama / matriz multinorma). Si no se puede leer,
+ * asume true (comportamiento por defecto histórico).
+ */
+export async function esMultinorma(): Promise<boolean> {
+  const config = await obtenerConfiguracion();
+  return config.multinorma;
+}

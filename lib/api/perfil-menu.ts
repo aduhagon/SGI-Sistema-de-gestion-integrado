@@ -20,6 +20,7 @@ export type PerfilMenu = {
   esAprobador: boolean;
   esElaborador: boolean;
   esSuperadmin: boolean;
+  modulosHabilitados: string[];
 };
 
 const PERFIL_VACIO: PerfilMenu = {
@@ -28,6 +29,7 @@ const PERFIL_VACIO: PerfilMenu = {
   esAprobador: false,
   esElaborador: false,
   esSuperadmin: false,
+  modulosHabilitados: [],
 };
 
 export async function obtenerPerfilMenu(): Promise<PerfilMenu> {
@@ -47,5 +49,8 @@ export async function obtenerPerfilMenu(): Promise<PerfilMenu> {
     esAprobador: Boolean(d.es_aprobador),
     esElaborador: Boolean(d.es_elaborador),
     esSuperadmin: Boolean(d.es_superadmin),
+    modulosHabilitados: Array.isArray(d.modulos_habilitados)
+      ? (d.modulos_habilitados as string[])
+      : [],
   };
 }

@@ -26,6 +26,8 @@ type NavItem = {
   section: "principal" | "calidad" | "admin";
   /** Predicado de visibilidad según el perfil. Si falta, siempre visible. */
   visible?: (p: PerfilMenu) => boolean;
+  /** Código de módulo requerido. Si falta, no depende de ningún módulo. */
+  modulo?: string;
 };
 
 const navItems: NavItem[] = [
@@ -39,15 +41,15 @@ const navItems: NavItem[] = [
 
   // Calidad & Auditoría: gestores (admin / responsable_sgi / auditor).
   { href: "/cumplimiento/panorama", label: "Cumplimiento", icon: Grid3x3,     section: "calidad",
-    visible: (p) => p.esGestor },
+    visible: (p) => p.esGestor, modulo: "cumplimiento" },
   { href: "/riesgos",       label: "Riesgos",          icon: ShieldAlert,     section: "calidad",
-    visible: (p) => p.esGestor },
+    visible: (p) => p.esGestor, modulo: "riesgos" },
   { href: "/indicadores",   label: "Indicadores",      icon: Gauge,           section: "calidad",
-    visible: (p) => p.esGestor },
+    visible: (p) => p.esGestor, modulo: "indicadores" },
   { href: "/auditorias",    label: "Auditorías",       icon: ClipboardCheck,  section: "calidad",
-    visible: (p) => p.esGestor },
+    visible: (p) => p.esGestor, modulo: "auditorias" },
   { href: "/ncs",           label: "No conformidades", icon: AlertOctagon,    section: "calidad",
-    visible: (p) => p.esGestor },
+    visible: (p) => p.esGestor, modulo: "no_conformidades" },
 
   // Sistema: solo gestores.
   { href: "/configuracion", label: "Configuración",    icon: Settings,        section: "admin",
@@ -57,6 +59,10 @@ const navItems: NavItem[] = [
 ];
 
 function visibleParaPerfil(item: NavItem, perfil: PerfilMenu): boolean {
+  // Si el item depende de un módulo y ese módulo no está habilitado, se oculta.
+  if (item.modulo && !perfil.modulosHabilitados.includes(item.modulo)) {
+    return false;
+  }
   return item.visible ? item.visible(perfil) : true;
 }
 

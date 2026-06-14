@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, FileWarning, ArrowRight, LayoutGrid } from "lucide-react";
 import { obtenerPanoramaNormas } from "@/lib/api/matriz";
+import { esMultinorma } from "@/lib/api/config-sistema";
 
 export const dynamic = "force-dynamic";
 
 export default async function PanoramaCumplimientoPage() {
-  const normas = await obtenerPanoramaNormas();
+  const [normas, multinorma] = await Promise.all([
+    obtenerPanoramaNormas(),
+    esMultinorma(),
+  ]);
 
   // Totales consolidados (todas las normas juntas).
   const totalReq = normas.reduce((s, n) => s + n.totalRequisitos, 0);
@@ -16,7 +20,7 @@ export default async function PanoramaCumplimientoPage() {
   if (normas.length === 0) {
     return (
       <div className="mx-auto max-w-5xl p-6 sm:p-8 lg:p-10">
-        <Encabezado />
+        <Encabezado multinorma={multinorma} />
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
           <FileWarning className="mb-4 h-10 w-10 text-muted-foreground" aria-hidden="true" />
           <p className="font-medium text-foreground">No hay normas con requisitos cargados</p>
@@ -30,10 +34,10 @@ export default async function PanoramaCumplimientoPage() {
 
   return (
     <div className="mx-auto max-w-5xl p-6 sm:p-8 lg:p-10">
-      <Encabezado />
+      <Encabezado multinorma={multinorma} />
 
       {/* Consolidado global */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className={"mb-8 grid grid-cols-1 gap-4 " + (multinorma ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
         <div className="rounded-lg border border-border bg-card p-5">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
             Cobertura global
@@ -52,15 +56,17 @@ export default async function PanoramaCumplimientoPage() {
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-5">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            Normas activas
+        {multinorma && (
+          <div className="rounded-lg border border-border bg-card p-5">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">
+              Normas activas
+            </div>
+            <div className="mt-1 font-serif text-3xl font-semibold">{normas.length}</div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Con requisitos cargados
+            </p>
           </div>
-          <div className="mt-1 font-serif text-3xl font-semibold">{normas.length}</div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Con requisitos cargados
-          </p>
-        </div>
+        )}
 
         <div
           className={
@@ -82,7 +88,7 @@ export default async function PanoramaCumplimientoPage() {
             )}
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            En todas las normas
+            {multinorma ? "En todas las normas" : "En la norma"}
           </p>
         </div>
       </div>
@@ -145,11 +151,11 @@ export default async function PanoramaCumplimientoPage() {
   );
 }
 
-function Encabezado() {
+function Encabezado({ multinorma }: { multinorma: boolean }) {
   return (
     <header className="mb-8">
       <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-        Cumplimiento multinorma
+        {multinorma ? "Cumplimiento multinorma" : "Cumplimiento normativo"}
       </p>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -157,8 +163,9 @@ function Encabezado() {
             Panorama de cumplimiento
           </h1>
           <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
-            Estado de cobertura documental de todas las normas certificadas, de un vistazo.
-            Tocá una norma para ver su matriz requisito por requisito.
+            {multinorma
+              ? "Estado de cobertura documental de todas las normas certificadas, de un vistazo. Tocá una norma para ver su matriz requisito por requisito."
+              : "Estado de cobertura documental de la norma, de un vistazo. Tocá la norma para ver su matriz requisito por requisito."}
           </p>
         </div>
         <Link
