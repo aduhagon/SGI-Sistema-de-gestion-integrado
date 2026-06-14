@@ -1,124 +1,146 @@
-import { GitBranch, FileText, Hash, CheckCircle2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { StatusDot } from "./StatusDot";
-import type { VersionHistorial } from "@/lib/api/documentos";
+import { History, CheckCircle2, FileText } from "lucide-react";
+import { VisorDocumento } from "@/components/documentos/VisorDocumento";
+import type { VersionHistorial } from "@/lib/api/historialVersiones";
 
-type Props = {
-  versiones: VersionHistorial[];
+/**
+ * Historial de versiones de un documento. Pensado SOLO para administradores
+ * (la página decide si renderizarlo según el rol). El usuario común no lo ve;
+ * trabaja únicamente con la versión vigente.
+ *
+ * Cada versión muestra su número, estado y motivo, y permite abrirla en el
+ * visor (si tiene archivo visualizable).
+ */
+
+const ESTADO_LABEL: Record<string, string> = {
+  borrador: "Borrador",
+  confeccionado: "Confeccionado",
+  pendiente_aprobacion: "Pendiente de aprobación",
+  aprobado: "Aprobado",
+  rechazado: "Rechazado",
+  obsoleto: "Obsoleto",
 };
 
-export function HistorialVersiones({ versiones }: Props) {
-  if (versiones.length === 0) {
-    return (
-      <Card className="border-dashed">
-        <CardContent className="p-5 text-sm text-muted-foreground text-center">
-          Este documento todavía no tiene versiones registradas.
-        </CardContent>
-      </Card>
-    );
+function claseEstado(estado: string, esVigente: boolean): string {
+  if (esVigente) return "bg-emerald-500/10 text-emerald-700 border-emerald-500/20";
+  switch (estado) {
+    case "rechazado":
+      return "bg-destructive/10 text-destructive border-destructive/20";
+    case "obsoleto":
+      return "bg-muted text-muted-foreground border-border";
+    case "aprobado":
+      return "bg-emerald-500/10 text-emerald-700 border-emerald-500/20";
+    case "pendiente_aprobacion":
+    case "confeccionado":
+      return "bg-amber-500/10 text-amber-700 border-amber-500/20";
+    default:
+      return "bg-muted text-muted-foreground border-border";
   }
+}
+
+function esVisualizable(mimeType: string): boolean {
+  return mimeType === "application/pdf" || mimeType.startsWith("image/");
+}
+
+export function HistorialVersiones({
+  versiones,
+}: {
+  versiones: VersionHistorial[];
+}) {
+  if (versiones.length === 0) return null;
 
   return (
-    <ol className="space-y-4 relative">
-      {versiones.map((v, idx) => (
-        <li key={v.id} className="relative">
-          {idx < versiones.length - 1 && (
-            <span
-              className="absolute left-[15px] top-10 bottom-0 w-px bg-border -mb-4"
-              aria-hidden="true"
-            />
-          )}
+    <section className="mt-10">
+      <div className="mb-4 flex items-center gap-2">
+        <History className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        <h2 className="font-serif text-lg font-semibold tracking-tight">
+          Historial de versiones
+        </h2>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+          Solo administradores
+        </span>
+      </div>
 
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-start gap-4">
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 ${
-                    v.es_vigente
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  <GitBranch className="h-4 w-4" aria-hidden="true" />
-                </div>
+      <p className="mb-4 text-xs text-muted-foreground">
+        Todas las versiones de este documento. Los usuarios del sistema trabajan
+        siempre con la versión vigente; este historial es para gestión y
+        auditoría.
+      </p>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <Badge
-                      variant={v.es_vigente ? "default" : "outline"}
-                      className="font-mono"
-                    >
-                      Versión {v.numero_version}
-                    </Badge>
-                    <StatusDot estado={v.estado} showLabel />
-                    {v.es_vigente && (
-                      <Badge
-                        variant="outline"
-                        size="sm"
-                        className="border-emerald-500/40 bg-emerald-50 text-emerald-700"
-                      >
-                        <CheckCircle2 className="h-3 w-3 mr-1" aria-hidden="true" />
-                        Vigente
-                      </Badge>
-                    )}
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      {formatearFecha(v.creado_en)}
-                    </span>
-                  </div>
-
-                  {v.motivo_cambio && (
-                    <p className="text-sm text-foreground/90 leading-relaxed mb-3">
-                      {v.motivo_cambio}
-                    </p>
-                  )}
-
-                  {v.archivo ? (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground pt-3 border-t border-border">
-                      <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span className="font-medium text-foreground/70 truncate flex-1">
-                        {v.archivo.nombre_original}
-                      </span>
-                      <span>{formatearTamano(v.archivo["tamaño_bytes"])}</span>
-                      <span className="text-muted-foreground/40">·</span>
-                      <span className="uppercase">{v.archivo.extension}</span>
-                      <span className="text-muted-foreground/40">·</span>
+      <div className="overflow-hidden rounded-lg border border-border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-4 py-2.5 text-left font-medium">Versión</th>
+              <th className="px-4 py-2.5 text-left font-medium">Estado</th>
+              <th className="px-4 py-2.5 text-left font-medium">Fecha</th>
+              <th className="px-4 py-2.5 text-left font-medium">Motivo del cambio</th>
+              <th className="px-4 py-2.5 text-right font-medium">Archivo</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {versiones.map((v) => (
+              <tr key={v.id} className={v.esVigente ? "bg-emerald-500/[0.03]" : ""}>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-medium">v{v.numeroVersion}</span>
+                    {v.esVigente && (
                       <span
-                        className="font-mono flex items-center gap-1"
-                        title={`SHA256: ${v.archivo.hash_sha256}`}
+                        className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700"
+                        title="Versión vigente"
                       >
-                        <Hash className="h-3 w-3" aria-hidden="true" />
-                        {v.archivo.hash_sha256.slice(0, 8)}…
+                        <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                        Vigente
                       </span>
-                    </div>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={
+                      "inline-flex rounded-md border px-2 py-0.5 text-xs font-medium " +
+                      claseEstado(v.estado, v.esVigente)
+                    }
+                  >
+                    {ESTADO_LABEL[v.estado] ?? v.estado}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {new Date(v.creadaEn).toLocaleDateString("es-AR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  })}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  <span className="line-clamp-2">{v.motivoCambio ?? "—"}</span>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {v.archivo ? (
+                    esVisualizable(v.archivo.mimeType) ? (
+                      <VisorDocumento
+                        archivoId={v.archivo.id}
+                        mimeType={v.archivo.mimeType}
+                        nombreOriginal={v.archivo.nombreOriginal}
+                      />
+                    ) : (
+                      <a
+                        href={`/api/archivos/${v.archivo.id}/descargar`}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted/50"
+                        title={`Descargar ${v.archivo.nombreOriginal}`}
+                      >
+                        <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                        Descargar
+                      </a>
+                    )
                   ) : (
-                    <p className="text-xs text-muted-foreground italic pt-3 border-t border-border">
-                      Versión sin archivo cargado.
-                    </p>
+                    <span className="text-xs text-muted-foreground">Sin archivo</span>
                   )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </li>
-      ))}
-    </ol>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
-}
-
-function formatearFecha(fechaIso: string): string {
-  const fecha = new Date(fechaIso);
-  return fecha.toLocaleDateString("es-AR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatearTamano(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
