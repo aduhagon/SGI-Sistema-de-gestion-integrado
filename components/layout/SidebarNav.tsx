@@ -14,6 +14,7 @@ import {
   ShieldAlert,
   Gauge,
   Settings,
+  SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PerfilMenu } from "@/lib/api/perfil-menu";
@@ -51,6 +52,8 @@ const navItems: NavItem[] = [
   // Sistema: solo gestores.
   { href: "/configuracion", label: "Configuración",    icon: Settings,        section: "admin",
     visible: (p) => p.esGestor },
+  { href: "/sistema",       label: "Configuración del sistema", icon: SlidersHorizontal, section: "admin",
+    visible: (p) => p.esSuperadmin },
 ];
 
 function visibleParaPerfil(item: NavItem, perfil: PerfilMenu): boolean {
