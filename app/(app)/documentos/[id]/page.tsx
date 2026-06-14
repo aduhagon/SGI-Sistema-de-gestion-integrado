@@ -9,6 +9,7 @@ import {
   Calendar,
   User,
   CheckCircle2,
+  FilePlus,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
@@ -240,22 +241,34 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
       </nav>
 
       <header className="mb-10">
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <Badge variant="outline" className="font-mono">
-            {doc.codigo}
-          </Badge>
-          {doc.tipo && (
-            <span
-              className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
-              style={{
-                backgroundColor: `${doc.tipo.color_hex ?? "#475569"}15`,
-                color: doc.tipo.color_hex ?? "#475569",
-              }}
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" className="font-mono">
+              {doc.codigo}
+            </Badge>
+            {doc.tipo && (
+              <span
+                className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
+                style={{
+                  backgroundColor: `${doc.tipo.color_hex ?? "#475569"}15`,
+                  color: doc.tipo.color_hex ?? "#475569",
+                }}
+              >
+                {doc.tipo.nombre}
+              </span>
+            )}
+            <StatusDot estado={doc.estado_actual} showLabel />
+          </div>
+
+          {doc.estado_actual !== "obsoleto" && (
+            <Link
+              href={`/documentos/${doc.id}/nueva-version`}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
             >
-              {doc.tipo.nombre}
-            </span>
+              <FilePlus className="h-4 w-4" aria-hidden="true" />
+              Nueva versión
+            </Link>
           )}
-          <StatusDot estado={doc.estado_actual} showLabel />
         </div>
 
         <h1 className="font-serif text-4xl font-semibold tracking-tight mb-3 leading-tight">
