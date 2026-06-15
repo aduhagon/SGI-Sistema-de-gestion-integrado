@@ -92,28 +92,28 @@ export default async function DashboardPage() {
             value={aprobacionesPend}
             icon={CheckSquare}
             href="/aprobaciones"
-            accentClass="text-primary"
+            tono="atencion"
           />
           <PendingWidget
             label="Acuses pendientes"
             value={acusesPend}
             icon={PenSquare}
             href="/acuses"
-            accentClass="text-accent"
+            tono="atencion"
           />
           <PendingWidget
             label="Mis documentos"
             value={misDocumentos}
             icon={FileText}
             href="/documentos"
-            accentClass="text-foreground"
+            tono="neutro"
           />
           <PendingWidget
             label="NCs asignadas"
             value={ncsAsignadas}
             icon={AlertOctagon}
             href="/ncs"
-            accentClass="text-destructive"
+            tono="critico"
           />
         </div>
       </section>
@@ -145,9 +145,9 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <Card className="bg-primary/[0.03] border-primary/20">
+      <Card className="border-l-4 border-l-[#16367f] border-y-border border-r-border bg-[#16367f]/[0.04]">
         <CardHeader>
-          <CardTitle className="text-base">
+          <CardTitle className="text-base text-[#16367f]">
             Módulo documental y de cumplimiento operativos
           </CardTitle>
           <CardDescription className="leading-relaxed">
@@ -162,29 +162,55 @@ export default async function DashboardPage() {
   );
 }
 
+type Tono = "atencion" | "critico" | "neutro";
+
 function PendingWidget({
   label,
   value,
   icon: Icon,
   href,
-  accentClass,
+  tono,
 }: {
   label: string;
   value: number;
   icon: React.ComponentType<{ className?: string }>;
   href: string;
-  accentClass: string;
+  tono: Tono;
 }) {
+  // "Color con intención": la tarjeta reacciona cuando hay algo pendiente.
+  // En cero queda neutra y apagada; con valor toma el acento según su tono.
+  const activo = value > 0;
+
+  const estilos: Record<Tono, { card: string; icono: string; numero: string }> = {
+    critico: {
+      card: activo ? "border-rose-200 bg-rose-50/50 hover:border-rose-300" : "border-border bg-card hover:border-foreground/20",
+      icono: activo ? "text-rose-600" : "text-muted-foreground/50",
+      numero: activo ? "text-rose-700" : "text-muted-foreground/40",
+    },
+    atencion: {
+      card: activo ? "border-amber-200 bg-amber-50/50 hover:border-amber-300" : "border-border bg-card hover:border-foreground/20",
+      icono: activo ? "text-amber-600" : "text-muted-foreground/50",
+      numero: activo ? "text-amber-700" : "text-muted-foreground/40",
+    },
+    neutro: {
+      card: "border-border bg-card hover:border-foreground/20",
+      icono: activo ? "text-primary" : "text-muted-foreground/50",
+      numero: activo ? "text-foreground" : "text-muted-foreground/40",
+    },
+  };
+
+  const e = estilos[tono];
+
   return (
     <Link
       href={href}
-      className="group block rounded-lg border border-border bg-card p-5 transition-all hover:border-foreground/20 hover:shadow-sm"
+      className={`group block rounded-lg border p-5 transition-all hover:shadow-sm ${e.card}`}
     >
       <div className="flex items-start justify-between mb-3">
-        <Icon className={`h-5 w-5 ${accentClass}`} aria-hidden="true" />
+        <Icon className={`h-5 w-5 ${e.icono}`} aria-hidden="true" />
         <ArrowUpRight className="h-4 w-4 text-muted-foreground/0 group-hover:text-muted-foreground transition-colors" />
       </div>
-      <div className="font-serif text-3xl font-semibold tracking-tight mb-1">{value}</div>
+      <div className={`font-serif text-3xl font-semibold tracking-tight mb-1 ${e.numero}`}>{value}</div>
       <div className="text-xs text-muted-foreground">{label}</div>
     </Link>
   );
