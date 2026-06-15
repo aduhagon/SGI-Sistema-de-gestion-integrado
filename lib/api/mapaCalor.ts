@@ -27,9 +27,13 @@ export type ProcesoCalor = {
   riesgo: { estado: EstadoSenal; detalle: string };
 };
 
-export async function obtenerMapaCalorProcesos(): Promise<ProcesoCalor[]> {
+export async function obtenerMapaCalorProcesos(
+  normaId?: string | null,
+): Promise<ProcesoCalor[]> {
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("fn_mapa_calor_procesos");
+  const { data, error } = await supabase.rpc("fn_mapa_calor_procesos", {
+    p_norma_id: normaId ?? null,
+  });
   if (error || !data) return [];
 
   return (data as any[]).map((r) => ({
@@ -43,4 +47,17 @@ export async function obtenerMapaCalorProcesos(): Promise<ProcesoCalor[]> {
     ind: { estado: r.ind_estado as EstadoSenal, detalle: r.ind_detalle },
     riesgo: { estado: r.riesgo_estado as EstadoSenal, detalle: r.riesgo_detalle },
   }));
+}
+
+export type NormaOpcion = { id: string; nombreCorto: string };
+
+export async function obtenerNormasParaTablero(): Promise<NormaOpcion[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("normas")
+    .select("id, nombre_corto")
+    .eq("activo", true)
+    .order("nombre_corto", { ascending: true });
+  if (error || !data) return [];
+  return (data as any[]).map((n) => ({ id: n.id, nombreCorto: n.nombre_corto }));
 }

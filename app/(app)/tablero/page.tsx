@@ -1,11 +1,21 @@
-import { obtenerMapaCalorProcesos } from "@/lib/api/mapaCalor";
+import { obtenerMapaCalorProcesos, obtenerNormasParaTablero } from "@/lib/api/mapaCalor";
 import { MapaCalor } from "@/components/tablero/MapaCalor";
+import { FiltroNorma } from "@/components/tablero/FiltroNorma";
 import { LayoutGrid } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function TableroControlPage() {
-  const procesos = await obtenerMapaCalorProcesos();
+export default async function TableroControlPage({
+  searchParams,
+}: {
+  searchParams: { norma?: string };
+}) {
+  const normaId = searchParams?.norma || null;
+  const [procesos, normas] = await Promise.all([
+    obtenerMapaCalorProcesos(normaId),
+    obtenerNormasParaTablero(),
+  ]);
+  const normaActiva = normas.find((n) => n.id === normaId) ?? null;
 
   return (
     <div className="mx-auto max-w-6xl p-6 sm:p-8 lg:p-10">
@@ -22,6 +32,9 @@ export default async function TableroControlPage() {
           el peor estado entre ellas. Los procesos en gris todavía no tienen datos
           cargados.
         </p>
+        <div className="mt-5">
+          <FiltroNorma normas={normas} />
+        </div>
       </header>
 
       {procesos.length > 0 ? (
@@ -29,9 +42,15 @@ export default async function TableroControlPage() {
       ) : (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
           <LayoutGrid className="mb-4 h-10 w-10 text-muted-foreground" aria-hidden="true" />
-          <p className="font-medium text-foreground">No hay procesos para mostrar</p>
+          <p className="font-medium text-foreground">
+            {normaActiva
+              ? `Ningún proceso tiene elementos vinculados a ${normaActiva.nombreCorto}`
+              : "No hay procesos para mostrar"}
+          </p>
           <p className="mt-1 max-w-md text-sm text-muted-foreground">
-            Cargá procesos activos para ver su estado de control acá.
+            {normaActiva
+              ? "Cuando cargues documentos o NC asociados a esta norma, los procesos aparecerán acá."
+              : "Cargá procesos activos para ver su estado de control acá."}
           </p>
         </div>
       )}
