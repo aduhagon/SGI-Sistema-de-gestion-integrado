@@ -1,7 +1,11 @@
 import Link from "next/link";
-import { Plus, AlertOctagon, Calendar, Network, BarChart3 } from "lucide-react";
+import { Plus, AlertOctagon, Calendar, Network } from "lucide-react";
 import { obtenerNCs } from "@/lib/api/ncs";
 import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
+import { obtenerTableroNC } from "@/lib/api/tableroNC";
+import { resolverRango, etiquetaRango, type PresetRango } from "@/lib/api/rangoFechasNC";
+import { PanelTableroNC } from "@/components/tablero-nc/PanelTableroNC";
+import { BotonTablero } from "@/components/tablero-nc/BotonTablero";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -22,30 +26,52 @@ const ORIGEN: Record<string, string> = {
   proveedor: "Proveedor", accidente: "Accidente", otro: "Otro",
 };
 
-export default async function NCsPage() {
+type Props = {
+  searchParams: { tablero?: string; rango?: string; desde?: string; hasta?: string };
+};
+
+export default async function NCsPage({ searchParams }: Props) {
   const [ncs, perfil] = await Promise.all([obtenerNCs(), obtenerPerfilMenu()]);
+
+  // El tablero es para gestores y se muestra solo si está desplegado (?tablero=1).
+  const tableroAbierto = perfil.esGestor && searchParams.tablero === "1";
+
+  // Resolver el rango del tablero (solo si está abierto, para no consultar de más).
+  let tableroDatos = null;
+  let periodoLabel = "";
+  if (tableroAbierto) {
+    const preset = (searchParams.rango as PresetRango) ?? "todo";
+    const { desde, hasta } = resolverRango(
+      preset,
+      searchParams.desde ?? null,
+      searchParams.hasta ?? null,
+    );
+    tableroDatos = await obtenerTableroNC({ desde, hasta });
+    periodoLabel = etiquetaRango(preset, desde, hasta);
+  }
 
   return (
     <div className="mx-auto max-w-5xl p-6 sm:p-8 lg:p-10">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">Calidad · No conformidades</p>
-          <h1 className="mb-3 font-serif text-4xl font-semibold tracking-tight">No conformidades</h1>
+          <h1 className="mb-3 font-serif text-2xl sm:text-4xl font-semibold tracking-tight">No conformidades</h1>
           <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
             Gestión de incumplimientos detectados, con análisis de causa raíz y seguimiento hasta el cierre.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {perfil.esGestor && (
-            <Link href="/tablero-nc" className={cn(buttonVariants({ variant: "outline" }))}>
-              <BarChart3 className="h-4 w-4" aria-hidden="true" />Tablero
-            </Link>
-          )}
+          {perfil.esGestor && <BotonTablero abierto={tableroAbierto} />}
           <Link href="/ncs/nueva" className={cn(buttonVariants({ variant: "default" }))}>
             <Plus className="h-4 w-4" aria-hidden="true" />Abrir no conformidad
           </Link>
         </div>
       </header>
+
+      {/* Tablero colapsable, arriba de la lista */}
+      {tableroAbierto && tableroDatos && (
+        <PanelTableroNC datos={tableroDatos} periodoLabel={periodoLabel} />
+      )}
 
       {ncs.length > 0 ? (
         <div className="space-y-3">

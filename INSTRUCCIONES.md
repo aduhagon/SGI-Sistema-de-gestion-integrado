@@ -1,80 +1,64 @@
-# Paquete responsive SGI — v2 (sidebar crema)
+# Tablero de NC embebido en /ncs (colapsable) + filtro soft-delete
 
-Vuelve al sidebar **crema** con grupos colapsables (Inicio / Gestión / Análisis /
-Sistema), hardcodeado (solo `esSuperadmin`, sin RPC de menú). Marca MSU única en
-el TopBar. Mantiene todo el responsive: drawer mobile, tablas con scroll, headers.
+Mueve el tablero de no conformidades a la propia página `/ncs`, colapsable con un
+botón "Ver tablero" arriba de la lista. Elimina la página separada `/tablero-nc`.
+Además, el tablero ahora cuenta solo NC activas y no eliminadas.
 
-Esto corrige los dos problemas de la captura:
-- **Marca duplicada** → ahora la marca vive solo en el TopBar; el sidebar arranca
-  directo con los grupos.
-- **Agrupaciones perdidas** → vuelven los 4 grupos colapsables con chevron y contador.
+## Base de datos — YA APLICADO (no corras nada)
 
----
+Dos migraciones aplicadas en vivo y verificadas:
+1. Rango de fechas en las 4 funciones del tablero (`p_desde`/`p_hasta`).
+2. Filtro soft-delete: las 4 funciones ahora exigen `nc.activo = true AND
+   nc.eliminado_en IS NULL`, igual que la lista de `/ncs`. Quedó **una sola
+   versión** de cada función (sin overloads).
 
-## A. Archivos del zip — subir/reemplazar tal cual (vía GitHub web UI)
+## Archivos del zip — subir/reemplazar (GitHub web UI)
 
 | Archivo | Acción |
 |---|---|
-| `components/layout/SidebarMobileContext.tsx` | **NUEVO** — context del drawer mobile |
-| `components/layout/Sidebar.tsx` | **REEMPLAZA** — crema, grupos colapsables, + drawer mobile |
-| `components/layout/TopBar.tsx` | **REEMPLAZA** — marca única + hamburguesa + buscador colapsable |
-| `app/(app)/layout.tsx` | **REEMPLAZA** — usa Sidebar (crema) + provider del drawer |
+| `app/(app)/ncs/page.tsx` | **REEMPLAZA** — tablero colapsable arriba de la lista |
+| `components/tablero-nc/PanelTableroNC.tsx` | **NUEVO** — agrupa filtro + KPIs + gráficos |
+| `components/tablero-nc/BotonTablero.tsx` | **NUEVO** — toggle Ver/Ocultar tablero |
+| `components/tablero-nc/FiltroFechas.tsx` | **REEMPLAZA** — ahora navega a /ncs, no a /tablero-nc |
 
-> Si en el paso anterior subiste `SidebarNav.tsx`, **podés borrarlo**: este
-> paquete no lo usa. El layout vuelve a importar `Sidebar`.
+### Si todavía no tenías el paquete anterior, sumá también estos (sin cambios):
+| Archivo | Acción |
+|---|---|
+| `lib/api/tableroNC.ts` | del paquete anterior (pasa el rango a los RPC) |
+| `lib/api/rangoFechasNC.ts` | del paquete anterior (presets) |
 
-Estos 4 cubren **#1 (sidebar drawer)** y **#3 (buscador colapsable en mobile)**.
+> `EvolucionNC.tsx` y `CortesNC.tsx` ya existen y **no se tocan**.
 
----
+## BORRAR — página vieja del tablero
 
-## B. Diffs a mano — #2 Tablas con scroll horizontal
+Eliminá del repo la carpeta completa:
 
-En cada archivo hay UN wrapper de tabla con esta línea exacta. Cambiá
-`overflow-hidden` por `overflow-x-auto` y agregá ancho mínimo a la tabla:
-
-**Buscar:**
 ```
-<div className="overflow-hidden rounded-lg border border-border">
-  <table className="w-full text-sm">
-```
-**Reemplazar por:**
-```
-<div className="overflow-x-auto rounded-lg border border-border">
-  <table className="w-full min-w-[640px] text-sm">
+app/(app)/tablero-nc/
 ```
 
-Aplicar en estos 9 archivos:
+Contiene el `page.tsx` viejo. Ya nada lo enlaza (el botón "Tablero" que apuntaba
+ahí fue reemplazado por el toggle "Ver tablero" dentro de /ncs).
 
-- `components/configuracion/GestionNormas.tsx`
-- `components/configuracion/GestionRequisitos.tsx`
-- `components/configuracion/GestionPersonas.tsx`
-- `components/configuracion/GestionProcesos.tsx`
-- `components/configuracion/GestionAreas.tsx`
-- `components/configuracion/GestionSedes.tsx`
-- `components/configuracion/GestionPuestos.tsx`
-- `components/riesgos/GestionRiesgos.tsx`
-- `app/(app)/cumplimiento/page.tsx`
+> En la web UI de GitHub: entrá a cada archivo dentro de `app/(app)/tablero-nc/`,
+> usá el ícono de papelera (Delete file) y commiteá. Si solo está el `page.tsx`,
+> con borrar ese archivo alcanza; la carpeta vacía desaparece sola.
 
----
+## Cómo funciona
 
-## C. Diffs a mano — #4 Headers responsive
-
-**Buscar:** `font-serif text-4xl`
-**Reemplazar:** `font-serif text-2xl sm:text-4xl`
-
-Find-and-replace global. No cambia nada en desktop (de `sm:` para arriba sigue 4xl).
-
----
+- El tablero arranca **oculto**. El botón "Ver tablero" agrega `?tablero=1` a la
+  URL y lo despliega arriba de la lista; "Ocultar tablero" lo saca.
+- El filtro de período (presets + custom) vive en la URL junto con `tablero=1`,
+  así al cambiar el rango el tablero **sigue abierto**.
+- Solo lo ven los gestores (`perfil.esGestor`), igual que antes.
+- Cuando el tablero está cerrado no se consulta la base por sus datos (la página
+  solo trae la lista). Se carga al desplegarlo.
 
 ## Verificación tras el deploy
 
-1. **Desktop** (>768px): sidebar crema con los 4 grupos colapsables, marca solo
-   en el TopBar (sin duplicado), sin hamburguesa.
-2. **Mobile** (<768px):
-   - Hamburguesa arriba a la izquierda → abre el drawer crema (con su propia
-     cabecera de marca + botón X, para orientar).
-   - El drawer se cierra al tocar un ítem, el overlay o la X.
-   - Lupa → buscador a pantalla completa.
-   - Tablas con scroll horizontal; títulos más chicos.
-3. **Superadmin**: "Configuración del sistema" aparece solo si `fn_es_superadmin`
-   devuelve true. El resto de los ítems los ve todo el mundo (hardcodeado, sin RPC).
+1. Entrá a `/ncs` → lista igual que siempre, con botón "Ver tablero" en el header
+   (solo si sos gestor).
+2. Tocá "Ver tablero" → se despliega arriba con KPIs, evolución y cortes; el botón
+   pasa a "Ocultar tablero".
+3. Cambiá el período (ej. "Últimos 90 días") → recalcula y el tablero queda abierto.
+4. Verificá que `/tablero-nc` ya no exista (404) tras borrar la carpeta.
