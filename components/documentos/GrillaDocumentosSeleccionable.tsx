@@ -13,7 +13,7 @@ import {
   ArrowUpDown,
   Download,
 } from "lucide-react";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import type { DocumentSummary } from "@/lib/api/documentos";
 import { StatusDot } from "@/components/documentos/StatusDot";
 import { obsoletarDocumentosEnLote } from "@/app/(app)/documentos/obsoletar-lote-actions";
@@ -106,34 +106,55 @@ export function GrillaDocumentosSeleccionable({
     [documentos, orden],
   );
 
-  // Exportar a Excel: si hay selección, exporta lo tildado; si no, lo visible/filtrado.
-  function exportarExcel() {
+  // Exportar a Excel (ExcelJS): si hay selección, exporta lo tildado; si no, lo visible/filtrado.
+  async function exportarExcel() {
     const fuente =
       seleccion.size > 0
         ? documentosOrdenados.filter((d) => seleccion.has(d.id))
         : documentosOrdenados;
 
-    const filas = fuente.map((d) => ({
-      "Código": d.codigo,
-      "Título": d.titulo,
-      "Descripción": d.descripcion_corta ?? "",
-      "Estado": traducirEstado(d.estado_actual),
-      "Tipo": d.tipo?.nombre ?? "",
-      "Proceso": d.proceso ? `${d.proceso.codigo} — ${d.proceso.nombre}` : "",
-      "Normas": d.normas.map((n) => n.nombre_corto).join(", "),
-      "Actualizado": formatearFechaRelativa(d.actualizado_en ?? d.creado_en),
-    }));
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Documentos");
 
-    const ws = XLSX.utils.json_to_sheet(filas);
-    // Anchos de columna razonables.
-    ws["!cols"] = [
-      { wch: 20 }, { wch: 32 }, { wch: 40 }, { wch: 18 },
-      { wch: 18 }, { wch: 28 }, { wch: 20 }, { wch: 14 },
+    ws.columns = [
+      { header: "Código", key: "codigo", width: 20 },
+      { header: "Título", key: "titulo", width: 32 },
+      { header: "Descripción", key: "descripcion", width: 40 },
+      { header: "Estado", key: "estado", width: 18 },
+      { header: "Tipo", key: "tipo", width: 18 },
+      { header: "Proceso", key: "proceso", width: 28 },
+      { header: "Normas", key: "normas", width: 20 },
+      { header: "Actualizado", key: "actualizado", width: 14 },
     ];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Documentos");
+
+    // Encabezado en negrita.
+    ws.getRow(1).font = { bold: true };
+
+    for (const d of fuente) {
+      ws.addRow({
+        codigo: d.codigo,
+        titulo: d.titulo,
+        descripcion: d.descripcion_corta ?? "",
+        estado: traducirEstado(d.estado_actual),
+        tipo: d.tipo?.nombre ?? "",
+        proceso: d.proceso ? `${d.proceso.codigo} — ${d.proceso.nombre}` : "",
+        normas: d.normas.map((n) => n.nombre_corto).join(", "),
+        actualizado: formatearFechaRelativa(d.actualizado_en ?? d.creado_en),
+      });
+    }
+
+    // Generar el archivo y descargarlo.
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
     const fecha = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `documentos-sgi-${fecha}.xlsx`);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `documentos-sgi-${fecha}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
