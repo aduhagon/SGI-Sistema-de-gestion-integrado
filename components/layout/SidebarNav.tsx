@@ -78,16 +78,16 @@ export function SidebarNav({ perfil }: { perfil: PerfilMenu }) {
   const admin = visibles.filter((i) => i.section === "admin");
 
   return (
-    <aside className="hidden md:flex w-64 flex-col border-r border-border bg-background">
-      <div className="flex h-16 items-center gap-3 border-b border-border px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
+    <aside className="hidden md:flex w-64 flex-col bg-[#16367f] text-white">
+      <div className="flex h-16 items-center gap-3 border-b border-white/10 px-6">
+        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-white text-[#16367f]">
           <span className="font-serif text-sm font-bold">M</span>
         </div>
         <div className="flex flex-col">
-          <span className="font-serif text-base font-semibold leading-none tracking-tight">
+          <span className="font-serif text-base font-semibold leading-none tracking-tight text-white">
             MSU
           </span>
-          <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+          <span className="text-[10px] uppercase tracking-[0.15em] text-white/55">
             SGI Multinorma
           </span>
         </div>
@@ -119,7 +119,7 @@ export function SidebarNav({ perfil }: { perfil: PerfilMenu }) {
         )}
       </nav>
 
-      <div className="border-t border-border p-4 text-[10px] uppercase tracking-wider text-muted-foreground">
+      <div className="border-t border-white/10 p-4 text-[10px] uppercase tracking-wider text-white/45">
         v1.0 · Build inicial
       </div>
     </aside>
@@ -135,7 +135,7 @@ function NavGroup({
 }) {
   return (
     <div className="mb-6">
-      <h4 className="px-3 mb-2 text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+      <h4 className="px-3 mb-2 text-[10px] font-medium uppercase tracking-[0.15em] text-white/45">
         {title}
       </h4>
       <div className="space-y-0.5">{children}</div>
@@ -151,8 +151,8 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       className={cn(
         "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
         active
-          ? "bg-primary/10 text-primary"
-          : "text-foreground/70 hover:bg-muted hover:text-foreground",
+          ? "bg-white/15 text-white"
+          : "text-white/75 hover:bg-white/10 hover:text-white",
       )}
     >
       <Icon className="h-4 w-4" />
