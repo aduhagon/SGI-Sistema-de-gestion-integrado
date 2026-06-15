@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { SidebarNav } from "@/components/layout/SidebarNav";
 import { TopBar } from "@/components/layout/TopBar";
+import { SidebarMobileProvider } from "@/components/layout/SidebarMobileContext";
+import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
 
 export default async function AppLayout({
   children,
@@ -27,20 +29,22 @@ export default async function AppLayout({
     .maybeSingle();
   if (filaUsuario) usuarioId = filaUsuario.id;
 
-  // Superadmin: controla la visibilidad de "Configuración del sistema" en el
-  // menú. La escritura igual está protegida en la base por las funciones.
-  const { data: esSuperadmin } = await supabase.rpc("fn_es_superadmin");
+  // Perfil de menú (roles, flags y módulos habilitados) derivado del RPC
+  // fn_perfil_menu_usuario(). Define qué ítems del sidebar ve el usuario.
+  const perfil = await obtenerPerfilMenu();
 
   return (
-    <div className="flex h-screen flex-col bg-background">
-      {/* Header navy de ancho completo (incluye la marca) */}
-      <TopBar userEmail={user.email ?? "—"} usuarioId={usuarioId} />
+    <SidebarMobileProvider>
+      <div className="flex h-screen flex-col bg-background">
+        {/* Header navy de ancho completo (incluye la marca y la hamburguesa) */}
+        <TopBar userEmail={user.email ?? "—"} usuarioId={usuarioId} />
 
-      {/* Fila inferior: sidebar claro + contenido */}
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar esSuperadmin={esSuperadmin ?? false} />
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        {/* Fila inferior: sidebar azul + contenido */}
+        <div className="flex flex-1 overflow-hidden">
+          <SidebarNav perfil={perfil} />
+          <main className="flex-1 overflow-y-auto">{children}</main>
+        </div>
       </div>
-    </div>
+    </SidebarMobileProvider>
   );
 }
