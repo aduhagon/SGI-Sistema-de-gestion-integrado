@@ -170,8 +170,9 @@ function FondoPanorama({ children }: { children: React.ReactNode }) {
         className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: "url('/fondo-panorama.webp')" }}
       />
-      {/* Velo de legibilidad: aclara la imagen para que el texto y las tarjetas resalten */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-background/70" />
+      {/* Velo de legibilidad: sutil, solo suaviza el fondo. Las tarjetas (bg-card,
+          blanco puro) ya resaltan solas sobre el crema del fondo. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-background/30" />
       {/* Contenido */}
       <div className="relative z-10">{children}</div>
     </div>

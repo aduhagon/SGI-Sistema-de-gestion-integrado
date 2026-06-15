@@ -1,44 +1,31 @@
-# Fondo decorativo — Panorama de cumplimiento
+# Fix — el fondo no se veía (velo demasiado fuerte)
 
-Agrega el fondo de curvas suaves (con detalles dorados) detrás de toda la página
-`/cumplimiento/panorama`, optimizado para no perder rendimiento.
+## Qué pasaba
 
-## Optimización aplicada
+El `.webp` carga bien (lo confirmaste abriéndolo directo). El problema era el
+**velo de legibilidad**: estaba en `bg-background/70`, y como tu `--background` es
+un crema casi blanco (`60 9% 98%`), un velo de ese color al 70% sobre una imagen
+ya clara la borraba por completo → se veía un crema plano.
 
-- Original `Fondo.png`: **42 KB** (1672×941, PNG).
-- Entregado `fondo-panorama.webp`: **10 KB** (mismo tamaño, WebP calidad 72).
-- **76% más liviano**, sin pérdida visible. Para un fondo decorativo, WebP es
-  ideal: comprime muy bien degradados y curvas.
+## La corrección
 
-## Archivos del zip — subir (GitHub web UI)
+Bajé el velo de **70% → 30%**. Ahora las curvas y los toques dorados se ven, y el
+contenido sigue legible porque las tarjetas son `bg-card` = **blanco puro**
+(`0 0% 100%`), así que resaltan solas sobre el fondo crema.
+
+## Archivo del zip — reemplazar (GitHub web UI)
 
 | Archivo | Acción |
 |---|---|
-| `public/fondo-panorama.webp` | **NUEVO** — la imagen optimizada (va en `public/`) |
-| `app/(app)/cumplimiento/panorama/page.tsx` | **REEMPLAZA** — envuelve la página con el fondo |
+| `app/(app)/cumplimiento/panorama/page.tsx` | **REEMPLAZA** |
 
-> `public/` se sirve desde la raíz del sitio. Subí el `.webp` dentro de `public/`
-> y Next lo expone como `/fondo-panorama.webp` (así lo referencia la página). Si
-> la carpeta `public/` no existe aún en tu repo, GitHub la crea al subir el
-> archivo dentro de esa ruta.
+> **No** hace falta resubir la imagen: `public/fondo-panorama.webp` ya está bien
+> en tu repo (la URL directa la mostró sin problemas). Solo cambia esta página.
 
-## Cómo está hecho
+## Ajuste fino (si lo querés)
 
-- El fondo se aplica por **CSS** (`background-image`), no con `next/image`: para
-  un fondo decorativo es más simple y no requiere configuración.
-- Encima de la imagen hay un **velo blanco translúcido** (`bg-background/70`) que
-  aclara el fondo para que las tarjetas y el texto se lean con buen contraste.
-- El fondo cubre al menos toda la altura visible (`min-h-[calc(100vh-4rem)]`,
-  descontando el TopBar), aunque haya pocas normas cargadas.
-- La imagen es decorativa (`aria-hidden`), no afecta accesibilidad ni se
-  selecciona/clickea (`pointer-events-none`).
+Es un solo número, el `/30` del velo en esta página:
+- Querés el fondo **aún más visible** → bajalo a `/20` o `/10`.
+- Lo querés **más tenue** → subilo a `/40` o `/50`.
 
-## Verificación tras el deploy
-
-1. Entrá a `/cumplimiento/panorama` → detrás de los KPIs y las tarjetas de normas
-   se ve el fondo suave con los toques dorados.
-2. El texto y las tarjetas deben leerse igual de bien que antes (el velo lo
-   garantiza).
-3. Si querés el fondo **más** o **menos** presente, es un solo número: en
-   `panorama/page.tsx`, el `bg-background/70` del velo. Más alto (ej. `/80`) =
-   fondo más tenue; más bajo (ej. `/60`) = fondo más visible.
+Está en la función `FondoPanorama`, en la línea del `bg-background/NN`.
