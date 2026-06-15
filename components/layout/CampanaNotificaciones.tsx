@@ -125,7 +125,7 @@ export function CampanaNotificaciones({ usuarioId }: { usuarioId: string | null 
   return (
     <div ref={ref} className="relative">
       <Button variant="ghost" size="icon" aria-label="Notificaciones" className="relative" onClick={() => setAbierto((v) => !v)}>
-        <Bell className="h-4 w-4" />
+        <Bell className="h-4 w-4 text-[#16367f]" />
         {noLeidas > 0 && (
           <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-accent-foreground">
             {noLeidas > 9 ? "9+" : noLeidas}

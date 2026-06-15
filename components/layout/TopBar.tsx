@@ -62,8 +62,8 @@ export function TopBar({ userEmail, usuarioId }: Props) {
     <header className="flex h-16 items-center justify-between border-b border-border bg-background px-4 sm:px-6">
       <div className="flex-1 max-w-xl">
         <form onSubmit={handleBuscar}>
-          <div className="group flex w-full items-center gap-2.5 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm focus-within:border-foreground/30 focus-within:bg-background transition-colors">
-            <Search className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <div className="group flex w-full items-center gap-2.5 rounded-md border border-[#16367f]/20 bg-[#16367f]/[0.06] px-3 py-2 text-sm focus-within:border-[#16367f]/45 focus-within:bg-[#16367f]/[0.04] transition-colors">
+            <Search className="h-4 w-4 text-[#16367f]" aria-hidden="true" />
             <input
               ref={inputRef}
               type="text"
@@ -71,9 +71,9 @@ export function TopBar({ userEmail, usuarioId }: Props) {
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar documentos, requisitos, procesos…"
               aria-label="Buscar en el SGI"
-              className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground outline-none"
+              className="flex-1 bg-transparent text-foreground placeholder:text-[#16367f]/45 outline-none"
             />
-            <kbd className="ml-auto rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+            <kbd className="ml-auto rounded border border-[#16367f]/20 bg-background px-1.5 py-0.5 text-[10px] font-mono text-[#16367f]/60">
               ⌘K
             </kbd>
           </div>
