@@ -5,6 +5,10 @@ import { createClient } from "@/lib/supabase/server";
  * Cortes por proceso, norma y severidad + evolución mensual.
  * Lógica en funciones SQL fn_nc_por_proceso / _por_norma / _por_severidad /
  * _evolucion_mensual (verificadas en la base).
+ *
+ * Todas las funciones aceptan un rango opcional sobre fecha_apertura
+ * (p_desde / p_hasta, inclusivo en ambos extremos). Con ambos en NULL el
+ * resultado es el histórico completo.
  */
 
 export type NCGrupo = {
@@ -27,20 +31,31 @@ export type TableroNC = {
   totales: { total: number; abiertas: number; cerradas: number };
 };
 
+/** Rango de fechas para filtrar el tablero. Fechas en formato 'YYYY-MM-DD'. */
+export type RangoFechas = {
+  desde: string | null;
+  hasta: string | null;
+};
+
 const SEVERIDAD_LABEL: Record<string, string> = {
   alta: "Severidad alta",
   media: "Severidad media",
   baja: "Severidad baja",
 };
 
-export async function obtenerTableroNC(): Promise<TableroNC> {
+export async function obtenerTableroNC(rango?: RangoFechas): Promise<TableroNC> {
   const supabase = createClient();
 
+  const p_desde = rango?.desde ?? null;
+  const p_hasta = rango?.hasta ?? null;
+
   const [proc, norma, sev, evo] = await Promise.all([
-    supabase.rpc("fn_nc_por_proceso"),
-    supabase.rpc("fn_nc_por_norma"),
-    supabase.rpc("fn_nc_por_severidad"),
-    supabase.rpc("fn_nc_evolucion_mensual", { p_meses: 12 }),
+    supabase.rpc("fn_nc_por_proceso", { p_desde, p_hasta }),
+    supabase.rpc("fn_nc_por_norma", { p_desde, p_hasta }),
+    supabase.rpc("fn_nc_por_severidad", { p_desde, p_hasta }),
+    // Si hay rango, la serie de meses la define el rango; p_meses queda de
+    // respaldo para el caso sin rango (histórico → últimos 12 meses).
+    supabase.rpc("fn_nc_evolucion_mensual", { p_meses: 12, p_desde, p_hasta }),
   ]);
 
   const porProceso: NCGrupo[] = (proc.data ?? []).map((r: any) => ({
