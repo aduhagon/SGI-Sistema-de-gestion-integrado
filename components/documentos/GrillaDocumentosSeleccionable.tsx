@@ -129,13 +129,18 @@ export function GrillaDocumentosSeleccionable({
       <div>
         {documentos.map((doc) => {
           const esObsoleto = doc.estado_actual === "obsoleto";
+          const esRechazado = doc.estado_actual === "rechazado";
           const tildado = seleccion.has(doc.id);
           return (
             <div
               key={doc.id}
               className={
                 "flex items-center gap-4 border-b border-border px-4 py-3.5 transition-colors " +
-                (tildado ? "bg-primary/5" : "hover:bg-muted/40")
+                (tildado
+                  ? "bg-primary/5"
+                  : esRechazado
+                  ? "border-l-2 border-l-rose-400 bg-rose-50/40 hover:bg-rose-50/70"
+                  : "hover:bg-muted/60")
               }
             >
               {puedeObsoletar && (

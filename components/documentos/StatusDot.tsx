@@ -68,9 +68,9 @@ export function StatusDot({ estado, showLabel = false, className }: Props) {
       <span
         aria-hidden="true"
         className={cn(
-          "h-2.5 w-2.5 rounded-full shrink-0",
+          "h-3 w-3 rounded-full shrink-0",
           config.bg,
-          !config.isOutline && "ring-2",
+          !config.isOutline && "ring-[3px]",
           !config.isOutline && config.ring,
         )}
       />
