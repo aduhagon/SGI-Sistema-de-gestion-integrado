@@ -15,6 +15,7 @@ import {
   Gauge,
   Settings,
   SlidersHorizontal,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PerfilMenu } from "@/lib/api/perfil-menu";
@@ -40,6 +41,8 @@ const navItems: NavItem[] = [
   { href: "/acuses",        label: "Acuses",           icon: PenSquare,       section: "principal" },
 
   // Calidad & Auditoría: gestores (admin / responsable_sgi / auditor).
+  { href: "/tablero",       label: "Tablero de control", icon: Activity,    section: "calidad",
+    visible: (p) => p.esGestor },
   { href: "/cumplimiento/panorama", label: "Cumplimiento", icon: Grid3x3,     section: "calidad",
     visible: (p) => p.esGestor, modulo: "cumplimiento" },
   { href: "/riesgos",       label: "Riesgos",          icon: ShieldAlert,     section: "calidad",
