@@ -1,11 +1,25 @@
 import { CheckCircle2, Inbox } from "lucide-react";
 import { obtenerUsuarioActualId, obtenerBandejaAprobaciones } from "@/lib/api/aprobaciones";
+import { obtenerAprobacionesPendientesAdmin, obtenerUsuariosParaReasignar } from "@/lib/api/aprobacionesAdmin";
+import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
 import { AprobacionCard } from "@/components/aprobaciones/AprobacionCard";
+import { AprobacionesAdmin } from "@/components/aprobaciones/AprobacionesAdmin";
+import { SelectorVistaAprobaciones } from "@/components/aprobaciones/SelectorVistaAprobaciones";
 
 export const dynamic = "force-dynamic";
 
-export default async function AprobacionesPage() {
-  const usuarioId = await obtenerUsuarioActualId();
+export default async function AprobacionesPage({
+  searchParams,
+}: {
+  searchParams: { vista?: string };
+}) {
+  const [usuarioId, perfil] = await Promise.all([
+    obtenerUsuarioActualId(),
+    obtenerPerfilMenu(),
+  ]);
+
+  const esAdmin = perfil.esGestor;
+  const vista: "mias" | "todas" = searchParams?.vista === "todas" && esAdmin ? "todas" : "mias";
 
   if (!usuarioId) {
     return (
@@ -17,22 +31,49 @@ export default async function AprobacionesPage() {
     );
   }
 
-  const { paraDecidir, enEsperaN1 } = await obtenerBandejaAprobaciones(usuarioId);
+  // Datos según la vista.
+  const [bandeja, aprobacionesAdmin, usuariosReasignar] = await Promise.all([
+    vista === "mias" ? obtenerBandejaAprobaciones(usuarioId) : Promise.resolve({ paraDecidir: [], enEsperaN1: [] }),
+    vista === "todas" ? obtenerAprobacionesPendientesAdmin() : Promise.resolve([]),
+    vista === "todas" ? obtenerUsuariosParaReasignar() : Promise.resolve([]),
+  ]);
+  const { paraDecidir, enEsperaN1 } = bandeja;
 
   return (
     <div className="mx-auto max-w-4xl p-6 sm:p-8 lg:p-10">
-      <header className="mb-10">
+      <header className="mb-8">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
           Bandeja de aprobaciones
         </p>
         <h1 className="font-serif text-4xl font-semibold tracking-tight mb-3">
-          Aprobaciones pendientes
+          {vista === "todas" ? "Aprobaciones del sistema" : "Aprobaciones pendientes"}
         </h1>
-        <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
-          Documentos que esperan tu decisión como aprobador de nivel 1 o nivel 2. Cada
-          decisión queda registrada de forma permanente para auditoría.
+        <p className="text-base text-muted-foreground max-w-2xl leading-relaxed mb-5">
+          {vista === "todas"
+            ? "Todas las aprobaciones pendientes del sistema. Podés ver quién las tiene asignadas y reasignar el aprobador cuando haga falta."
+            : "Documentos que esperan tu decisión como aprobador de nivel 1 o nivel 2. Cada decisión queda registrada de forma permanente para auditoría."}
         </p>
+        {esAdmin && <SelectorVistaAprobaciones vistaActual={vista} />}
       </header>
+
+      {vista === "todas" ? (
+        <AprobacionesAdmin aprobaciones={aprobacionesAdmin} usuarios={usuariosReasignar} />
+      ) : (
+        <MisPendientes paraDecidir={paraDecidir} enEsperaN1={enEsperaN1} />
+      )}
+    </div>
+  );
+}
+
+function MisPendientes({
+  paraDecidir,
+  enEsperaN1,
+}: {
+  paraDecidir: Awaited<ReturnType<typeof obtenerBandejaAprobaciones>>["paraDecidir"];
+  enEsperaN1: Awaited<ReturnType<typeof obtenerBandejaAprobaciones>>["enEsperaN1"];
+}) {
+  return (
+    <>
 
       <section className="mb-12">
         <h2 className="mb-4 flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
@@ -80,6 +121,6 @@ export default async function AprobacionesPage() {
           </div>
         </section>
       )}
-    </div>
+    </>
   );
 }
