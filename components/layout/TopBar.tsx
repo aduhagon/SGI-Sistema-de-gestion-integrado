@@ -80,7 +80,7 @@ export function TopBar({ userEmail, usuarioId }: Props) {
         <Menu className="h-5 w-5" />
       </button>
 
-      {/* Zona de marca — ancho fijo (256px) alineado al sidebar solo en desktop */}
+      {/* Zona de marca — única (solo acá). Ancho fijo 256px alineado al sidebar en desktop. */}
       <div className="flex h-full items-center gap-3 px-4 md:w-64 md:shrink-0 md:border-r md:border-white/[0.08] md:px-6">
         <div className="flex h-9 w-9 items-center justify-center rounded-md bg-white text-[#0f1f3d] shadow-sm">
           <span className="font-serif text-sm font-bold">M</span>
