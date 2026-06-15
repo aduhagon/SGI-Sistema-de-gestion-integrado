@@ -32,10 +32,13 @@ export default async function AppLayout({
   const { data: esSuperadmin } = await supabase.rpc("fn_es_superadmin");
 
   return (
-    <div className="flex h-screen bg-background">
-      <Sidebar esSuperadmin={esSuperadmin ?? false} />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <TopBar userEmail={user.email ?? "—"} usuarioId={usuarioId} />
+    <div className="flex h-screen flex-col bg-background">
+      {/* Header navy de ancho completo (incluye la marca) */}
+      <TopBar userEmail={user.email ?? "—"} usuarioId={usuarioId} />
+
+      {/* Fila inferior: sidebar claro + contenido */}
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar esSuperadmin={esSuperadmin ?? false} />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>

@@ -52,8 +52,8 @@ const navItems: NavItem[] = [
   { href: "/tablero",       label: "Tablero de control", icon: LineChart,  section: "analisis" },
 
   // Sistema
-  { href: "/configuracion", label: "Configuración",          icon: Settings,           section: "admin" },
-  { href: "/sistema",       label: "Configuración del sistema", icon: SlidersHorizontal, section: "admin", soloSuperadmin: true },
+  { href: "/configuracion", label: "Configuración",             icon: Settings,           section: "admin" },
+  { href: "/sistema",       label: "Configuración del sistema", icon: SlidersHorizontal,  section: "admin", soloSuperadmin: true },
 ];
 
 const GRUPOS: { key: Seccion; title: string }[] = [
@@ -66,8 +66,6 @@ const GRUPOS: { key: Seccion; title: string }[] = [
 export function Sidebar({ esSuperadmin = false }: { esSuperadmin?: boolean }) {
   const pathname = usePathname();
 
-  // Estado de plegado por grupo. Arranca con el grupo activo abierto
-  // y el resto plegado (como pediste: nacen plegadas, se despliegan al clic).
   const seccionActiva = obtenerSeccionActiva(pathname);
   const [abiertos, setAbiertos] = useState<Record<Seccion, boolean>>({
     inicio: seccionActiva === "inicio",
@@ -81,22 +79,7 @@ export function Sidebar({ esSuperadmin = false }: { esSuperadmin?: boolean }) {
   }
 
   return (
-    <aside className="hidden md:flex w-64 flex-col border-r border-border bg-background">
-      {/* Marca */}
-      <div className="flex h-16 items-center gap-3 border-b border-border px-6">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm">
-          <span className="font-serif text-sm font-bold">M</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="font-serif text-base font-semibold leading-none tracking-tight">
-            MSU
-          </span>
-          <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            SGI Multinorma
-          </span>
-        </div>
-      </div>
-
+    <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border bg-[#f7f5ef]">
       <nav className="flex-1 overflow-y-auto px-3 py-5">
         {GRUPOS.map(({ key, title }) => {
           const items = navItems.filter(
@@ -125,7 +108,7 @@ export function Sidebar({ esSuperadmin = false }: { esSuperadmin?: boolean }) {
         })}
       </nav>
 
-      <div className="border-t border-border px-4 py-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
+      <div className="border-t border-border px-4 py-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60">
         v1.0 · Build inicial
       </div>
     </aside>
@@ -151,7 +134,7 @@ function NavGroup({
         type="button"
         onClick={onToggle}
         aria-expanded={abierto}
-        className="group flex w-full items-center gap-2 rounded-md px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80 transition-colors hover:text-foreground"
+        className="group flex w-full items-center gap-2 rounded-md px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/75 transition-colors hover:text-primary"
       >
         <ChevronRight
           className={cn(
@@ -160,12 +143,11 @@ function NavGroup({
           )}
         />
         <span>{title}</span>
-        <span className="ml-auto text-[9px] font-normal tabular-nums text-muted-foreground/40">
+        <span className="ml-auto text-[9px] font-normal tabular-nums text-muted-foreground/50">
           {count}
         </span>
       </button>
 
-      {/* Contenedor plegable con animación de altura */}
       <div
         className={cn(
           "grid transition-all duration-200 ease-out",
@@ -188,8 +170,8 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       className={cn(
         "group relative flex items-center gap-3 rounded-md py-2 pl-7 pr-3 text-sm font-medium transition-all duration-150",
         active
-          ? "bg-primary/[0.07] text-primary"
-          : "text-foreground/65 hover:bg-muted/60 hover:text-foreground",
+          ? "bg-primary/[0.09] text-primary"
+          : "text-foreground/70 hover:bg-primary/[0.05] hover:text-foreground",
       )}
     >
       {/* Barra de acento del item activo */}
