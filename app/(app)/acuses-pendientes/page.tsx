@@ -1,16 +1,27 @@
 import Link from "next/link";
 import { ChevronLeft, PenSquare } from "lucide-react";
 import { obtenerAcusesPendientesPorUsuario } from "@/lib/api/acusesPendientes";
+import { obtenerAcusesPorProceso, obtenerAcusesPorGerencia } from "@/lib/api/acusesAgregados";
 import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
 import { AcusesPorUsuario } from "@/components/acuses/AcusesPorUsuario";
+import { AcusesAgrupados } from "@/components/acuses/AcusesAgrupados";
+import { SelectorVistaAcuses } from "@/components/acuses/SelectorVistaAcuses";
 
 export const dynamic = "force-dynamic";
 
-export default async function AcusesPendientesPage() {
-  const [usuarios, perfil] = await Promise.all([
-    obtenerAcusesPendientesPorUsuario(),
-    obtenerPerfilMenu(),
-  ]);
+type Vista = "usuario" | "proceso" | "gerencia";
+
+export default async function AcusesPendientesPage({
+  searchParams,
+}: {
+  searchParams: { vista?: string };
+}) {
+  const vista: Vista =
+    searchParams?.vista === "proceso" ? "proceso"
+    : searchParams?.vista === "gerencia" ? "gerencia"
+    : "usuario";
+
+  const perfil = await obtenerPerfilMenu();
 
   // Solo gestores pueden ver esta vista de gestión.
   if (!perfil.esGestor) {
@@ -31,6 +42,13 @@ export default async function AcusesPendientesPage() {
       </div>
     );
   }
+
+  // Cargar los datos de la vista activa.
+  const [usuarios, porProceso, porGerencia] = await Promise.all([
+    vista === "usuario" ? obtenerAcusesPendientesPorUsuario() : Promise.resolve([]),
+    vista === "proceso" ? obtenerAcusesPorProceso() : Promise.resolve([]),
+    vista === "gerencia" ? obtenerAcusesPorGerencia() : Promise.resolve([]),
+  ]);
 
   const totalPendientes = usuarios.reduce((acc, u) => acc + u.totalPendientes, 0);
   const totalVencidos = usuarios.reduce((acc, u) => acc + u.vencidos, 0);
@@ -53,20 +71,28 @@ export default async function AcusesPendientesPage() {
         </p>
         <h1 className="font-serif text-4xl font-semibold tracking-tight mb-2 flex items-center gap-3">
           <PenSquare className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
-          Acuses pendientes por usuario
+          Estado de acuses de lectura
         </h1>
-        <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
-          {totalPendientes > 0
-            ? `${totalPendientes} acuse${totalPendientes !== 1 ? "s" : ""} pendiente${
-                totalPendientes !== 1 ? "s" : ""
-              } de firma${
-                totalVencidos > 0 ? `, ${totalVencidos} vencido${totalVencidos !== 1 ? "s" : ""}` : ""
-              }. Reclamá la lectura a quien corresponda.`
-            : "Estado de los acuses de lectura del personal."}
+        <p className="text-base text-muted-foreground max-w-2xl leading-relaxed mb-5">
+          Seguimiento del cumplimiento de acuses de lectura, con tres miradas
+          complementarias: por usuario, por proceso y por gerencia.
         </p>
+        <SelectorVistaAcuses vistaActual={vista} />
       </header>
 
-      <AcusesPorUsuario usuarios={usuarios} />
+      {vista === "usuario" && <AcusesPorUsuario usuarios={usuarios} />}
+      {vista === "proceso" && (
+        <AcusesAgrupados
+          grupos={porProceso}
+          vacioTexto="Todavía no hay acuses asociados a procesos."
+        />
+      )}
+      {vista === "gerencia" && (
+        <AcusesAgrupados
+          grupos={porGerencia}
+          vacioTexto="Todavía no hay acuses asociados a gerencias."
+        />
+      )}
     </div>
   );
 }
