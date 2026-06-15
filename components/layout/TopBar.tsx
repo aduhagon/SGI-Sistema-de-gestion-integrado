@@ -74,13 +74,13 @@ export function TopBar({ userEmail, usuarioId }: Props) {
         </div>
       </div>
 
-      {/* Buscador + acciones */}
-      <div className="flex flex-1 items-center px-4 sm:px-6">
-        <div className="flex-1 max-w-xl">
+      {/* Buscador centrado */}
+      <div className="flex flex-1 items-center justify-center px-4 sm:px-6">
+        <div className="w-full max-w-xl">
           <form onSubmit={handleBuscar}>
-            <div className="group flex w-full items-center gap-2.5 rounded-lg border border-white/[0.1] bg-white/[0.07] px-3.5 py-2 text-sm transition-all focus-within:border-white/25 focus-within:bg-white/[0.12]">
+            <div className="group flex w-full items-center gap-2.5 rounded-lg border border-[rgb(125_180_255_/_0.35)] bg-[rgb(125_180_255_/_0.15)] px-3.5 py-2 text-sm transition-all focus-within:border-[rgb(125_180_255_/_0.55)] focus-within:bg-[rgb(125_180_255_/_0.22)]">
               <Search
-                className="h-4 w-4 text-slate-400 transition-colors group-focus-within:text-slate-200"
+                className="h-4 w-4 text-[#7db4ff] transition-colors group-focus-within:text-[#a5ccff]"
                 aria-hidden="true"
               />
               <input
@@ -90,16 +90,18 @@ export function TopBar({ userEmail, usuarioId }: Props) {
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Buscar documentos, requisitos, procesos…"
                 aria-label="Buscar en el SGI"
-                className="flex-1 bg-transparent text-white placeholder:text-slate-400 outline-none"
+                className="flex-1 bg-transparent text-white placeholder:text-[rgb(188_214_255_/_0.8)] outline-none"
               />
-              <kbd className="ml-auto rounded border border-white/15 bg-white/5 px-1.5 py-0.5 text-[10px] font-mono text-slate-300">
+              <kbd className="ml-auto rounded border border-[rgb(125_180_255_/_0.3)] bg-[rgb(125_180_255_/_0.1)] px-1.5 py-0.5 text-[10px] font-mono text-[#bcd6ff]">
                 ⌘K
               </kbd>
             </div>
           </form>
         </div>
+      </div>
 
-        <div className="flex items-center gap-1 ml-4">
+      {/* Acciones — siempre al extremo derecho */}
+      <div className="flex shrink-0 items-center gap-1 px-4 sm:px-6">
           <CampanaNotificaciones usuarioId={usuarioId} />
 
           <div ref={menuRef} className="relative">
@@ -155,7 +157,6 @@ export function TopBar({ userEmail, usuarioId }: Props) {
             )}
           </div>
         </div>
-      </div>
     </header>
   );
 }
