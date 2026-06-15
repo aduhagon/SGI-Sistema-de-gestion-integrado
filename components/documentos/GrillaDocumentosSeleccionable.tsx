@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -10,7 +10,10 @@ import {
   Loader2,
   AlertTriangle,
   CheckCircle2,
+  ArrowUpDown,
+  Download,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import type { DocumentSummary } from "@/lib/api/documentos";
 import { StatusDot } from "@/components/documentos/StatusDot";
 import { obsoletarDocumentosEnLote } from "@/app/(app)/documentos/obsoletar-lote-actions";
@@ -40,6 +43,7 @@ export function GrillaDocumentosSeleccionable({
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [orden, setOrden] = useState<OrdenTipo>("jerarquia");
 
   // Solo se pueden obsoletar documentos que no estén ya obsoletos.
   const seleccionables = documentos.filter((d) => d.estado_actual !== "obsoleto");
@@ -96,6 +100,42 @@ export function GrillaDocumentosSeleccionable({
     });
   }
 
+  // Documentos ordenados según el selector.
+  const documentosOrdenados = useMemo(
+    () => ordenarDocumentos(documentos, orden),
+    [documentos, orden],
+  );
+
+  // Exportar a Excel: si hay selección, exporta lo tildado; si no, lo visible/filtrado.
+  function exportarExcel() {
+    const fuente =
+      seleccion.size > 0
+        ? documentosOrdenados.filter((d) => seleccion.has(d.id))
+        : documentosOrdenados;
+
+    const filas = fuente.map((d) => ({
+      "Código": d.codigo,
+      "Título": d.titulo,
+      "Descripción": d.descripcion_corta ?? "",
+      "Estado": traducirEstado(d.estado_actual),
+      "Tipo": d.tipo?.nombre ?? "",
+      "Proceso": d.proceso ? `${d.proceso.codigo} — ${d.proceso.nombre}` : "",
+      "Normas": d.normas.map((n) => n.nombre_corto).join(", "),
+      "Actualizado": formatearFechaRelativa(d.actualizado_en ?? d.creado_en),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(filas);
+    // Anchos de columna razonables.
+    ws["!cols"] = [
+      { wch: 20 }, { wch: 32 }, { wch: 40 }, { wch: 18 },
+      { wch: 18 }, { wch: 28 }, { wch: 20 }, { wch: 14 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Documentos");
+    const fecha = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `documentos-sgi-${fecha}.xlsx`);
+  }
+
   return (
     <div>
       {exito && (
@@ -104,6 +144,34 @@ export function GrillaDocumentosSeleccionable({
           <span>{exito}</span>
         </div>
       )}
+
+      {/* Barra de herramientas: ordenar + exportar */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <ArrowUpDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <label htmlFor="orden-docs" className="text-sm text-muted-foreground">Ordenar por:</label>
+          <select
+            id="orden-docs"
+            value={orden}
+            onChange={(e) => setOrden(e.target.value as OrdenTipo)}
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="jerarquia">Jerarquía</option>
+            <option value="proceso">Proceso</option>
+            <option value="codigo">Código</option>
+            <option value="fecha">Fecha</option>
+          </select>
+        </div>
+
+        <button
+          type="button"
+          onClick={exportarExcel}
+          className="inline-flex items-center gap-1.5 rounded-md border border-emerald-600/30 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+        >
+          <Download className="h-4 w-4" aria-hidden="true" />
+          {seleccion.size > 0 ? `Exportar ${seleccion.size} a Excel` : "Exportar a Excel"}
+        </button>
+      </div>
 
       {/* Encabezado con seleccionar todos */}
       <div className="flex items-center gap-4 border-b border-border bg-muted/30 px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground">
@@ -127,7 +195,7 @@ export function GrillaDocumentosSeleccionable({
 
       {/* Filas */}
       <div>
-        {documentos.map((doc) => {
+        {documentosOrdenados.map((doc) => {
           const esObsoleto = doc.estado_actual === "obsoleto";
           const esRechazado = doc.estado_actual === "rechazado";
           const tildado = seleccion.has(doc.id);
@@ -328,6 +396,72 @@ export function GrillaDocumentosSeleccionable({
       )}
     </div>
   );
+}
+
+type OrdenTipo = "jerarquia" | "proceso" | "codigo" | "fecha";
+
+function ordenarDocumentos(docs: DocumentSummary[], orden: OrdenTipo): DocumentSummary[] {
+  const copia = [...docs];
+  switch (orden) {
+    case "codigo":
+      return copia.sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+    case "fecha":
+      return copia.sort((a, b) => {
+        const fa = new Date(a.actualizado_en ?? a.creado_en).getTime();
+        const fb = new Date(b.actualizado_en ?? b.creado_en).getTime();
+        return fb - fa; // más reciente primero
+      });
+    case "proceso":
+      return copia.sort((a, b) => {
+        const pa = a.proceso?.codigo ?? "zzz";
+        const pb = b.proceso?.codigo ?? "zzz";
+        if (pa !== pb) return pa.localeCompare(pb, "es");
+        return a.codigo.localeCompare(b.codigo, "es", { numeric: true });
+      });
+    case "jerarquia":
+    default:
+      return ordenarPorJerarquia(copia);
+  }
+}
+
+// Ordena padres seguidos de sus hijos. Usa documento_padre_id; los huérfanos
+// (sin padre en la lista) se tratan como raíces.
+function ordenarPorJerarquia(docs: DocumentSummary[]): DocumentSummary[] {
+  const porId = new Map(docs.map((d) => [d.id, d]));
+  const hijosDe = new Map<string | null, DocumentSummary[]>();
+  for (const d of docs) {
+    // Si el padre no está en la lista visible, tratarlo como raíz.
+    const padre = d.documento_padre_id && porId.has(d.documento_padre_id)
+      ? d.documento_padre_id
+      : null;
+    if (!hijosDe.has(padre)) hijosDe.set(padre, []);
+    hijosDe.get(padre)!.push(d);
+  }
+  // Ordenar cada nivel por código.
+  for (const lista of hijosDe.values()) {
+    lista.sort((a, b) => a.codigo.localeCompare(b.codigo, "es", { numeric: true }));
+  }
+  const resultado: DocumentSummary[] = [];
+  function agregar(padreId: string | null) {
+    for (const d of hijosDe.get(padreId) ?? []) {
+      resultado.push(d);
+      agregar(d.id);
+    }
+  }
+  agregar(null);
+  return resultado;
+}
+
+function traducirEstado(estado: string): string {
+  const map: Record<string, string> = {
+    borrador: "Borrador",
+    confeccionado: "Confeccionado",
+    pendiente_aprobacion: "Pendiente aprobación",
+    aprobado: "Aprobado",
+    rechazado: "Rechazado",
+    obsoleto: "Obsoleto",
+  };
+  return map[estado] ?? estado;
 }
 
 function formatearFechaRelativa(fechaIso: string): string {
