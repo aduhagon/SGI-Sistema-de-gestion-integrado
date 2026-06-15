@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Plus, AlertOctagon, Calendar, Network } from "lucide-react";
+import { Plus, AlertOctagon, Calendar, Network, BarChart3 } from "lucide-react";
 import { obtenerNCs } from "@/lib/api/ncs";
+import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -22,7 +23,7 @@ const ORIGEN: Record<string, string> = {
 };
 
 export default async function NCsPage() {
-  const ncs = await obtenerNCs();
+  const [ncs, perfil] = await Promise.all([obtenerNCs(), obtenerPerfilMenu()]);
 
   return (
     <div className="mx-auto max-w-5xl p-6 sm:p-8 lg:p-10">
@@ -34,9 +35,16 @@ export default async function NCsPage() {
             Gestión de incumplimientos detectados, con análisis de causa raíz y seguimiento hasta el cierre.
           </p>
         </div>
-        <Link href="/ncs/nueva" className={cn(buttonVariants({ variant: "default" }))}>
-          <Plus className="h-4 w-4" aria-hidden="true" />Abrir no conformidad
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {perfil.esGestor && (
+            <Link href="/tablero-nc" className={cn(buttonVariants({ variant: "outline" }))}>
+              <BarChart3 className="h-4 w-4" aria-hidden="true" />Tablero
+            </Link>
+          )}
+          <Link href="/ncs/nueva" className={cn(buttonVariants({ variant: "default" }))}>
+            <Plus className="h-4 w-4" aria-hidden="true" />Abrir no conformidad
+          </Link>
+        </div>
       </header>
 
       {ncs.length > 0 ? (
