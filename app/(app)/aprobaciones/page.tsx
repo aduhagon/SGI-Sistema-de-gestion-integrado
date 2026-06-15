@@ -1,12 +1,31 @@
 import { CheckCircle2, Inbox } from "lucide-react";
 import { obtenerUsuarioActualId, obtenerBandejaAprobaciones } from "@/lib/api/aprobaciones";
 import { obtenerAprobacionesPendientesAdmin, obtenerUsuariosParaReasignar } from "@/lib/api/aprobacionesAdmin";
+import { obtenerAprobacionesPorProceso, obtenerAprobacionesPorUsuario } from "@/lib/api/aprobacionesAgregados";
 import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
 import { AprobacionCard } from "@/components/aprobaciones/AprobacionCard";
 import { AprobacionesAdmin } from "@/components/aprobaciones/AprobacionesAdmin";
+import { AprobacionesPorProceso } from "@/components/aprobaciones/AprobacionesPorProceso";
+import { AprobacionesPorUsuario } from "@/components/aprobaciones/AprobacionesPorUsuario";
 import { SelectorVistaAprobaciones } from "@/components/aprobaciones/SelectorVistaAprobaciones";
 
 export const dynamic = "force-dynamic";
+
+type Vista = "mias" | "todas" | "proceso" | "usuario";
+
+const DESCRIPCION: Record<Vista, string> = {
+  mias: "Documentos que esperan tu decisión como aprobador de nivel 1 o nivel 2. Cada decisión queda registrada de forma permanente para auditoría.",
+  todas: "Todas las aprobaciones pendientes del sistema. Podés ver quién las tiene asignadas y reasignar el aprobador cuando haga falta.",
+  proceso: "Aprobaciones pendientes agrupadas por proceso. Sirve para ver qué procesos tienen documentos esperando aprobación.",
+  usuario: "Aprobaciones pendientes agrupadas por aprobador asignado. Tocá cada persona para ver el detalle de sus documentos.",
+};
+
+const TITULO: Record<Vista, string> = {
+  mias: "Aprobaciones pendientes",
+  todas: "Aprobaciones del sistema",
+  proceso: "Aprobaciones por proceso",
+  usuario: "Aprobaciones por usuario",
+};
 
 export default async function AprobacionesPage({
   searchParams,
@@ -19,7 +38,13 @@ export default async function AprobacionesPage({
   ]);
 
   const esAdmin = perfil.esGestor;
-  const vista: "mias" | "todas" = searchParams?.vista === "todas" && esAdmin ? "todas" : "mias";
+
+  // Las vistas de gestión (todas/proceso/usuario) solo para gestores.
+  const pedida = searchParams?.vista;
+  const vista: Vista =
+    esAdmin && (pedida === "todas" || pedida === "proceso" || pedida === "usuario")
+      ? pedida
+      : "mias";
 
   if (!usuarioId) {
     return (
@@ -31,11 +56,13 @@ export default async function AprobacionesPage({
     );
   }
 
-  // Datos según la vista.
-  const [bandeja, aprobacionesAdmin, usuariosReasignar] = await Promise.all([
+  // Datos según la vista (solo se consulta lo que se va a mostrar).
+  const [bandeja, aprobacionesAdmin, usuariosReasignar, porProceso, porUsuario] = await Promise.all([
     vista === "mias" ? obtenerBandejaAprobaciones(usuarioId) : Promise.resolve({ paraDecidir: [], enEsperaN1: [] }),
     vista === "todas" ? obtenerAprobacionesPendientesAdmin() : Promise.resolve([]),
     vista === "todas" ? obtenerUsuariosParaReasignar() : Promise.resolve([]),
+    vista === "proceso" ? obtenerAprobacionesPorProceso() : Promise.resolve([]),
+    vista === "usuario" ? obtenerAprobacionesPorUsuario() : Promise.resolve([]),
   ]);
   const { paraDecidir, enEsperaN1 } = bandeja;
 
@@ -45,22 +72,21 @@ export default async function AprobacionesPage({
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
           Bandeja de aprobaciones
         </p>
-        <h1 className="font-serif text-4xl font-semibold tracking-tight mb-3">
-          {vista === "todas" ? "Aprobaciones del sistema" : "Aprobaciones pendientes"}
+        <h1 className="font-serif text-2xl sm:text-4xl font-semibold tracking-tight mb-3">
+          {TITULO[vista]}
         </h1>
         <p className="text-base text-muted-foreground max-w-2xl leading-relaxed mb-5">
-          {vista === "todas"
-            ? "Todas las aprobaciones pendientes del sistema. Podés ver quién las tiene asignadas y reasignar el aprobador cuando haga falta."
-            : "Documentos que esperan tu decisión como aprobador de nivel 1 o nivel 2. Cada decisión queda registrada de forma permanente para auditoría."}
+          {DESCRIPCION[vista]}
         </p>
         {esAdmin && <SelectorVistaAprobaciones vistaActual={vista} />}
       </header>
 
-      {vista === "todas" ? (
+      {vista === "todas" && (
         <AprobacionesAdmin aprobaciones={aprobacionesAdmin} usuarios={usuariosReasignar} />
-      ) : (
-        <MisPendientes paraDecidir={paraDecidir} enEsperaN1={enEsperaN1} />
       )}
+      {vista === "proceso" && <AprobacionesPorProceso grupos={porProceso} />}
+      {vista === "usuario" && <AprobacionesPorUsuario usuarios={porUsuario} />}
+      {vista === "mias" && <MisPendientes paraDecidir={paraDecidir} enEsperaN1={enEsperaN1} />}
     </div>
   );
 }
@@ -74,7 +100,6 @@ function MisPendientes({
 }) {
   return (
     <>
-
       <section className="mb-12">
         <h2 className="mb-4 flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Esperan tu decisión

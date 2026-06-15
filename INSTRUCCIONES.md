@@ -1,64 +1,53 @@
-# Tablero de NC embebido en /ncs (colapsable) + filtro soft-delete
+# Aprobaciones agrupadas por proceso y por usuario
 
-Mueve el tablero de no conformidades a la propia página `/ncs`, colapsable con un
-botón "Ver tablero" arriba de la lista. Elimina la página separada `/tablero-nc`.
-Además, el tablero ahora cuenta solo NC activas y no eliminadas.
+Replica en la bandeja de aprobaciones el patrón de vistas agrupadas que ya tienen
+los acuses. Suma dos vistas nuevas al selector: **Por proceso** y **Por usuario**.
 
-## Base de datos — YA APLICADO (no corras nada)
+## Sin cambios en la base
 
-Dos migraciones aplicadas en vivo y verificadas:
-1. Rango de fechas en las 4 funciones del tablero (`p_desde`/`p_hasta`).
-2. Filtro soft-delete: las 4 funciones ahora exigen `nc.activo = true AND
-   nc.eliminado_en IS NULL`, igual que la lista de `/ncs`. Quedó **una sola
-   versión** de cada función (sin overloads).
+No hace falta migración. Las dos vistas se construyen en memoria a partir de
+`fn_aprobaciones_pendientes_admin()`, que **ya entrega** proceso y aprobador por
+fila (verificado en vivo). Solo se agrega código de agregación en TypeScript.
 
 ## Archivos del zip — subir/reemplazar (GitHub web UI)
 
 | Archivo | Acción |
 |---|---|
-| `app/(app)/ncs/page.tsx` | **REEMPLAZA** — tablero colapsable arriba de la lista |
-| `components/tablero-nc/PanelTableroNC.tsx` | **NUEVO** — agrupa filtro + KPIs + gráficos |
-| `components/tablero-nc/BotonTablero.tsx` | **NUEVO** — toggle Ver/Ocultar tablero |
-| `components/tablero-nc/FiltroFechas.tsx` | **REEMPLAZA** — ahora navega a /ncs, no a /tablero-nc |
+| `lib/api/aprobacionesAgregados.ts` | **NUEVO** — agrupa por proceso y por usuario |
+| `components/aprobaciones/AprobacionesPorProceso.tsx` | **NUEVO** — tarjetas por proceso |
+| `components/aprobaciones/AprobacionesPorUsuario.tsx` | **NUEVO** — fichas por aprobador, con detalle expandible |
+| `components/aprobaciones/SelectorVistaAprobaciones.tsx` | **REEMPLAZA** — agrega las 2 pestañas nuevas |
+| `app/(app)/aprobaciones/page.tsx` | **REEMPLAZA** — rutea y monta las vistas nuevas |
 
-### Si todavía no tenías el paquete anterior, sumá también estos (sin cambios):
-| Archivo | Acción |
-|---|---|
-| `lib/api/tableroNC.ts` | del paquete anterior (pasa el rango a los RPC) |
-| `lib/api/rangoFechasNC.ts` | del paquete anterior (presets) |
+Los componentes `AprobacionCard.tsx` y `AprobacionesAdmin.tsx` **no se tocan**.
 
-> `EvolucionNC.tsx` y `CortesNC.tsx` ya existen y **no se tocan**.
+## Cómo queda
 
-## BORRAR — página vieja del tablero
+El selector (visible solo para gestores, como antes) pasa de 2 a 4 pestañas:
 
-Eliminá del repo la carpeta completa:
+1. **Mis pendientes** — igual que siempre (las que esperan tu decisión).
+2. **Todas (admin)** — igual que siempre (monitoreo + reasignación).
+3. **Por proceso** — *nueva*. Una tarjeta por proceso con el total de
+   aprobaciones pendientes, cuántas están en nivel 1 / nivel 2, y cuántas
+   vencidas.
+4. **Por usuario** — *nueva*. Una ficha por aprobador asignado con su total y sus
+   vencidas; al tocarla se despliega el detalle de cada documento (código,
+   título, nivel, días esperando o "vencida"), con link al documento.
 
-```
-app/(app)/tablero-nc/
-```
-
-Contiene el `page.tsx` viejo. Ya nada lo enlaza (el botón "Tablero" que apuntaba
-ahí fue reemplazado por el toggle "Ver tablero" dentro de /ncs).
-
-> En la web UI de GitHub: entrá a cada archivo dentro de `app/(app)/tablero-nc/`,
-> usá el ícono de papelera (Delete file) y commiteá. Si solo está el `page.tsx`,
-> con borrar ese archivo alcanza; la carpeta vacía desaparece sola.
-
-## Cómo funciona
-
-- El tablero arranca **oculto**. El botón "Ver tablero" agrega `?tablero=1` a la
-  URL y lo despliega arriba de la lista; "Ocultar tablero" lo saca.
-- El filtro de período (presets + custom) vive en la URL junto con `tablero=1`,
-  así al cambiar el rango el tablero **sigue abierto**.
-- Solo lo ven los gestores (`perfil.esGestor`), igual que antes.
-- Cuando el tablero está cerrado no se consulta la base por sus datos (la página
-  solo trae la lista). Se carga al desplegarlo.
+Las vistas viven en la URL (`?vista=proceso`, `?vista=usuario`), igual que las de
+acuses. Cada vista consulta solo sus datos (no se carga de más).
 
 ## Verificación tras el deploy
 
-1. Entrá a `/ncs` → lista igual que siempre, con botón "Ver tablero" en el header
-   (solo si sos gestor).
-2. Tocá "Ver tablero" → se despliega arriba con KPIs, evolución y cortes; el botón
-   pasa a "Ocultar tablero".
-3. Cambiá el período (ej. "Últimos 90 días") → recalcula y el tablero queda abierto.
-4. Verificá que `/tablero-nc` ya no exista (404) tras borrar la carpeta.
+1. Entrá a `/aprobaciones` como gestor → el selector ahora muestra 4 pestañas.
+2. "Por proceso" → tarjetas por proceso; los procesos sin aprobaciones pendientes
+   no aparecen. Si un documento no tiene proceso, cae en "Sin proceso asignado".
+3. "Por usuario" → fichas por aprobador; tocá una para ver el detalle. "Sin
+   aprobador asignado" agrupa las que no tengan aprobador.
+4. Un usuario no-gestor sigue viendo solo "Mis pendientes" (sin selector).
+
+## Nota
+
+Las dos vistas nuevas cuentan **aprobaciones pendientes** (no cerradas), que es
+lo que devuelve la función admin. No incluyen las ya decididas; para histórico
+de decisiones habría que otra fuente. Si lo querés, lo vemos aparte.

@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Inbox, ShieldCheck } from "lucide-react";
+import { Inbox, ShieldCheck, Layers, Users } from "lucide-react";
 
-type Vista = "mias" | "todas";
+type Vista = "mias" | "todas" | "proceso" | "usuario";
 
 export function SelectorVistaAprobaciones({ vistaActual }: { vistaActual: Vista }) {
   const router = useRouter();
@@ -19,10 +19,12 @@ export function SelectorVistaAprobaciones({ vistaActual }: { vistaActual: Vista 
   const tabs: Array<{ id: Vista; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: "mias", label: "Mis pendientes", icon: Inbox },
     { id: "todas", label: "Todas (admin)", icon: ShieldCheck },
+    { id: "proceso", label: "Por proceso", icon: Layers },
+    { id: "usuario", label: "Por usuario", icon: Users },
   ];
 
   return (
-    <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1">
+    <div className="inline-flex flex-wrap rounded-lg border border-border bg-muted/40 p-1">
       {tabs.map((t) => {
         const activo = t.id === vistaActual;
         const Icon = t.icon;
