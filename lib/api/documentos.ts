@@ -9,6 +9,7 @@ export type DocumentSummary = {
   criticidad: string;
   creado_en: string;
   actualizado_en: string | null;
+  documento_padre_id: string | null;
   tipo: {
     codigo: string;
     nombre: string;
@@ -32,6 +33,7 @@ type DocumentoRaw = {
   criticidad: string;
   creado_en: string;
   actualizado_en: string | null;
+  documento_padre_id: string | null;
   tipo: DocumentSummary["tipo"];
   proceso: DocumentSummary["proceso"];
   documento_norma: Array<{
@@ -56,6 +58,7 @@ function normalizar(doc: DocumentoRaw): DocumentSummary {
     criticidad: doc.criticidad,
     creado_en: doc.creado_en,
     actualizado_en: doc.actualizado_en,
+    documento_padre_id: doc.documento_padre_id,
     tipo: doc.tipo,
     proceso: doc.proceso,
     normas,
@@ -71,6 +74,7 @@ const SELECT_DOCUMENTO = `
   criticidad,
   creado_en,
   actualizado_en,
+  documento_padre_id,
   tipo:tipos_documentales (codigo, nombre, color_hex, icono),
   proceso:procesos!documentos_proceso_principal_id_fkey (codigo, nombre, color_hex),
   documento_norma (
