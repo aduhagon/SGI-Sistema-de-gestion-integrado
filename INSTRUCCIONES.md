@@ -1,53 +1,44 @@
-# Aprobaciones agrupadas por proceso y por usuario
+# Fondo decorativo — Panorama de cumplimiento
 
-Replica en la bandeja de aprobaciones el patrón de vistas agrupadas que ya tienen
-los acuses. Suma dos vistas nuevas al selector: **Por proceso** y **Por usuario**.
+Agrega el fondo de curvas suaves (con detalles dorados) detrás de toda la página
+`/cumplimiento/panorama`, optimizado para no perder rendimiento.
 
-## Sin cambios en la base
+## Optimización aplicada
 
-No hace falta migración. Las dos vistas se construyen en memoria a partir de
-`fn_aprobaciones_pendientes_admin()`, que **ya entrega** proceso y aprobador por
-fila (verificado en vivo). Solo se agrega código de agregación en TypeScript.
+- Original `Fondo.png`: **42 KB** (1672×941, PNG).
+- Entregado `fondo-panorama.webp`: **10 KB** (mismo tamaño, WebP calidad 72).
+- **76% más liviano**, sin pérdida visible. Para un fondo decorativo, WebP es
+  ideal: comprime muy bien degradados y curvas.
 
-## Archivos del zip — subir/reemplazar (GitHub web UI)
+## Archivos del zip — subir (GitHub web UI)
 
 | Archivo | Acción |
 |---|---|
-| `lib/api/aprobacionesAgregados.ts` | **NUEVO** — agrupa por proceso y por usuario |
-| `components/aprobaciones/AprobacionesPorProceso.tsx` | **NUEVO** — tarjetas por proceso |
-| `components/aprobaciones/AprobacionesPorUsuario.tsx` | **NUEVO** — fichas por aprobador, con detalle expandible |
-| `components/aprobaciones/SelectorVistaAprobaciones.tsx` | **REEMPLAZA** — agrega las 2 pestañas nuevas |
-| `app/(app)/aprobaciones/page.tsx` | **REEMPLAZA** — rutea y monta las vistas nuevas |
+| `public/fondo-panorama.webp` | **NUEVO** — la imagen optimizada (va en `public/`) |
+| `app/(app)/cumplimiento/panorama/page.tsx` | **REEMPLAZA** — envuelve la página con el fondo |
 
-Los componentes `AprobacionCard.tsx` y `AprobacionesAdmin.tsx` **no se tocan**.
+> `public/` se sirve desde la raíz del sitio. Subí el `.webp` dentro de `public/`
+> y Next lo expone como `/fondo-panorama.webp` (así lo referencia la página). Si
+> la carpeta `public/` no existe aún en tu repo, GitHub la crea al subir el
+> archivo dentro de esa ruta.
 
-## Cómo queda
+## Cómo está hecho
 
-El selector (visible solo para gestores, como antes) pasa de 2 a 4 pestañas:
-
-1. **Mis pendientes** — igual que siempre (las que esperan tu decisión).
-2. **Todas (admin)** — igual que siempre (monitoreo + reasignación).
-3. **Por proceso** — *nueva*. Una tarjeta por proceso con el total de
-   aprobaciones pendientes, cuántas están en nivel 1 / nivel 2, y cuántas
-   vencidas.
-4. **Por usuario** — *nueva*. Una ficha por aprobador asignado con su total y sus
-   vencidas; al tocarla se despliega el detalle de cada documento (código,
-   título, nivel, días esperando o "vencida"), con link al documento.
-
-Las vistas viven en la URL (`?vista=proceso`, `?vista=usuario`), igual que las de
-acuses. Cada vista consulta solo sus datos (no se carga de más).
+- El fondo se aplica por **CSS** (`background-image`), no con `next/image`: para
+  un fondo decorativo es más simple y no requiere configuración.
+- Encima de la imagen hay un **velo blanco translúcido** (`bg-background/70`) que
+  aclara el fondo para que las tarjetas y el texto se lean con buen contraste.
+- El fondo cubre al menos toda la altura visible (`min-h-[calc(100vh-4rem)]`,
+  descontando el TopBar), aunque haya pocas normas cargadas.
+- La imagen es decorativa (`aria-hidden`), no afecta accesibilidad ni se
+  selecciona/clickea (`pointer-events-none`).
 
 ## Verificación tras el deploy
 
-1. Entrá a `/aprobaciones` como gestor → el selector ahora muestra 4 pestañas.
-2. "Por proceso" → tarjetas por proceso; los procesos sin aprobaciones pendientes
-   no aparecen. Si un documento no tiene proceso, cae en "Sin proceso asignado".
-3. "Por usuario" → fichas por aprobador; tocá una para ver el detalle. "Sin
-   aprobador asignado" agrupa las que no tengan aprobador.
-4. Un usuario no-gestor sigue viendo solo "Mis pendientes" (sin selector).
-
-## Nota
-
-Las dos vistas nuevas cuentan **aprobaciones pendientes** (no cerradas), que es
-lo que devuelve la función admin. No incluyen las ya decididas; para histórico
-de decisiones habría que otra fuente. Si lo querés, lo vemos aparte.
+1. Entrá a `/cumplimiento/panorama` → detrás de los KPIs y las tarjetas de normas
+   se ve el fondo suave con los toques dorados.
+2. El texto y las tarjetas deben leerse igual de bien que antes (el velo lo
+   garantiza).
+3. Si querés el fondo **más** o **menos** presente, es un solo número: en
+   `panorama/page.tsx`, el `bg-background/70` del velo. Más alto (ej. `/80`) =
+   fondo más tenue; más bajo (ej. `/60`) = fondo más visible.
