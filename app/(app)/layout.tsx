@@ -27,9 +27,13 @@ export default async function AppLayout({
     .maybeSingle();
   if (filaUsuario) usuarioId = filaUsuario.id;
 
+  // Superadmin: controla la visibilidad de "Configuración del sistema" en el
+  // menú. La escritura igual está protegida en la base por las funciones.
+  const { data: esSuperadmin } = await supabase.rpc("fn_es_superadmin");
+
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar />
+      <Sidebar esSuperadmin={esSuperadmin ?? false} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar userEmail={user.email ?? "—"} usuarioId={usuarioId} />
         <main className="flex-1 overflow-y-auto">{children}</main>
