@@ -33,30 +33,34 @@ export async function obtenerSaludProcesos(): Promise<MapaSaludProcesos> {
     return mapa[id];
   }
 
+  // Las tres consultas son independientes entre sí: se lanzan en paralelo.
+  const [docsR, ncsR, indsR] = await Promise.all([
+    supabase
+      .from("documentos")
+      .select("proceso_principal_id")
+      .is("eliminado_en", null),
+    supabase
+      .from("no_conformidades")
+      .select("proceso_id, estado")
+      .in("estado", NC_ABIERTAS),
+    supabase
+      .from("indicadores")
+      .select("proceso_id")
+      .eq("activo", true),
+  ]);
+
   // Documentos vigentes por proceso.
-  const { data: docs } = await supabase
-    .from("documentos")
-    .select("proceso_principal_id")
-    .is("eliminado_en", null);
-  for (const d of (docs ?? []) as Array<{ proceso_principal_id: string | null }>) {
+  for (const d of (docsR.data ?? []) as Array<{ proceso_principal_id: string | null }>) {
     if (d.proceso_principal_id) asegurar(d.proceso_principal_id).documentos += 1;
   }
 
   // NC abiertas por proceso.
-  const { data: ncs } = await supabase
-    .from("no_conformidades")
-    .select("proceso_id, estado")
-    .in("estado", NC_ABIERTAS);
-  for (const n of (ncs ?? []) as Array<{ proceso_id: string | null; estado: string }>) {
+  for (const n of (ncsR.data ?? []) as Array<{ proceso_id: string | null; estado: string }>) {
     if (n.proceso_id) asegurar(n.proceso_id).ncAbiertas += 1;
   }
 
   // Indicadores activos por proceso.
-  const { data: inds } = await supabase
-    .from("indicadores")
-    .select("proceso_id")
-    .eq("activo", true);
-  for (const i of (inds ?? []) as Array<{ proceso_id: string | null }>) {
+  for (const i of (indsR.data ?? []) as Array<{ proceso_id: string | null }>) {
     if (i.proceso_id) asegurar(i.proceso_id).indicadores += 1;
   }
 

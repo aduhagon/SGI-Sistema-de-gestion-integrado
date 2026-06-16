@@ -1,5 +1,3 @@
-"use client";
-
 import { AlertTriangle, Layers } from "lucide-react";
 import type { AprobacionesGrupo } from "@/lib/api/aprobacionesAgregados";
 

@@ -1,5 +1,3 @@
-"use client";
-
 import { CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import type { AcusesGrupo } from "@/lib/api/acusesAgregados";
 

@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { User, AlertTriangle, ChevronRight } from "lucide-react";
 import type { UsuarioConAprobaciones } from "@/lib/api/aprobacionesAgregados";
