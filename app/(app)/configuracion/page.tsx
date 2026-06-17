@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   Users, Network, FileType, BookOpen, Building, MapPin,
-  UserCheck, Archive, ChevronRight, Settings, Briefcase,
+  UserCheck, Archive, ChevronRight, Settings, Briefcase, ShieldCheck,
 } from "lucide-react";
 import { obtenerConteosConfig } from "@/lib/api/configuracion";
 
@@ -15,6 +15,7 @@ export default async function ConfiguracionPage() {
     { href: "/configuracion/sedes", icon: MapPin, label: "Sedes", desc: "Ubicaciones físicas: plantas, oficinas, campos.", conteo: c.sedes, disponible: true },
     { href: "/configuracion/puestos", icon: Briefcase, label: "Puestos", desc: "Cargos formales (Jefe de Calidad, etc.) con roles en procesos.", conteo: c.puestos, disponible: true },
     { href: "/configuracion/personas", icon: Users, label: "Personas", desc: "Padrón de personas, su área y su historial de puestos.", conteo: c.usuarios, disponible: true },
+    { href: "/configuracion/usuarios", icon: ShieldCheck, label: "Usuarios y roles globales", desc: "Asignar y revocar el acceso transversal al sistema (admin, auditor, etc.).", conteo: c.usuarios, disponible: true },
     { href: "/configuracion/participacion", icon: UserCheck, label: "Participación en procesos", desc: "Quién es elaborador, aprobador o lector en cada proceso.", conteo: c.participaciones, disponible: true },
     { href: "/configuracion/procesos", icon: Network, label: "Procesos", desc: "Mapa de procesos del SGI.", conteo: c.procesos, disponible: true },
     { href: "/configuracion/tipos", icon: FileType, label: "Tipos documentales", desc: "Políticas, manuales, procedimientos, registros.", conteo: c.tipos, disponible: true },

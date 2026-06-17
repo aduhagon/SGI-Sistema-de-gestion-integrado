@@ -4,7 +4,7 @@ import {
   listarUsuariosConRoles,
   listarRolesGlobales,
 } from "@/lib/api/rolesGlobales";
-import GestionRolesGlobales from "@/components/configuracion/GestionRolesGlobales";
+import MatrizRolesGlobales from "@/components/configuracion/MatrizRolesGlobales";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export default async function UsuariosRolesPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-4xl p-6 sm:p-8 lg:p-10">
+    <div className="mx-auto max-w-6xl p-6 sm:p-8 lg:p-10">
       <nav aria-label="Breadcrumb" className="mb-8">
         <Link
           href="/configuracion"
@@ -39,7 +39,7 @@ export default async function UsuariosRolesPage() {
         </p>
       </header>
 
-      <GestionRolesGlobales usuarios={usuarios} roles={roles} />
+      <MatrizRolesGlobales usuarios={usuarios} roles={roles} />
     </div>
   );
 }
