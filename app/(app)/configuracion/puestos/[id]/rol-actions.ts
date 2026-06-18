@@ -17,6 +17,7 @@ const rolSchema = z.object({
     ["responsable_proceso", "elaborador", "aprobador_n1", "aprobador_n2", "lector"],
     { errorMap: () => ({ message: "Elegí un rol." }) },
   ),
+  motivo: z.string().min(5, "El motivo es obligatorio (mínimo 5 caracteres)."),
 });
 
 export async function agregarRolEnProceso(
@@ -31,12 +32,13 @@ export async function agregarRolEnProceso(
     puestoId: formData.get("puestoId"),
     procesoId: formData.get("procesoId"),
     rol: formData.get("rol"),
+    motivo: formData.get("motivo"),
   });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
   }
 
-  const { puestoId, procesoId, rol } = parsed.data;
+  const { puestoId, procesoId, rol, motivo } = parsed.data;
 
   // ¿Ya existe esa combinación (incluso inactiva)? La reactivamos.
   const { data: existente } = await supabase
@@ -53,7 +55,13 @@ export async function agregarRolEnProceso(
     }
     const { error } = await supabase
       .from("puesto_proceso_rol")
-      .update({ activo: true, eliminado_en: null, eliminado_por: null })
+      .update({
+        activo: true,
+        eliminado_en: null,
+        eliminado_por: null,
+        motivo_eliminacion: null,
+        motivo_asignacion: motivo,
+      })
       .eq("id", existente.id);
     if (error) return { ok: false, error: `No se pudo reactivar: ${error.message}` };
   } else {
@@ -62,6 +70,7 @@ export async function agregarRolEnProceso(
       proceso_id: procesoId,
       rol_en_proceso: rol,
       creado_por: usuarioId,
+      motivo_asignacion: motivo,
     });
     if (error) {
       const msg = error.message.includes("row-level security")
@@ -78,14 +87,24 @@ export async function agregarRolEnProceso(
 export async function quitarRolEnProceso(
   puestoId: string,
   rolId: string,
+  motivo: string,
 ): Promise<EstadoRol> {
   const supabase = createClient();
   const usuarioId = await obtenerUsuarioActualId();
   if (!usuarioId) return { ok: false, error: "Sesión no válida." };
 
+  if (!motivo || motivo.trim().length < 5) {
+    return { ok: false, error: "El motivo es obligatorio (mínimo 5 caracteres)." };
+  }
+
   const { error } = await supabase
     .from("puesto_proceso_rol")
-    .update({ activo: false, eliminado_en: new Date().toISOString(), eliminado_por: usuarioId })
+    .update({
+      activo: false,
+      eliminado_en: new Date().toISOString(),
+      eliminado_por: usuarioId,
+      motivo_eliminacion: motivo.trim(),
+    })
     .eq("id", rolId);
 
   if (error) return { ok: false, error: `No se pudo quitar: ${error.message}` };
