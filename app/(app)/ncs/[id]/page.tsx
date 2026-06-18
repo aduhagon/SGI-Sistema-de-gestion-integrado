@@ -3,11 +3,15 @@ import { notFound } from "next/navigation";
 import { ChevronLeft, CheckCircle2, Calendar, Network, AlertTriangle, Microscope } from "lucide-react";
 import { obtenerNCDetalle } from "@/lib/api/ncs";
 import { obtenerAccionesDeNC, obtenerVerificacionesDeNC } from "@/lib/api/acciones";
+import { obtenerAdjuntosDeNC } from "@/lib/api/adjuntos-nc";
+import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
+import { createClient } from "@/lib/supabase/server";
 import { obtenerUsuariosElegibles } from "@/lib/api/envio";
 import { Badge } from "@/components/ui/badge";
 import { AnalisisCausaForm } from "@/components/ncs/AnalisisCausaForm";
 import { GestionAcciones } from "@/components/ncs/GestionAcciones";
 import { VerificacionEficaciaSection } from "@/components/ncs/VerificacionEficacia";
+import { AdjuntosNCSection } from "@/components/ncs/AdjuntosNC";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +44,19 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
     obtenerVerificacionesDeNC(params.id),
     obtenerUsuariosElegibles(null),
   ]);
+
+  const adjuntos = await obtenerAdjuntosDeNC(params.id);
+
+  // ¿el usuario actual abrió esta NC? (define si puede adjuntar/quitar)
+  const usuarioActualId = await obtenerUsuarioActualId();
+  const supabase = createClient();
+  const { data: ncCreador } = await supabase
+    .from("no_conformidades")
+    .select("creado_por")
+    .eq("id", params.id)
+    .maybeSingle();
+  const puedeAdjuntar =
+    !!usuarioActualId && ncCreador?.creado_por === usuarioActualId;
 
   const meta = ESTADO_META[nc.estado] ?? ESTADO_META.abierta;
 
@@ -78,6 +95,10 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
         <h2 className="mb-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">Descripción</h2>
         <p className="text-sm leading-relaxed text-foreground">{nc.descripcion}</p>
       </section>
+
+      <div className="mb-8">
+        <AdjuntosNCSection ncId={nc.id} adjuntos={adjuntos} puedeAdjuntar={puedeAdjuntar} />
+      </div>
 
       {nc.requiereAccionInmediata && nc.accionInmediataDescripcion && (
         <section className="mb-8 rounded-md border border-amber-200 bg-amber-50 p-4">
