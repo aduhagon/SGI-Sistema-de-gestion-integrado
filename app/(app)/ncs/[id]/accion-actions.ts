@@ -5,11 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 import { crearAccionSchema, verificacionEficaciaSchema } from "@/lib/schemas/accion";
 import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
 import { generarCodigoAccion } from "@/lib/api/acciones";
+import { calcularSha256, obtenerExtension } from "@/lib/upload/hash";
 
 export type EstadoAccion =
   | { ok: true }
   | { ok: false; error: string; campo?: string }
   | null;
+
+const BUCKET_EVIDENCIA = "evidencias-nc";
+const MAX_EVIDENCIA_BYTES = 20 * 1024 * 1024; // 20 MB
 
 export async function crearAccion(
   _prev: EstadoAccion,
@@ -57,7 +61,6 @@ export async function crearAccion(
     return { ok: false, error: msg };
   }
 
-  // Al haber acciones, la NC pasa a 'en_tratamiento' si estaba en análisis/abierta.
   const { data: nc } = await supabase
     .from("no_conformidades")
     .select("estado")
@@ -83,8 +86,6 @@ export async function completarAccion(
   const usuarioId = await obtenerUsuarioActualId();
   if (!usuarioId) return { ok: false, error: "Sesión no válida." };
 
-  // La acción requiere un resultado obtenido para poder completarse
-  // (constraint chk_acciones_completada_tiene_resultado).
   if (!resultado || resultado.trim().length < 3) {
     return {
       ok: false,
@@ -131,44 +132,88 @@ export async function registrarVerificacion(
 
   const input = parsed.data;
 
+  // ----- Archivo de evidencia (opcional) -----
+  const file = formData.get("evidenciaArchivo");
+  let archivoEvidencia: File | null = null;
+  if (file instanceof File && file.size > 0) {
+    if (file.size > MAX_EVIDENCIA_BYTES) {
+      return { ok: false, error: "El archivo de evidencia supera el máximo de 20 MB.", campo: "evidenciaArchivo" };
+    }
+    archivoEvidencia = file;
+  }
+
+  let evidenciaArchivoId: string | null = null;
+
+  if (archivoEvidencia) {
+    const buffer = Buffer.from(await archivoEvidencia.arrayBuffer());
+    const hash = calcularSha256(buffer);
+    const extension = obtenerExtension(archivoEvidencia.name) || "bin";
+    const nombreSeguro = archivoEvidencia.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const storagePath = `${input.noConformidadId}/${Date.now()}-${nombreSeguro}`;
+
+    const { error: errUpload } = await supabase.storage
+      .from(BUCKET_EVIDENCIA)
+      .upload(storagePath, buffer, { contentType: archivoEvidencia.type || "application/octet-stream", upsert: false });
+
+    if (errUpload) {
+      return { ok: false, error: `Error subiendo la evidencia: ${errUpload.message}`, campo: "evidenciaArchivo" };
+    }
+
+    const { data: archivoRow, error: errArchivo } = await supabase
+      .from("archivos")
+      .insert({
+        contexto: "evidencia_nc",
+        no_conformidad_id: input.noConformidadId,
+        tipo_archivo: "anexo",
+        orden: 0,
+        nombre_original: archivoEvidencia.name,
+        mime_type: archivoEvidencia.type || "application/octet-stream",
+        extension,
+        "tamaño_bytes": buffer.length,
+        storage_bucket: BUCKET_EVIDENCIA,
+        storage_path: storagePath,
+        hash_sha256: hash,
+        estado_procesamiento: "completado",
+        creado_por: usuarioId,
+      })
+      .select("id")
+      .single();
+
+    if (errArchivo || !archivoRow) {
+      // limpiar el archivo subido si falla el registro
+      await supabase.storage.from(BUCKET_EVIDENCIA).remove([storagePath]);
+      return { ok: false, error: `Error registrando la evidencia: ${errArchivo?.message ?? "desconocido"}`, campo: "evidenciaArchivo" };
+    }
+    evidenciaArchivoId = archivoRow.id;
+  }
+
+  // ----- Insert de la verificación -----
   const { error } = await supabase.from("verificaciones_eficacia").insert({
     no_conformidad_id: input.noConformidadId,
     verificador_usuario_id: usuarioId,
     resultado: input.resultado,
     conclusion: input.conclusion,
     evidencia_revisada: input.evidenciaRevisada ?? null,
+    evidencia_archivo_id: evidenciaArchivoId,
     acciones_verificadas: input.accionesVerificadas,
   });
 
   if (error) {
+    // si ya habíamos subido evidencia, la dejamos huérfana marcada (no rompe);
+    // limpiar archivo + fila para no dejar basura
+    if (evidenciaArchivoId) {
+      await supabase.from("archivos").delete().eq("id", evidenciaArchivoId);
+    }
     const msg = error.message.includes("SEGREGACION_FUNCIONES_VERIFICACION")
-      ? "No podés verificar la eficacia de acciones de las que sos responsable (segregación de funciones)."
+      ? (error.message.includes("administrador o responsable del SGI")
+          ? "La eficacia solo puede verificarla un administrador o responsable del SGI."
+          : "No podés verificar la eficacia de acciones de las que sos responsable (segregación de funciones).")
       : `No se pudo registrar la verificación: ${error.message}`;
     return { ok: false, error: msg };
   }
 
-  // Si la verificación es eficaz, la NC puede cerrarse. Lo hacemos automático
-  // solo si ya tiene análisis de causa (requisito del CHECK de cierre).
-  if (input.resultado === "eficaz") {
-    const { data: nc } = await supabase
-      .from("no_conformidades")
-      .select("analisis_causa_raiz, metodo_analisis")
-      .eq("id", input.noConformidadId)
-      .maybeSingle();
-
-    if (nc?.analisis_causa_raiz && nc?.metodo_analisis) {
-      await supabase
-        .from("no_conformidades")
-        .update({
-          estado: "cerrada",
-          fecha_cierre_real: new Date().toISOString(),
-          motivo_cierre: "Verificación de eficacia con resultado eficaz.",
-          actualizado_por: usuarioId,
-          actualizado_en: new Date().toISOString(),
-        })
-        .eq("id", input.noConformidadId);
-    }
-  }
+  // El cierre por 'eficaz' lo gestiona el flujo de cierre (fn_cerrar_nc) y la
+  // reapertura por 'no_eficaz' la gestiona el trigger. No cerramos acá.
 
   revalidatePath(`/ncs/${input.noConformidadId}`);
   return { ok: true };

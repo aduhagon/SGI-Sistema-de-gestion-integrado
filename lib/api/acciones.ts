@@ -20,6 +20,8 @@ export type VerificacionEficacia = {
   conclusion: string;
   fechaVerificacion: string;
   verificadorNombre: string;
+  evidenciaArchivoId: string | null;
+  evidenciaNombre: string | null;
 };
 
 export async function obtenerAccionesDeNC(ncId: string): Promise<Accion[]> {
@@ -64,9 +66,12 @@ export async function obtenerVerificacionesDeNC(
   const { data, error } = await supabase
     .from("verificaciones_eficacia")
     .select(
-      `id, resultado, conclusion, fecha_verificacion,
+      `id, resultado, conclusion, fecha_verificacion, evidencia_archivo_id,
        verificador:usuarios!verificaciones_eficacia_verificador_usuario_id_fkey (
          username, personas:personas!usuarios_persona_id_fkey (nombre, apellido)
+       ),
+       evidencia:archivos!verificaciones_eficacia_evidencia_archivo_id_fkey (
+         nombre_original
        )`,
     )
     .eq("no_conformidad_id", ncId)
@@ -82,25 +87,7 @@ export async function obtenerVerificacionesDeNC(
     verificadorNombre: v.verificador?.personas
       ? `${v.verificador.personas.nombre} ${v.verificador.personas.apellido}`.trim()
       : v.verificador?.username ?? "—",
+    evidenciaArchivoId: v.evidencia_archivo_id ?? null,
+    evidenciaNombre: v.evidencia?.nombre_original ?? null,
   }));
-}
-
-export async function generarCodigoAccion(): Promise<string> {
-  const supabase = createClient();
-  const anio = new Date().getFullYear();
-  const prefijo = `ACC-${anio}-`;
-  const { data } = await supabase
-    .from("acciones")
-    .select("codigo")
-    .like("codigo", `${prefijo}%`)
-    .order("codigo", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  let proximo = 1;
-  if (data?.codigo) {
-    const num = parseInt((data.codigo as string).split("-")[2] ?? "0", 10);
-    if (!Number.isNaN(num)) proximo = num + 1;
-  }
-  return `${prefijo}${String(proximo).padStart(3, "0")}`;
 }

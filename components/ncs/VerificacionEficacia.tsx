@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, Loader2, Plus } from "lucide-react";
+import { ShieldCheck, Loader2, Plus, Paperclip, X, Download } from "lucide-react";
 import type { Accion, VerificacionEficacia } from "@/lib/api/acciones";
 import { registrarVerificacion, type EstadoAccion } from "@/app/(app)/ncs/[id]/accion-actions";
 import { Button } from "@/components/ui/button";
@@ -33,9 +33,16 @@ export function VerificacionEficaciaSection({ ncId, verificaciones, acciones }: 
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [estado, formAction] = useFormState<EstadoAccion, FormData>(registrarVerificacion, null);
+  const [archivo, setArchivo] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (estado?.ok) { setAbierto(false); router.refresh(); }
+    if (estado?.ok) {
+      setAbierto(false);
+      setArchivo(null);
+      if (fileRef.current) fileRef.current.value = "";
+      router.refresh();
+    }
   }, [estado, router]);
 
   const accionesCompletadas = acciones.filter((a) => a.estado === "completada");
@@ -64,7 +71,18 @@ export function VerificacionEficaciaSection({ ncId, verificaciones, acciones }: 
                   </span>
                 </div>
                 <p className="whitespace-pre-wrap text-sm">{v.conclusion}</p>
-                <p className="mt-1.5 text-xs text-muted-foreground">Verificado por {v.verificadorNombre}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>Verificado por {v.verificadorNombre}</span>
+                  {v.evidenciaArchivoId && (
+                    <a
+                      href={`/api/archivos/${v.evidenciaArchivoId}/descargar`}
+                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                    >
+                      <Download className="h-3 w-3" />
+                      {v.evidenciaNombre ?? "Evidencia"}
+                    </a>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -122,7 +140,39 @@ export function VerificacionEficaciaSection({ ncId, verificaciones, acciones }: 
 
                 <div className="space-y-2">
                   <label htmlFor="evidenciaRevisada" className="text-sm font-medium">Evidencia revisada <span className="text-muted-foreground">(opcional)</span></label>
-                  <textarea id="evidenciaRevisada" name="evidenciaRevisada" rows={2} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  <textarea id="evidenciaRevisada" name="evidenciaRevisada" rows={2} placeholder="Descripción de la evidencia revisada." className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Archivo de evidencia <span className="text-muted-foreground">(opcional, máx. 20 MB)</span></label>
+                  {archivo ? (
+                    <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+                      <span className="flex items-center gap-2 truncate">
+                        <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                        <span className="truncate">{archivo.name}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {(archivo.size / 1024 / 1024).toFixed(1)} MB
+                        </span>
+                      </span>
+                      <button type="button" onClick={() => { setArchivo(null); if (fileRef.current) fileRef.current.value = ""; }}
+                        className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label="Quitar archivo">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label htmlFor="evidenciaArchivo" className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted/30">
+                      <Paperclip className="h-3.5 w-3.5" />
+                      Adjuntar archivo (PDF, imagen, etc.)
+                    </label>
+                  )}
+                  <input
+                    ref={fileRef}
+                    id="evidenciaArchivo"
+                    name="evidenciaArchivo"
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
+                  />
                 </div>
 
                 {estado && !estado.ok && (
