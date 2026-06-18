@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, AlertOctagon, Calendar, Network } from "lucide-react";
+import { Plus, AlertOctagon, Calendar, Network, BarChart3 } from "lucide-react";
 import { obtenerNCs } from "@/lib/api/ncs";
 import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
 import { obtenerTableroNC } from "@/lib/api/tableroNC";
@@ -62,6 +62,11 @@ export default async function NCsPage({ searchParams }: Props) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {perfil.esGestor && <BotonTablero abierto={tableroAbierto} />}
+          {perfil.esGestor && (
+            <Link href="/ncs/reportes" className={cn(buttonVariants({ variant: "outline" }))}>
+              <BarChart3 className="h-4 w-4" aria-hidden="true" />Reporte
+            </Link>
+          )}
           <Link href="/ncs/nueva" className={cn(buttonVariants({ variant: "default" }))}>
             <Plus className="h-4 w-4" aria-hidden="true" />Abrir no conformidad
           </Link>
