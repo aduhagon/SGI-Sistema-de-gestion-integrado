@@ -197,9 +197,9 @@ export default function VisorAuditoria({ resumenInicial }: { resumenInicial: Res
             <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-2.5 font-medium">Fecha</th>
               <th className="px-4 py-2.5 font-medium">Usuario</th>
+              <th className="px-4 py-2.5 font-medium">Qué hizo</th>
+              <th className="px-4 py-2.5 font-medium">Objeto</th>
               <th className="px-4 py-2.5 font-medium">Acción</th>
-              <th className="px-4 py-2.5 font-medium">Entidad</th>
-              <th className="px-4 py-2.5 font-medium">Descripción</th>
             </tr>
           </thead>
           <tbody>
@@ -216,14 +216,18 @@ export default function VisorAuditoria({ resumenInicial }: { resumenInicial: Res
                 className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/30">
                 <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">{fmtFecha(e.timestamp_utc)}</td>
                 <td className="px-4 py-2.5">{e.usuario_email ?? <span className="text-muted-foreground">sistema</span>}</td>
+                <td className="px-4 py-2.5">{e.accion_legible ?? e.descripcion ?? "—"}</td>
+                <td className="px-4 py-2.5">
+                  {e.objeto
+                    ? <span className="font-medium">{e.objeto}</span>
+                    : <span className="text-xs text-muted-foreground">—</span>}
+                </td>
                 <td className="px-4 py-2.5">
                   <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
                     style={{ backgroundColor: `${ACCION_COLOR[e.accion] ?? "#6b7280"}15`, color: ACCION_COLOR[e.accion] ?? "#6b7280" }}>
                     {e.accion}
                   </span>
                 </td>
-                <td className="px-4 py-2.5 font-mono text-xs">{e.entidad_tipo}</td>
-                <td className="max-w-xs truncate px-4 py-2.5 text-muted-foreground">{e.descripcion}</td>
               </tr>
             ))}
           </tbody>

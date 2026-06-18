@@ -10,6 +10,8 @@ export type EventoAuditoria = {
   entidad_tipo: string;
   entidad_id: string | null;
   descripcion: string | null;
+  objeto: string | null;
+  accion_legible: string | null;
 };
 
 export type DetalleEvento = EventoAuditoria & {
