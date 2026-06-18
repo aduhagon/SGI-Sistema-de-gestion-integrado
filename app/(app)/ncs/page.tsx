@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, AlertOctagon, Calendar, Network, BarChart3 } from "lucide-react";
+import { Plus, AlertOctagon, BarChart3 } from "lucide-react";
 import { obtenerNCs } from "@/lib/api/ncs";
 import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
 import { obtenerTableroNC } from "@/lib/api/tableroNC";
@@ -7,7 +7,6 @@ import { resolverRango, etiquetaRango, type PresetRango } from "@/lib/api/rangoF
 import { PanelTableroNC } from "@/components/tablero-nc/PanelTableroNC";
 import { BotonTablero } from "@/components/tablero-nc/BotonTablero";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -19,13 +18,6 @@ const ESTADO_META: Record<string, { label: string; color: string }> = {
   cerrada: { label: "Cerrada", color: "#059669" },
   aceptado_riesgo: { label: "Riesgo aceptado", color: "#6b7280" },
 };
-const SEV: Record<string, string> = { alta: "Alta", media: "Media", baja: "Baja" };
-const ORIGEN: Record<string, string> = {
-  auditoria_interna: "Auditoría interna", auditoria_externa: "Auditoría externa",
-  reclamo_cliente: "Reclamo cliente", control_interno: "Control interno",
-  proveedor: "Proveedor", accidente: "Accidente", otro: "Otro",
-};
-
 type Props = {
   searchParams: { tablero?: string; rango?: string; desde?: string; hasta?: string };
 };
@@ -79,25 +71,50 @@ export default async function NCsPage({ searchParams }: Props) {
       )}
 
       {ncs.length > 0 ? (
-        <div className="space-y-3">
+        <div className="overflow-hidden rounded-lg border border-border">
+          {/* Encabezado de columnas (solo desktop) */}
+          <div className="hidden items-center gap-3 bg-muted/40 px-4 py-2 text-[11px] uppercase tracking-wider text-muted-foreground sm:flex">
+            <span className="w-28 shrink-0">Código</span>
+            <span className="flex-1">Título</span>
+            <span className="w-40 shrink-0">Proceso</span>
+            <span className="w-24 shrink-0">Estado</span>
+            <span className="w-20 shrink-0 text-right">Abierta</span>
+          </div>
+
           {ncs.map((nc) => {
             const meta = ESTADO_META[nc.estado] ?? ESTADO_META.abierta;
             const vencida = nc.fechaLimiteCierre && new Date(nc.fechaLimiteCierre) < new Date() && nc.estado !== "cerrada";
+            const fecha = new Date(nc.fechaApertura).toLocaleDateString("es-AR", { day: "numeric", month: "short" });
             return (
-              <Link key={nc.id} href={`/ncs/${nc.id}`} className="block rounded-lg border border-border bg-card p-5 transition-shadow hover:shadow-sm">
-                <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="font-mono">{nc.codigo}</Badge>
+              <Link
+                key={nc.id}
+                href={`/ncs/${nc.id}`}
+                className="flex flex-col gap-1 border-t border-border px-4 py-2.5 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:gap-3 sm:py-2"
+              >
+                {/* Código + punto de estado */}
+                <span className="flex w-28 shrink-0 items-center gap-2">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: meta.color }} aria-hidden="true" />
+                  <span className="font-mono text-xs text-muted-foreground">{nc.codigo}</span>
+                </span>
+
+                {/* Título (+ vencida) */}
+                <span className="flex-1 truncate text-sm">
+                  {nc.titulo}
+                  {vencida && <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">Vencida</span>}
+                </span>
+
+                {/* Proceso */}
+                <span className="w-40 shrink-0 truncate text-xs text-muted-foreground">
+                  {nc.procesoNombre ?? <span className="text-muted-foreground/50">—</span>}
+                </span>
+
+                {/* Estado */}
+                <span className="flex w-24 shrink-0 items-center gap-1.5">
                   <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium" style={{ backgroundColor: `${meta.color}15`, color: meta.color }}>{meta.label}</span>
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Sev. {SEV[nc.severidad]}</span>
-                  {vencida && <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">Vencida</span>}
-                </div>
-                <h3 className="font-medium text-foreground">{nc.titulo}</h3>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <span>{ORIGEN[nc.origen] ?? nc.origen}</span>
-                  {nc.procesoNombre && (<><span className="text-muted-foreground/40">·</span><span className="flex items-center gap-1"><Network className="h-3 w-3" aria-hidden="true" />{nc.procesoNombre}</span></>)}
-                  <span className="text-muted-foreground/40">·</span>
-                  <span className="flex items-center gap-1"><Calendar className="h-3 w-3" aria-hidden="true" />Abierta {new Date(nc.fechaApertura).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}</span>
-                </div>
+                </span>
+
+                {/* Fecha */}
+                <span className="w-20 shrink-0 text-xs text-muted-foreground sm:text-right">{fecha}</span>
               </Link>
             );
           })}
