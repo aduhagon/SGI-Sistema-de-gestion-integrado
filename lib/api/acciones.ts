@@ -91,3 +91,23 @@ export async function obtenerVerificacionesDeNC(
     evidenciaNombre: v.evidencia?.nombre_original ?? null,
   }));
 }
+
+export async function generarCodigoAccion(): Promise<string> {
+  const supabase = createClient();
+  const anio = new Date().getFullYear();
+  const prefijo = `ACC-${anio}-`;
+  const { data } = await supabase
+    .from("acciones")
+    .select("codigo")
+    .like("codigo", `${prefijo}%`)
+    .order("codigo", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let proximo = 1;
+  if (data?.codigo) {
+    const num = parseInt((data.codigo as string).split("-")[2] ?? "0", 10);
+    if (!Number.isNaN(num)) proximo = num + 1;
+  }
+  return `${prefijo}${String(proximo).padStart(3, "0")}`;
+}
