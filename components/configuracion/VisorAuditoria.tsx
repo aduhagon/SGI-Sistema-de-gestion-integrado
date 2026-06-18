@@ -7,10 +7,16 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  listarEventos, obtenerDetalleEvento, verificarCadena, ACCIONES,
+  listarEventos, obtenerDetalleEvento, verificarCadena,
   type EventoAuditoria, type DetalleEvento, type ResumenAuditoria,
   type VerificacionCadena,
 } from "@/lib/api/auditoria";
+
+const ACCIONES = [
+  "crear", "modificar", "eliminar_logico", "restaurar", "aprobar", "rechazar",
+  "firmar", "acusar_lectura", "descargar", "login", "logout", "configurar",
+  "verificar_integridad",
+] as const;
 
 const ENTIDADES = [
   "acciones", "acuses_lectura", "aprobaciones", "archivos", "asignacion_rol_global",
@@ -72,7 +78,8 @@ export default function VisorAuditoria({ resumenInicial }: { resumenInicial: Res
     setTotal(r.total);
   }, [desde, hasta, usuario, accion, entidad]);
 
-  useEffect(() => { cargar(0); setPagina(0); }, []); // carga inicial
+  useEffect(() => { cargar(0); setPagina(0); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // carga inicial
 
   function aplicarFiltros() { setPagina(0); cargar(0); }
   function limpiar() {

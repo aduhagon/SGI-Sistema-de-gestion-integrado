@@ -48,13 +48,6 @@ export type VerificacionCadena = {
   roto_en_id: number | null;
 };
 
-// Catálogos para los filtros (fijos, reflejan los enums de la base).
-export const ACCIONES = [
-  "crear", "modificar", "eliminar_logico", "restaurar", "aprobar", "rechazar",
-  "firmar", "acusar_lectura", "descargar", "login", "logout", "configurar",
-  "verificar_integridad",
-] as const;
-
 export async function listarEventos(
   f: FiltrosAuditoria,
 ): Promise<{ total: number; eventos: EventoAuditoria[] } | { error: string }> {
