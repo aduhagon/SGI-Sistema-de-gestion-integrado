@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   Users, Network, FileType, BookOpen, Building, MapPin,
-  UserCheck, Archive, ChevronRight, Settings, Briefcase, ShieldCheck,
+  UserCheck, Archive, ChevronRight, Settings, Briefcase, ShieldCheck, FileClock,
 } from "lucide-react";
 import { obtenerConteosConfig } from "@/lib/api/configuracion";
 
@@ -21,6 +21,7 @@ export default async function ConfiguracionPage() {
     { href: "/configuracion/tipos", icon: FileType, label: "Tipos documentales", desc: "Políticas, manuales, procedimientos, registros.", conteo: c.tipos, disponible: true },
     { href: "/configuracion/normas", icon: BookOpen, label: "Normas", desc: "Normas certificadas y sus versiones.", conteo: c.normas, disponible: true },
     { href: "/configuracion/retencion", icon: Archive, label: "Políticas de retención", desc: "Cuánto se conserva cada tipo de información.", conteo: c.politicas, disponible: true },
+    { href: "/configuracion/auditoria", icon: FileClock, label: "Registro de auditoría", desc: "Bitácora inmutable de toda la actividad del sistema, con verificación de integridad.", conteo: undefined, disponible: true },
   ];
 
   return (
@@ -47,7 +48,7 @@ export default async function ConfiguracionPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h2 className="font-medium">{s.label}</h2>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{s.conteo}</span>
+                  {s.conteo !== undefined && <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{s.conteo}</span>}
                   {!s.disponible && <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">Próximamente</span>}
                 </div>
                 <p className="mt-0.5 text-sm text-muted-foreground">{s.desc}</p>
