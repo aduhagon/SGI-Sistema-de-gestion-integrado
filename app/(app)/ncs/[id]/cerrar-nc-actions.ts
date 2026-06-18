@@ -5,16 +5,20 @@ import { createClient } from "@/lib/supabase/server";
 
 export type ResultadoCierre =
   | { ok: true; mensaje: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; requiereForzar?: boolean };
 
 /**
- * Cierra una no conformidad (estado 'cerrada') con validación estricta:
- * todas sus acciones deben estar completadas o canceladas. Requiere motivo.
- * La validación real la hace fn_cerrar_nc en la base.
+ * Cierra una NC. La base (fn_cerrar_nc) exige una verificación de eficacia
+ * con resultado 'eficaz'. Si no la hay, solo el SGI puede forzar el cierre
+ * pasando forzar=true + justificación.
+ *
+ * Cuando el cierre se bloquea por falta de eficacia, devolvemos
+ * requiereForzar=true para que la UI ofrezca el cierre forzado al SGI.
  */
 export async function cerrarNC(
   ncId: string,
   motivo: string,
+  forzar = false,
 ): Promise<ResultadoCierre> {
   if (motivo.trim().length < 5) {
     return { ok: false, error: "El motivo de cierre es obligatorio (mínimo 5 caracteres)." };
@@ -24,13 +28,17 @@ export async function cerrarNC(
   const { data, error } = await supabase.rpc("fn_cerrar_nc", {
     p_nc_id: ncId,
     p_motivo: motivo.trim(),
+    p_forzar: forzar,
   });
 
   if (error) return { ok: false, error: error.message };
 
   const fila = Array.isArray(data) ? data[0] : data;
   if (!fila?.cerrada) {
-    return { ok: false, error: fila?.mensaje ?? "No se pudo cerrar la no conformidad." };
+    const msg = fila?.mensaje ?? "No se pudo cerrar la no conformidad.";
+    // Detectamos el caso "falta eficacia" para ofrecer el forzado.
+    const requiereForzar = msg.includes("verificación de eficacia");
+    return { ok: false, error: msg, requiereForzar };
   }
 
   revalidatePath(`/ncs/${ncId}`);
