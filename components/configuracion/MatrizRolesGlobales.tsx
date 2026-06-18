@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, AlertCircle, UserCircle } from "lucide-react";
+import { Check, Loader2, AlertCircle, UserCircle, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   asignarRolGlobal,
@@ -22,6 +22,39 @@ type Pendiente = {
   rolNombre: string;
 };
 
+// Agrupa: Gerencia -> Área -> usuarios. Ordenado alfabéticamente,
+// con "Sin gerencia"/"Sin área asignada" siempre al final.
+function agrupar(usuarios: UsuarioConRoles[]) {
+  const SIN_GER = "Sin gerencia";
+  const SIN_AR = "Sin área asignada";
+
+  const porGerencia = new Map<string, Map<string, UsuarioConRoles[]>>();
+  for (const u of usuarios) {
+    if (!porGerencia.has(u.gerencia)) porGerencia.set(u.gerencia, new Map());
+    const areas = porGerencia.get(u.gerencia)!;
+    if (!areas.has(u.area)) areas.set(u.area, []);
+    areas.get(u.area)!.push(u);
+  }
+
+  const ordenarClaves = (claves: string[], sentinela: string) =>
+    claves.sort((a, b) => {
+      if (a === sentinela) return 1;
+      if (b === sentinela) return -1;
+      return a.localeCompare(b, "es");
+    });
+
+  return ordenarClaves([...porGerencia.keys()], SIN_GER).map((gerencia) => {
+    const areasMap = porGerencia.get(gerencia)!;
+    const areas = ordenarClaves([...areasMap.keys()], SIN_AR).map((area) => ({
+      area,
+      usuarios: areasMap
+        .get(area)!
+        .sort((a, b) => a.personaNombre.localeCompare(b.personaNombre, "es")),
+    }));
+    return { gerencia, areas };
+  });
+}
+
 export default function MatrizRolesGlobales({
   usuarios,
   roles,
@@ -35,14 +68,16 @@ export default function MatrizRolesGlobales({
   const [procesando, setProcesando] = useState(false);
   const [estado, setEstado] = useState<EstadoRolGlobal>(null);
 
+  const grupos = useMemo(() => agrupar(usuarios), [usuarios]);
+  const totalCols = roles.length + 1;
+
   function tiene(u: UsuarioConRoles, rolCodigo: string) {
     return u.roles.some((r) => r.codigo === rolCodigo);
   }
 
   function abrir(u: UsuarioConRoles, rol: RolGlobalCatalogo) {
-    const yaTiene = tiene(u, rol.codigo);
     setPendiente({
-      modo: yaTiene ? "revocar" : "asignar",
+      modo: tiene(u, rol.codigo) ? "revocar" : "asignar",
       usuarioId: u.usuarioId,
       usuarioNombre: u.personaNombre,
       rolCodigo: rol.codigo,
@@ -71,11 +106,7 @@ export default function MatrizRolesGlobales({
       fd.set("motivo", motivo);
       r = await asignarRolGlobal(null, fd);
     } else {
-      r = await revocarRolGlobal(
-        pendiente.usuarioId,
-        pendiente.rolCodigo,
-        motivo,
-      );
+      r = await revocarRolGlobal(pendiente.usuarioId, pendiente.rolCodigo, motivo);
     }
 
     setProcesando(false);
@@ -93,8 +124,9 @@ export default function MatrizRolesGlobales({
           Matriz de roles globales
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tildá una celda para asignar el rol; destildá para revocarlo. Cada cambio
-          pide un motivo y queda registrado en la auditoría.
+          Usuarios agrupados por gerencia y área (según su puesto principal). Tildá
+          una celda para asignar el rol; destildá para revocarlo. Cada cambio pide
+          un motivo y queda registrado en la auditoría.
         </p>
       </div>
 
@@ -120,49 +152,16 @@ export default function MatrizRolesGlobales({
               </tr>
             </thead>
             <tbody>
-              {usuarios.map((u) => (
-                <tr key={u.usuarioId} className="border-b border-border last:border-0">
-                  <td className="sticky left-0 z-10 bg-card px-4 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <UserCircle className="h-6 w-6 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{u.personaNombre}</div>
-                        <div className="truncate text-xs text-muted-foreground">
-                          @{u.username}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  {roles.map((rol) => {
-                    const activo = tiene(u, rol.codigo);
-                    return (
-                      <td key={rol.codigo} className="px-3 py-2.5 text-center">
-                        <button
-                          type="button"
-                          onClick={() => abrir(u, rol)}
-                          className={`mx-auto flex h-6 w-6 items-center justify-center rounded-md border transition-colors ${
-                            activo
-                              ? "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700"
-                              : "border-border bg-background hover:border-muted-foreground/50 hover:bg-muted"
-                          }`}
-                          title={
-                            activo
-                              ? `Revocar ${rol.nombre} a ${u.personaNombre}`
-                              : `Asignar ${rol.nombre} a ${u.personaNombre}`
-                          }
-                          aria-label={
-                            activo
-                              ? `Revocar ${rol.nombre}`
-                              : `Asignar ${rol.nombre}`
-                          }
-                          aria-pressed={activo}
-                        >
-                          {activo && <Check className="h-4 w-4" />}
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
+              {grupos.map((g) => (
+                <FragmentoGerencia
+                  key={g.gerencia}
+                  gerencia={g.gerencia}
+                  areas={g.areas}
+                  roles={roles}
+                  totalCols={totalCols}
+                  tiene={tiene}
+                  abrir={abrir}
+                />
               ))}
             </tbody>
           </table>
@@ -174,7 +173,6 @@ export default function MatrizRolesGlobales({
         </div>
       )}
 
-      {/* Diálogo de confirmación con motivo */}
       {pendiente && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -232,9 +230,7 @@ export default function MatrizRolesGlobales({
                   Cancelar
                 </Button>
                 <Button
-                  variant={
-                    pendiente.modo === "revocar" ? "destructive" : "default"
-                  }
+                  variant={pendiente.modo === "revocar" ? "destructive" : "default"}
                   onClick={confirmar}
                   disabled={procesando || motivo.trim().length < 5}
                 >
@@ -247,5 +243,118 @@ export default function MatrizRolesGlobales({
         </div>
       )}
     </section>
+  );
+}
+
+function FragmentoGerencia({
+  gerencia,
+  areas,
+  roles,
+  totalCols,
+  tiene,
+  abrir,
+}: {
+  gerencia: string;
+  areas: { area: string; usuarios: UsuarioConRoles[] }[];
+  roles: RolGlobalCatalogo[];
+  totalCols: number;
+  tiene: (u: UsuarioConRoles, c: string) => boolean;
+  abrir: (u: UsuarioConRoles, rol: RolGlobalCatalogo) => void;
+}) {
+  return (
+    <>
+      <tr className="border-b border-border bg-foreground/[0.04]">
+        <td
+          colSpan={totalCols}
+          className="sticky left-0 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-foreground"
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+            {gerencia}
+          </span>
+        </td>
+      </tr>
+      {areas.map((a) => (
+        <FragmentoArea
+          key={a.area}
+          area={a.area}
+          usuarios={a.usuarios}
+          roles={roles}
+          totalCols={totalCols}
+          tiene={tiene}
+          abrir={abrir}
+        />
+      ))}
+    </>
+  );
+}
+
+function FragmentoArea({
+  area,
+  usuarios,
+  roles,
+  totalCols,
+  tiene,
+  abrir,
+}: {
+  area: string;
+  usuarios: UsuarioConRoles[];
+  roles: RolGlobalCatalogo[];
+  totalCols: number;
+  tiene: (u: UsuarioConRoles, c: string) => boolean;
+  abrir: (u: UsuarioConRoles, rol: RolGlobalCatalogo) => void;
+}) {
+  return (
+    <>
+      <tr className="border-b border-border/60 bg-muted/20">
+        <td
+          colSpan={totalCols}
+          className="sticky left-0 px-4 py-1.5 pl-8 text-xs font-medium text-muted-foreground"
+        >
+          {area}
+        </td>
+      </tr>
+      {usuarios.map((u) => (
+        <tr key={u.usuarioId} className="border-b border-border last:border-0">
+          <td className="sticky left-0 z-10 bg-card px-4 py-2.5 pl-8">
+            <div className="flex items-center gap-2">
+              <UserCircle className="h-6 w-6 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <div className="truncate font-medium">{u.personaNombre}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  @{u.username}
+                  {u.puestoPrincipal ? ` · ${u.puestoPrincipal}` : ""}
+                </div>
+              </div>
+            </div>
+          </td>
+          {roles.map((rol) => {
+            const activo = tiene(u, rol.codigo);
+            return (
+              <td key={rol.codigo} className="px-3 py-2.5 text-center">
+                <button
+                  type="button"
+                  onClick={() => abrir(u, rol)}
+                  className={`mx-auto flex h-6 w-6 items-center justify-center rounded-md border transition-colors ${
+                    activo
+                      ? "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700"
+                      : "border-border bg-background hover:border-muted-foreground/50 hover:bg-muted"
+                  }`}
+                  title={
+                    activo
+                      ? `Revocar ${rol.nombre} a ${u.personaNombre}`
+                      : `Asignar ${rol.nombre} a ${u.personaNombre}`
+                  }
+                  aria-label={activo ? `Revocar ${rol.nombre}` : `Asignar ${rol.nombre}`}
+                  aria-pressed={activo}
+                >
+                  {activo && <Check className="h-4 w-4" />}
+                </button>
+              </td>
+            );
+          })}
+        </tr>
+      ))}
+    </>
   );
 }
