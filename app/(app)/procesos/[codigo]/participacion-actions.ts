@@ -1,70 +1,14 @@
-"use server";
+// OBSOLETO — La asignación directa usuario↔proceso fue eliminada.
+//
+// Desde la migración 043 la participación en proceso se DERIVA de la cadena
+// puesto (puesto_proceso_rol activo → persona_puesto vigente → personas).
+// La tabla participacion_usuario_proceso ya no gobierna nada y esta server
+// action (que escribía en ella) dejó de tener sentido.
+//
+// Para cambiar quién participa de un proceso: Configuración → Puestos
+// (asignar el proceso/rol al puesto, y la persona al puesto).
+//
+// Este archivo se conserva vacío para no dejar imports rotos durante el
+// despliegue; puede borrarse del repo cuando convenga.
 
-import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-import { participacionSchema } from "@/lib/schemas/configuracion";
-import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
-
-export type EstadoParticipacion =
-  | { ok: true }
-  | { ok: false; error: string; campo?: string }
-  | null;
-
-export async function asignarParticipacion(
-  _prev: EstadoParticipacion,
-  formData: FormData,
-): Promise<EstadoParticipacion> {
-  const supabase = createClient();
-  const usuarioId = await obtenerUsuarioActualId();
-  if (!usuarioId) return { ok: false, error: "Sesión no válida." };
-
-  const parsed = participacionSchema.safeParse({
-    procesoId: formData.get("procesoId"),
-    usuarioId: formData.get("usuarioId"),
-    rol: formData.get("rol"),
-    motivoAsignacion: formData.get("motivoAsignacion") || undefined,
-  });
-  if (!parsed.success) {
-    const p = parsed.error.issues[0];
-    return { ok: false, error: p.message, campo: p.path.join(".") };
-  }
-
-  const input = parsed.data;
-
-  // Evitar duplicar la misma asignación vigente (usuario+proceso+rol).
-  const { data: existente } = await supabase
-    .from("participacion_usuario_proceso")
-    .select("id")
-    .eq("proceso_id", input.procesoId)
-    .eq("usuario_id", input.usuarioId)
-    .eq("rol_en_proceso", input.rol)
-    .is("vigente_hasta", null)
-    .maybeSingle();
-
-  if (existente) {
-    return {
-      ok: false,
-      error: "Ese usuario ya tiene ese rol asignado en este proceso.",
-      campo: "usuarioId",
-    };
-  }
-
-  const { error } = await supabase.from("participacion_usuario_proceso").insert({
-    proceso_id: input.procesoId,
-    usuario_id: input.usuarioId,
-    rol_en_proceso: input.rol,
-    motivo_asignacion: input.motivoAsignacion ?? null,
-    asignado_por: usuarioId,
-    creado_por: usuarioId,
-  });
-
-  if (error) {
-    const msg = error.message.includes("row-level security")
-      ? "No tenés permisos para asignar participaciones."
-      : `No se pudo asignar: ${error.message}`;
-    return { ok: false, error: msg };
-  }
-
-  revalidatePath(`/procesos`);
-  return { ok: true };
-}
+export {};

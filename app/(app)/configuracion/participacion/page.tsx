@@ -43,15 +43,15 @@ export default async function ParticipacionPage() {
         <h1 className="mb-3 font-serif text-4xl font-semibold tracking-tight">Participación en procesos</h1>
         <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
           Quién cumple cada rol en cada proceso, según las asignaciones vigentes. Esta es una vista
-          de consulta: la participación se genera al asignar personas a puestos, o desde el detalle de cada proceso.
+          de consulta: la participación se deriva de los puestos (qué procesos tiene cada puesto y qué persona lo ocupa).
         </p>
       </header>
 
       <div className="mb-8 flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <span>
-          Para cambiar quién participa, asigná o quitá la persona del puesto correspondiente (en Configuración → Puestos),
-          o entrá al detalle del proceso. Los cambios se reflejan acá automáticamente.
+          Para cambiar quién participa, asigná o quitá la persona del puesto correspondiente, o ajustá qué procesos
+          tiene ese puesto (en Configuración → Puestos). Los cambios se reflejan acá automáticamente.
         </span>
       </div>
 
@@ -85,7 +85,7 @@ export default async function ParticipacionPage() {
           <Users className="mb-3 h-6 w-6 text-muted-foreground" />
           <p className="text-sm font-medium">No hay participaciones vigentes</p>
           <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            Cuando asignes personas a puestos con roles en procesos, o asignes participantes desde el detalle de un proceso, aparecerán acá.
+            Cuando asignes personas a puestos con roles en procesos, aparecerán acá.
           </p>
         </div>
       )}
