@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X, Loader2, Crown, PenTool, CheckCircle2, CheckCheck, Eye, Network, AlertCircle } from "lucide-react";
+import { Plus, X, Loader2, Crown, PenTool, CheckCircle2, CheckCheck, Eye, Network, AlertCircle, Search } from "lucide-react";
 import type { RolEnProceso } from "@/lib/api/puestos";
-import { agregarRolEnProceso, quitarRolEnProceso, type EstadoRol } from "@/app/(app)/configuracion/puestos/[id]/rol-actions";
+import { agregarRolEnProcesosMultiple, quitarRolEnProceso } from "@/app/(app)/configuracion/puestos/[id]/rol-actions";
 import { Button } from "@/components/ui/button";
 
 type ProcOpcion = { id: string; codigo: string; nombre: string; tipo: string };
@@ -32,19 +31,17 @@ const ROLES = [
   { value: "lector", label: "Lector" },
 ];
 
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="flex-1">
-      {pending ? <><Loader2 className="h-4 w-4 animate-spin" />Asignando…</> : <><Plus className="h-4 w-4" />Asignar rol</>}
-    </Button>
-  );
-}
-
 export function RolesPuesto({ puestoId, roles, procesos }: Props) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
-  const [estado, formAction] = useFormState<EstadoRol, FormData>(agregarRolEnProceso, null);
+
+  // Estado del formulario múltiple.
+  const [rol, setRol] = useState<string>("lector");
+  const [motivo, setMotivo] = useState("");
+  const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
+  const [busqueda, setBusqueda] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [errorForm, setErrorForm] = useState<string | null>(null);
 
   // Baja con motivo.
   const [aQuitar, setAQuitar] = useState<RolEnProceso | null>(null);
@@ -52,9 +49,71 @@ export function RolesPuesto({ puestoId, roles, procesos }: Props) {
   const [quitando, setQuitando] = useState(false);
   const [errorBaja, setErrorBaja] = useState<string | null>(null);
 
+  // Procesos donde el puesto YA tiene el rol elegido (activo) → no se ofrecen.
+  const yaConEseRol = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of roles) {
+      if (r.rol === rol) s.add(r.procesoId);
+    }
+    return s;
+  }, [roles, rol]);
+
+  // Procesos disponibles para el rol elegido, filtrados por búsqueda.
+  const disponibles = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    return procesos
+      .filter((p) => !yaConEseRol.has(p.id))
+      .filter((p) => !q || `${p.codigo} ${p.nombre}`.toLowerCase().includes(q));
+  }, [procesos, yaConEseRol, busqueda]);
+
+  // Al cambiar de rol, limpiar selecciones que ya no aplican.
   useEffect(() => {
-    if (estado?.ok) { setAbierto(false); router.refresh(); }
-  }, [estado, router]);
+    setSeleccion((prev) => {
+      const next = new Set<string>();
+      for (const id of prev) if (!yaConEseRol.has(id)) next.add(id);
+      return next;
+    });
+  }, [yaConEseRol]);
+
+  function toggle(id: string) {
+    setSeleccion((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleTodos() {
+    setSeleccion((prev) => {
+      if (disponibles.every((p) => prev.has(p.id))) return new Set();
+      return new Set(disponibles.map((p) => p.id));
+    });
+  }
+
+  function cerrar() {
+    setAbierto(false);
+    setSeleccion(new Set());
+    setMotivo("");
+    setBusqueda("");
+    setErrorForm(null);
+  }
+
+  async function confirmarAsignar() {
+    setErrorForm(null);
+    if (seleccion.size === 0) { setErrorForm("Elegí al menos un proceso."); return; }
+    if (motivo.trim().length < 5) { setErrorForm("El motivo es obligatorio (mínimo 5 caracteres)."); return; }
+
+    setGuardando(true);
+    const r = await agregarRolEnProcesosMultiple(puestoId, Array.from(seleccion), rol, motivo.trim());
+    setGuardando(false);
+
+    if (r?.ok) {
+      cerrar();
+      router.refresh();
+    } else {
+      setErrorForm(r && !r.ok ? r.error : "No se pudo asignar.");
+    }
+  }
 
   async function confirmarQuitar() {
     if (!aQuitar) return;
@@ -70,6 +129,8 @@ export function RolesPuesto({ puestoId, roles, procesos }: Props) {
       setErrorBaja(r && !r.ok ? r.error : "No se pudo quitar el rol.");
     }
   }
+
+  const todosSeleccionados = disponibles.length > 0 && disponibles.every((p) => seleccion.has(p.id));
 
   return (
     <section>
@@ -120,42 +181,89 @@ export function RolesPuesto({ puestoId, roles, procesos }: Props) {
         </div>
       )}
 
-      {/* Diálogo: asignar rol */}
+      {/* Diálogo: asignar rol a varios procesos */}
       {abierto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAbierto(false)} />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl">
-            <div className="p-6">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Asignar rol en proceso</h2>
-              <form action={formAction} className="mt-6 space-y-4">
-                <input type="hidden" name="puestoId" value={puestoId} />
-                <div className="space-y-2">
-                  <label htmlFor="procesoId" className="text-sm font-medium">Proceso</label>
-                  <select id="procesoId" name="procesoId" required className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    <option value="">Elegí un proceso…</option>
-                    {procesos.map((p) => <option key={p.id} value={p.id}>{p.codigo} — {p.nombre}</option>)}
-                  </select>
+          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={cerrar} />
+          <div className="relative z-10 flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl border border-border bg-card shadow-2xl">
+            <div className="border-b border-border p-6 pb-4">
+              <h2 className="font-serif text-2xl font-semibold tracking-tight">Asignar rol en procesos</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Elegí un rol y marcá todos los procesos donde el puesto lo cumple. Se asignan todos juntos.
+              </p>
+            </div>
+
+            <div className="space-y-4 overflow-y-auto p-6">
+              <div className="space-y-2">
+                <label htmlFor="rol" className="text-sm font-medium">Rol</label>
+                <select id="rol" value={rol} onChange={(e) => setRol(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">
+                    Procesos {seleccion.size > 0 && <span className="text-muted-foreground">({seleccion.size} seleccionados)</span>}
+                  </label>
+                  {disponibles.length > 0 && (
+                    <button type="button" onClick={toggleTodos} className="text-xs text-primary hover:underline">
+                      {todosSeleccionados ? "Deseleccionar todos" : "Seleccionar todos"}
+                    </button>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="rol" className="text-sm font-medium">Rol</label>
-                  <select id="rol" name="rol" required className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="motivo" className="text-sm font-medium">Motivo de la asignación</label>
-                  <textarea id="motivo" name="motivo" rows={3} required minLength={5}
-                    placeholder="Por qué se asigna este rol (queda en la auditoría)."
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-                </div>
-                {estado && !estado.ok && (
-                  <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>
+
+                {procesos.filter((p) => !yaConEseRol.has(p.id)).length > 6 && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar proceso…"
+                      className="w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                  </div>
                 )}
-                <div className="flex gap-3 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
-                  <SubmitButton />
+
+                <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border border-border p-1">
+                  {disponibles.length > 0 ? disponibles.map((p) => {
+                    const marcado = seleccion.has(p.id);
+                    return (
+                      <label key={p.id} className={`flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${marcado ? "bg-primary/5" : "hover:bg-muted"}`}>
+                        <input type="checkbox" checked={marcado} onChange={() => toggle(p.id)}
+                          className="h-4 w-4 rounded border-input accent-primary" />
+                        <span className="font-mono text-xs text-muted-foreground">{p.codigo}</span>
+                        <span className="font-medium">{p.nombre}</span>
+                      </label>
+                    );
+                  }) : (
+                    <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+                      {busqueda
+                        ? "Ningún proceso coincide con la búsqueda."
+                        : "El puesto ya tiene este rol en todos los procesos disponibles."}
+                    </p>
+                  )}
                 </div>
-              </form>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="motivo" className="text-sm font-medium">Motivo de la asignación</label>
+                <textarea id="motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={2} minLength={5}
+                  placeholder="Por qué se asigna este rol (queda en la auditoría)."
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                <p className="text-xs text-muted-foreground">Se registra el mismo motivo para todos los procesos seleccionados.</p>
+              </div>
+
+              {errorForm && (
+                <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{errorForm}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 border-t border-border p-6 pt-4">
+              <Button type="button" variant="outline" onClick={cerrar} className="flex-1">Cancelar</Button>
+              <Button type="button" onClick={confirmarAsignar} disabled={guardando || seleccion.size === 0 || motivo.trim().length < 5} className="flex-1">
+                {guardando ? <><Loader2 className="h-4 w-4 animate-spin" />Asignando…</>
+                  : <><Plus className="h-4 w-4" />Asignar {seleccion.size > 0 ? `(${seleccion.size})` : ""}</>}
+              </Button>
             </div>
           </div>
         </div>

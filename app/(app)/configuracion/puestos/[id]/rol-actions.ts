@@ -10,9 +10,14 @@ export type EstadoRol =
   | { ok: false; error: string }
   | null;
 
-const rolSchema = z.object({
+export type EstadoRolMultiple =
+  | { ok: true; creados: number; reactivados: number; yaTenian: number }
+  | { ok: false; error: string }
+  | null;
+
+const rolMultipleSchema = z.object({
   puestoId: z.string().uuid(),
-  procesoId: z.string().uuid("Elegí un proceso."),
+  procesoIds: z.array(z.string().uuid()).min(1, "Elegí al menos un proceso."),
   rol: z.enum(
     ["responsable_proceso", "elaborador", "aprobador_n1", "aprobador_n2", "lector"],
     { errorMap: () => ({ message: "Elegí un rol." }) },
@@ -20,39 +25,57 @@ const rolSchema = z.object({
   motivo: z.string().min(5, "El motivo es obligatorio (mínimo 5 caracteres)."),
 });
 
-export async function agregarRolEnProceso(
-  _prev: EstadoRol,
-  formData: FormData,
-): Promise<EstadoRol> {
+// Asigna UN rol a VARIOS procesos de una sola vez, con un motivo común.
+// Reutiliza la misma lógica que la versión single: si la combinación existe
+// inactiva, la reactiva; si está activa, la cuenta como "ya tenían"; si no
+// existe, la inserta. Es tolerante: procesa todos y reporta el resumen.
+export async function agregarRolEnProcesosMultiple(
+  puestoId: string,
+  procesoIds: string[],
+  rol: string,
+  motivo: string,
+): Promise<EstadoRolMultiple> {
   const supabase = createClient();
   const usuarioId = await obtenerUsuarioActualId();
   if (!usuarioId) return { ok: false, error: "Sesión no válida." };
 
-  const parsed = rolSchema.safeParse({
-    puestoId: formData.get("puestoId"),
-    procesoId: formData.get("procesoId"),
-    rol: formData.get("rol"),
-    motivo: formData.get("motivo"),
-  });
+  const parsed = rolMultipleSchema.safeParse({ puestoId, procesoIds, rol, motivo });
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
   }
 
-  const { puestoId, procesoId, rol, motivo } = parsed.data;
+  const { puestoId: pId, procesoIds: procesos, rol: rolOk, motivo: motivoOk } = parsed.data;
 
-  // ¿Ya existe esa combinación (incluso inactiva)? La reactivamos.
-  const { data: existente } = await supabase
+  // Estado actual de esas combinaciones (activas o no), en una sola consulta.
+  const { data: existentes, error: errLista } = await supabase
     .from("puesto_proceso_rol")
-    .select("id, activo")
-    .eq("puesto_id", puestoId)
-    .eq("proceso_id", procesoId)
-    .eq("rol_en_proceso", rol)
-    .maybeSingle();
+    .select("id, proceso_id, activo")
+    .eq("puesto_id", pId)
+    .eq("rol_en_proceso", rolOk)
+    .in("proceso_id", procesos);
 
-  if (existente) {
-    if (existente.activo) {
-      return { ok: false, error: "Ese puesto ya tiene ese rol en ese proceso." };
-    }
+  if (errLista) {
+    return { ok: false, error: `No se pudo verificar el estado actual: ${errLista.message}` };
+  }
+
+  const porProceso = new Map<string, { id: string; activo: boolean }>();
+  for (const e of (existentes ?? []) as any[]) {
+    porProceso.set(e.proceso_id, { id: e.id, activo: e.activo });
+  }
+
+  const aInsertar: string[] = [];
+  const aReactivar: string[] = [];
+  let yaTenian = 0;
+
+  for (const procId of procesos) {
+    const ex = porProceso.get(procId);
+    if (!ex) aInsertar.push(procId);
+    else if (ex.activo) yaTenian += 1;
+    else aReactivar.push(ex.id);
+  }
+
+  // Reactivar las que estaban dadas de baja.
+  if (aReactivar.length > 0) {
     const { error } = await supabase
       .from("puesto_proceso_rol")
       .update({
@@ -60,18 +83,22 @@ export async function agregarRolEnProceso(
         eliminado_en: null,
         eliminado_por: null,
         motivo_eliminacion: null,
-        motivo_asignacion: motivo,
+        motivo_asignacion: motivoOk,
       })
-      .eq("id", existente.id);
+      .in("id", aReactivar);
     if (error) return { ok: false, error: `No se pudo reactivar: ${error.message}` };
-  } else {
-    const { error } = await supabase.from("puesto_proceso_rol").insert({
-      puesto_id: puestoId,
-      proceso_id: procesoId,
-      rol_en_proceso: rol,
+  }
+
+  // Insertar las nuevas en lote.
+  if (aInsertar.length > 0) {
+    const filas = aInsertar.map((procId) => ({
+      puesto_id: pId,
+      proceso_id: procId,
+      rol_en_proceso: rolOk,
       creado_por: usuarioId,
-      motivo_asignacion: motivo,
-    });
+      motivo_asignacion: motivoOk,
+    }));
+    const { error } = await supabase.from("puesto_proceso_rol").insert(filas);
     if (error) {
       const msg = error.message.includes("row-level security")
         ? "No tenés permisos para asignar roles."
@@ -80,8 +107,13 @@ export async function agregarRolEnProceso(
     }
   }
 
-  revalidatePath(`/configuracion/puestos/${puestoId}`);
-  return { ok: true };
+  revalidatePath(`/configuracion/puestos/${pId}`);
+  return {
+    ok: true,
+    creados: aInsertar.length,
+    reactivados: aReactivar.length,
+    yaTenian,
+  };
 }
 
 export async function quitarRolEnProceso(
