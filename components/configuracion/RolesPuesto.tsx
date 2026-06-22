@@ -104,14 +104,18 @@ export function RolesPuesto({ puestoId, roles, procesos }: Props) {
     if (motivo.trim().length < 5) { setErrorForm("El motivo es obligatorio (mínimo 5 caracteres)."); return; }
 
     setGuardando(true);
-    const r = await agregarRolEnProcesosMultiple(puestoId, Array.from(seleccion), rol, motivo.trim());
-    setGuardando(false);
-
-    if (r?.ok) {
-      cerrar();
-      router.refresh();
-    } else {
-      setErrorForm(r && !r.ok ? r.error : "No se pudo asignar.");
+    try {
+      const r = await agregarRolEnProcesosMultiple(puestoId, Array.from(seleccion), rol, motivo.trim());
+      if (r?.ok) {
+        cerrar();
+        router.refresh();
+      } else {
+        setErrorForm(r && !r.ok ? r.error : "No se pudo asignar.");
+      }
+    } catch (e) {
+      setErrorForm(e instanceof Error ? `Error: ${e.message}` : "Error inesperado al asignar.");
+    } finally {
+      setGuardando(false);
     }
   }
 
