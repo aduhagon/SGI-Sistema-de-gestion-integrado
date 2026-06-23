@@ -256,13 +256,18 @@ export type Puesto = {
   areaNombre: string | null;
   gerenciaId: string | null;
   gerenciaNombre: string | null;
+  reportaAId: string | null;
+  reportaACodigo: string | null;
+  reportaANombre: string | null;
 };
 
 export async function listarPuestos(): Promise<Puesto[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("puestos")
-    .select("id, codigo, nombre, descripcion, area_id")
+    .select(
+      "id, codigo, nombre, descripcion, area_id, reporta_a_id, reporta_a:puestos!puestos_reporta_a_id_fkey(id, codigo, nombre)",
+    )
     .eq("activo", true)
     .is("eliminado_en", null)
     .order("codigo", { ascending: true });
@@ -295,6 +300,7 @@ export async function listarPuestos(): Promise<Puesto[]> {
 
   return filas.map((p) => {
     const gerenciaId = p.area_id ? padreDeArea.get(p.area_id) ?? null : null;
+    const sup = Array.isArray(p.reporta_a) ? p.reporta_a[0] ?? null : p.reporta_a ?? null;
     return {
       id: p.id,
       codigo: p.codigo,
@@ -304,6 +310,9 @@ export async function listarPuestos(): Promise<Puesto[]> {
       areaNombre: p.area_id ? nombreArea.get(p.area_id) ?? null : null,
       gerenciaId,
       gerenciaNombre: gerenciaId ? nombrePorAreaId.get(gerenciaId) ?? null : null,
+      reportaAId: p.reporta_a_id ?? null,
+      reportaACodigo: sup?.codigo ?? null,
+      reportaANombre: sup?.nombre ?? null,
     };
   });
 }

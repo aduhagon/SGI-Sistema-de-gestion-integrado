@@ -24,6 +24,7 @@ export async function guardarPuesto(
     nombre: formData.get("nombre"),
     descripcion: formData.get("descripcion") || undefined,
     areaId: formData.get("areaId") || undefined,
+    reportaAId: formData.get("reportaAId") || undefined,
   });
   if (!parsed.success) {
     const p = parsed.error.issues[0];
@@ -33,12 +34,19 @@ export async function guardarPuesto(
   const input = parsed.data;
   const esEdicion = input.id && input.id !== "";
   const areaId = input.areaId && input.areaId !== "" ? input.areaId : null;
+  const reportaAId =
+    input.reportaAId && input.reportaAId !== "" ? input.reportaAId : null;
+
+  if (esEdicion && reportaAId === input.id) {
+    return { ok: false, error: "Un puesto no puede reportarse a sí mismo.", campo: "reportaAId" };
+  }
 
   const payload = {
     codigo: input.codigo,
     nombre: input.nombre,
     descripcion: input.descripcion ?? null,
     area_id: areaId,
+    reporta_a_id: reportaAId,
   };
 
   if (esEdicion) {
@@ -85,5 +93,7 @@ function traducir(msg: string): string {
     return "No tenés permisos para gestionar puestos.";
   if (msg.includes("chk_puestos_codigo"))
     return "El código solo admite mayúsculas, números, guion y guion bajo.";
+  if (msg.includes("reporta_a_id"))
+    return "El puesto superior seleccionado no es válido.";
   return `No se pudo guardar: ${msg}`;
 }

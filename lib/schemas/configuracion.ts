@@ -61,6 +61,7 @@ export const puestoSchema = z.object({
   nombre: z.string().trim().min(2, "El nombre es obligatorio.").max(200),
   descripcion: z.string().trim().max(2000).optional(),
   areaId: z.string().uuid().optional().or(z.literal("")),
+  reportaAId: z.string().uuid().optional().or(z.literal("")),
 });
 
 export type PuestoInput = z.infer<typeof puestoSchema>;

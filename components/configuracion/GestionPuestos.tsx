@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, Loader2, Save, Briefcase, Building, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Save, Briefcase, Building, ChevronDown, ChevronRight, CornerDownRight } from "lucide-react";
 import type { Puesto } from "@/lib/api/configuracion";
 import { guardarPuesto, eliminarPuesto, type EstadoConfig } from "@/app/(app)/configuracion/puestos/actions";
 import { Button } from "@/components/ui/button";
@@ -95,6 +95,16 @@ export function GestionPuestos({ puestos, areas }: { puestos: Puesto[]; areas: A
                     <option value="">Sin área</option>
                     {areas.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
                   </select>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="reportaAId" className="text-sm font-medium">Reporta a <span className="text-muted-foreground">(opcional)</span></label>
+                  <select id="reportaAId" name="reportaAId" defaultValue={editando?.reportaAId ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <option value="">Sin superior jerárquico</option>
+                    {puestos
+                      .filter((sup) => sup.id !== editando?.id)
+                      .map((sup) => <option key={sup.id} value={sup.id}>{sup.codigo} · {sup.nombre}</option>)}
+                  </select>
+                  <p className="text-xs text-muted-foreground">El puesto al que este reporta en la cadena jerárquica.</p>
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="descripcion" className="text-sm font-medium">Descripción <span className="text-muted-foreground">(opcional)</span></label>
@@ -248,6 +258,17 @@ function AreaSub({
                 <td className="px-4 py-2 pl-12 font-mono text-xs w-32">{p.codigo}</td>
                 <td className="px-4 py-2 font-medium">
                   <Link href={`/configuracion/puestos/${p.id}`} className="hover:underline">{p.nombre}</Link>
+                </td>
+                <td className="px-4 py-2 text-xs">
+                  {p.reportaACodigo ? (
+                    <span className="inline-flex items-center gap-1 text-muted-foreground">
+                      <CornerDownRight className="h-3 w-3 shrink-0" />
+                      <span className="font-mono">{p.reportaACodigo}</span>
+                      <span>{p.reportaANombre}</span>
+                    </span>
+                  ) : (
+                    <span className="italic text-muted-foreground/60">— sin superior —</span>
+                  )}
                 </td>
                 <td className="px-4 py-2 w-20">
                   <div className="flex justify-end gap-1">
