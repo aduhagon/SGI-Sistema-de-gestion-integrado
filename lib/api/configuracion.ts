@@ -265,9 +265,7 @@ export async function listarPuestos(): Promise<Puesto[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("puestos")
-    .select(
-      "id, codigo, nombre, descripcion, area_id, reporta_a_id, reporta_a:puestos!puestos_reporta_a_id_fkey(id, codigo, nombre)",
-    )
+    .select("id, codigo, nombre, descripcion, area_id, reporta_a_id")
     .eq("activo", true)
     .is("eliminado_en", null)
     .order("codigo", { ascending: true });
@@ -298,9 +296,22 @@ export async function listarPuestos(): Promise<Puesto[]> {
     }
   }
 
+  // Resolver el puesto superior (reporta_a_id) en memoria, sin depender del
+  // embed de PostgREST (los self-joins por nombre de FK son frágiles ante el
+  // schema cache). Segundo query sobre la misma tabla.
+  const supIds = [...new Set(filas.map((p) => p.reporta_a_id).filter(Boolean))];
+  const supPorId = new Map<string, { codigo: string; nombre: string }>();
+  if (supIds.length > 0) {
+    const { data: sups } = await supabase
+      .from("puestos")
+      .select("id, codigo, nombre")
+      .in("id", supIds);
+    for (const s of (sups ?? []) as any[]) supPorId.set(s.id, { codigo: s.codigo, nombre: s.nombre });
+  }
+
   return filas.map((p) => {
     const gerenciaId = p.area_id ? padreDeArea.get(p.area_id) ?? null : null;
-    const sup = Array.isArray(p.reporta_a) ? p.reporta_a[0] ?? null : p.reporta_a ?? null;
+    const sup = p.reporta_a_id ? supPorId.get(p.reporta_a_id) ?? null : null;
     return {
       id: p.id,
       codigo: p.codigo,
