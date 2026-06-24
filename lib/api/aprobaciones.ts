@@ -20,6 +20,8 @@ export type AprobacionPendiente = {
   proceso: { codigo: string; nombre: string } | null;
   elaborador: string | null;
   hashArchivo: string | null;
+  // id del archivo principal de la versión (para previsualizar/descargar antes de decidir)
+  archivoId: string | null;
 };
 
 type FilaAprobacion = {
@@ -38,7 +40,7 @@ type FilaAprobacion = {
     numero_version: string;
     motivo_cambio: string | null;
     estado: string;
-    archivos: Array<{ tipo_archivo: string; hash_sha256: string | null }> | null;
+    archivos: Array<{ id: string; tipo_archivo: string; hash_sha256: string | null }> | null;
     creado_por: string | null;
     documentos: {
       id: string;
@@ -100,7 +102,7 @@ export async function obtenerBandejaAprobaciones(usuarioId: string): Promise<{
       numero_version,
       motivo_cambio,
       estado,
-      archivos ( tipo_archivo, hash_sha256 ),
+      archivos ( id, tipo_archivo, hash_sha256 ),
       creado_por,
       documentos:documentos!versiones_documento_id_fkey (
         id,
@@ -133,6 +135,9 @@ export async function obtenerBandejaAprobaciones(usuarioId: string): Promise<{
     const v = fila.versiones;
     const d = v?.documentos ?? null;
 
+    const archivoPrincipal =
+      v?.archivos?.find((a) => a.tipo_archivo === "principal") ?? null;
+
     const base = {
       aprobacionId: fila.id,
       versionId: fila.version_id,
@@ -147,8 +152,8 @@ export async function obtenerBandejaAprobaciones(usuarioId: string): Promise<{
       tipo: d?.tipos_documentales ?? null,
       proceso: d?.procesos ?? null,
       elaborador: v?.creado_por ?? null,
-      hashArchivo:
-        v?.archivos?.find((a) => a.tipo_archivo === "principal")?.hash_sha256 ?? null,
+      hashArchivo: archivoPrincipal?.hash_sha256 ?? null,
+      archivoId: archivoPrincipal?.id ?? null,
     };
 
     const soyN1 = fila.aprobador_n1_id === usuarioId;

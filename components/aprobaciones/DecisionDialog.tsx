@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Loader2, Check, X, AlertTriangle } from "lucide-react";
+import { Loader2, Check, X, AlertTriangle, FileSearch } from "lucide-react";
 import { decidirAprobacion, type EstadoDecision } from "@/app/(app)/aprobaciones/actions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -14,6 +14,7 @@ type Props = {
   codigo: string;
   titulo: string;
   numeroVersion: string;
+  archivoId: string | null;
   abierto: boolean;
   decisionInicial: "aprobado" | "rechazado" | null;
   onClose: () => void;
@@ -55,6 +56,7 @@ export function DecisionDialog({
   codigo,
   titulo,
   numeroVersion,
+  archivoId,
   abierto,
   decisionInicial,
   onClose,
@@ -124,6 +126,31 @@ export function DecisionDialog({
           <p className="mt-1 text-sm text-muted-foreground">
             {titulo} · versión {numeroVersion}
           </p>
+
+          {/* Revisión del documento antes de decidir */}
+          <div className="mt-5 rounded-lg border border-border bg-muted/40 p-4">
+            <p className="mb-2 text-sm font-medium text-foreground">
+              Antes de decidir, revisá el documento
+            </p>
+            {archivoId ? (
+              <a
+                href={`/api/archivos/${archivoId}/descargar?modo=ver`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" }),
+                  "w-full sm:w-auto",
+                )}
+              >
+                <FileSearch className="h-4 w-4" aria-hidden="true" />
+                Ver documento
+              </a>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Esta versión no tiene un archivo principal cargado para previsualizar.
+              </p>
+            )}
+          </div>
 
           <form action={formAction} className="mt-6 space-y-5">
             <input type="hidden" name="aprobacionId" value={aprobacionId} />

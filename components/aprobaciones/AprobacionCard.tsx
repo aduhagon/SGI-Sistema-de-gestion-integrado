@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Clock, FileText, ArrowRight, Hourglass } from "lucide-react";
+import { Clock, FileText, ArrowRight, Hourglass, FileSearch } from "lucide-react";
 import type { AprobacionPendiente } from "@/lib/api/aprobaciones";
 import { Button } from "@/components/ui/button";
 import { DecisionDialog } from "./DecisionDialog";
@@ -95,6 +95,18 @@ export function AprobacionCard({ aprobacion, accionable }: Props) {
               </p>
             )}
 
+            {aprobacion.archivoId && (
+              <a
+                href={`/api/archivos/${aprobacion.archivoId}/descargar?modo=ver`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline"
+              >
+                <FileSearch className="h-3.5 w-3.5" aria-hidden="true" />
+                Ver documento
+              </a>
+            )}
+
             {aprobacion.nivel === 2 && (
               <p className="mt-2 text-xs text-emerald-700">
                 Nivel 1 ya aprobó. Tu decisión cierra el flujo de aprobación.
@@ -125,6 +137,7 @@ export function AprobacionCard({ aprobacion, accionable }: Props) {
           codigo={aprobacion.codigo}
           titulo={aprobacion.titulo}
           numeroVersion={aprobacion.numeroVersion}
+          archivoId={aprobacion.archivoId}
           abierto={dialogAbierto}
           decisionInicial={decisionInicial}
           onClose={() => setDialogAbierto(false)}
