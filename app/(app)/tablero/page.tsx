@@ -19,20 +19,19 @@ export default async function TableroControlPage({
 
   return (
     <div className="mx-auto max-w-6xl p-6 sm:p-8 lg:p-10">
-      <header className="mb-8">
-        <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+      <header className="mb-6">
+        <p className="mb-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
           Sistema de Gestión Integrado
         </p>
-        <h1 className="mb-3 font-serif text-4xl font-semibold tracking-tight">
-          Tablero de control
-        </h1>
-        <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
-          Estado de control de cada proceso de un vistazo. El color resume cuatro
-          señales —no conformidades, documentos, indicadores y riesgos— y muestra
-          el peor estado entre ellas. Los procesos en gris todavía no tienen datos
-          cargados.
-        </p>
-        <div className="mt-5">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">
+            Tablero de control
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Peor estado entre NC, documentos, indicadores y riesgos por proceso.
+          </p>
+        </div>
+        <div className="mt-4">
           <FiltroNorma normas={normas} />
         </div>
       </header>

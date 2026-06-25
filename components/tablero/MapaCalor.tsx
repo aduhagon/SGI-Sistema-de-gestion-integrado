@@ -12,63 +12,67 @@ import {
 import type { ProcesoCalor, EstadoSenal } from "@/lib/api/mapaCalor";
 
 // ---------------------------------------------------------------------------
-// Estilos por estado.
-// Los colores de las celdas del heatmap son tonos semánticos fijos (no varían
-// con el tema): un estado "rojo" debe verse rojo siempre. El resto del chrome
-// (textos, bordes, fondos) usa las clases semánticas del proyecto.
+// Colores de estado (semánticos fijos: un "rojo" debe verse rojo en claro y
+// oscuro). El resto del chrome usa las clases del tema.
 // ---------------------------------------------------------------------------
 
-const PUNTO: Record<EstadoSenal, string> = {
-  verde: "bg-emerald-500",
-  amarillo: "bg-amber-500",
-  rojo: "bg-rose-500",
-  gris: "bg-muted-foreground/40",
+const COLOR: Record<EstadoSenal, string> = {
+  verde: "#1D9E75",
+  amarillo: "#EF9F27",
+  rojo: "#E24B4A",
+  gris: "#B4B2A9",
 };
 
-// Relleno de la celda del heatmap (tono pastel calibrado).
-const CELDA_FILL: Record<EstadoSenal, string> = {
-  verde: "#D6EFE6",
-  amarillo: "#FBE6C8",
-  rojo: "#FAD9D9",
-  gris: "#E9E7DF",
+const RESUMEN: Record<EstadoSenal, { label: string }> = {
+  rojo: { label: "Críticos" },
+  amarillo: { label: "Atención" },
+  verde: { label: "En control" },
+  gris: { label: "Sin datos" },
 };
 
-const RESUMEN: Record<EstadoSenal, { label: string; dot: string }> = {
-  rojo: { label: "Críticos", dot: "bg-rose-500" },
-  amarillo: { label: "Atención", dot: "bg-amber-500" },
-  verde: { label: "En control", dot: "bg-emerald-500" },
-  gris: { label: "Sin datos", dot: "bg-muted-foreground/40" },
-};
-
-// Chip de tipo de proceso. Colores planos por categoría (claro + oscuro del mismo ramp).
+// Chip de tipo de proceso (colores planos por categoría).
 const TIPO_CHIP: Record<string, { label: string; bg: string; tx: string }> = {
   estrategico: { label: "Estratégico", bg: "#EEEDFE", tx: "#3C3489" },
   operativo: { label: "Operativo", bg: "#E6F1FB", tx: "#0C447C" },
   apoyo: { label: "Apoyo", bg: "#E1F5EE", tx: "#085041" },
 };
 
-// Orden de criticidad: lo que arde primero, lo gris al final.
-const ORDEN_CRITICIDAD: Record<EstadoSenal, number> = {
-  rojo: 0,
-  amarillo: 1,
-  verde: 2,
-  gris: 3,
-};
-
 // ---------------------------------------------------------------------------
+// Foco semáforo: círculo con brillo (halo + reflejo interno).
+// 'gris' (sin datos) queda apagado: hueco, sin glow, para que no compita
+// visualmente con los procesos que sí tienen señal.
+// ---------------------------------------------------------------------------
+
+function Foco({ estado, size = 14 }: { estado: EstadoSenal; size?: number }) {
+  const c = COLOR[estado];
+  const apagado = estado === "gris";
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block shrink-0 rounded-full"
+      style={{
+        width: size,
+        height: size,
+        backgroundColor: apagado ? "#D3D1C7" : c,
+        border: apagado ? "0.5px solid #B4B2A9" : "none",
+        boxShadow: apagado
+          ? "none"
+          : `0 0 6px 1px ${c}99, inset 0 1px 1px #ffffff66`,
+      }}
+    />
+  );
+}
 
 function Celda({ estado, detalle }: { estado: EstadoSenal; detalle: string }) {
   const [hover, setHover] = useState(false);
   return (
-    <td className="px-1 py-1.5">
-      <div className="relative flex justify-center">
-        <span
-          className="inline-block h-[30px] w-[30px] rounded-[7px]"
-          style={{ backgroundColor: CELDA_FILL[estado] }}
-          onMouseEnter={() => setHover(true)}
-          onMouseLeave={() => setHover(false)}
-          aria-label={detalle}
-        />
+    <td className="px-1 py-2.5">
+      <div
+        className="relative flex justify-center"
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+      >
+        <Foco estado={estado} />
         {hover && (
           <span
             role="tooltip"
@@ -96,27 +100,21 @@ function FilaProceso({ p, ultima }: { p: ProcesoCalor; ultima: boolean }) {
           href={`/procesos/${encodeURIComponent(p.codigo)}`}
           className="flex min-w-0 items-center gap-2.5"
         >
-          <span
-            className={`h-2.5 w-2.5 shrink-0 rounded-full ${PUNTO[p.colorGlobal]}`}
-          />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate font-medium text-foreground group-hover:underline">
-              {p.nombre}
-            </span>
-            <span className="mt-0.5 flex items-center gap-2">
-              <span className="font-mono text-[10px] text-muted-foreground/80">
-                {p.codigo}
-              </span>
-              {chip && (
-                <span
-                  className="rounded-[5px] px-1.5 py-px text-[10px] font-medium"
-                  style={{ backgroundColor: chip.bg, color: chip.tx }}
-                >
-                  {chip.label}
-                </span>
-              )}
-            </span>
+          <Foco estado={p.colorGlobal} />
+          <span className="truncate font-medium text-foreground group-hover:underline">
+            {p.nombre}
           </span>
+          <span className="shrink-0 font-mono text-[10px] text-muted-foreground/70">
+            {p.codigo}
+          </span>
+          {chip && (
+            <span
+              className="shrink-0 rounded-[5px] px-1.5 py-px text-[10px] font-medium"
+              style={{ backgroundColor: chip.bg, color: chip.tx }}
+            >
+              {chip.label}
+            </span>
+          )}
         </Link>
       </td>
 
@@ -139,17 +137,15 @@ function FilaProceso({ p, ultima }: { p: ProcesoCalor; ultima: boolean }) {
 }
 
 function ResumenChip({ estado, valor }: { estado: EstadoSenal; valor: number }) {
-  const r = RESUMEN[estado];
   return (
     <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5">
-      <span className={`h-2.5 w-2.5 rounded-full ${r.dot}`} />
+      <Foco estado={estado} size={9} />
       <span className="font-serif text-lg font-semibold">{valor}</span>
-      <span className="text-xs text-muted-foreground">{r.label}</span>
+      <span className="text-xs text-muted-foreground">{RESUMEN[estado].label}</span>
     </div>
   );
 }
 
-// Encabezado de columna con su ícono de señal.
 function ThSenal({
   icon: Icon,
   children,
@@ -178,15 +174,8 @@ export function MapaCalor({ procesos }: { procesos: ProcesoCalor[] }) {
     return r;
   }, [procesos]);
 
-  // Una sola tabla, ordenada por criticidad (rojo → amarillo → verde → gris).
-  // Empate: alfabético por nombre para un orden estable.
-  const ordenados = useMemo(() => {
-    return [...procesos].sort((a, b) => {
-      const d = ORDEN_CRITICIDAD[a.colorGlobal] - ORDEN_CRITICIDAD[b.colorGlobal];
-      if (d !== 0) return d;
-      return a.nombre.localeCompare(b.nombre, "es");
-    });
-  }, [procesos]);
+  // Se respeta el orden de llegada de la base (fn_mapa_calor_procesos).
+  // No se re-ordena ni se agrupa.
 
   return (
     <div>
@@ -202,12 +191,12 @@ export function MapaCalor({ procesos }: { procesos: ProcesoCalor[] }) {
       <div className="overflow-hidden rounded-xl border border-border bg-card">
         <table className="w-full table-fixed border-collapse text-sm">
           <colgroup>
-            <col style={{ width: "40%" }} />
+            <col style={{ width: "42%" }} />
             <col />
             <col />
             <col />
             <col />
-            <col style={{ width: "6%" }} />
+            <col style={{ width: "5%" }} />
           </colgroup>
           <thead>
             <tr className="border-b border-border text-left">
@@ -222,11 +211,11 @@ export function MapaCalor({ procesos }: { procesos: ProcesoCalor[] }) {
             </tr>
           </thead>
           <tbody>
-            {ordenados.map((p, i) => (
+            {procesos.map((p, i) => (
               <FilaProceso
                 key={p.procesoId}
                 p={p}
-                ultima={i === ordenados.length - 1}
+                ultima={i === procesos.length - 1}
               />
             ))}
           </tbody>
@@ -234,8 +223,7 @@ export function MapaCalor({ procesos }: { procesos: ProcesoCalor[] }) {
       </div>
 
       <p className="mt-2.5 text-xs text-muted-foreground/80">
-        Cada celda muestra el peor estado de esa señal. Pasá el cursor sobre una
-        celda para ver el detalle.
+        Pasá el cursor sobre un círculo para ver el detalle de esa señal.
       </p>
     </div>
   );
