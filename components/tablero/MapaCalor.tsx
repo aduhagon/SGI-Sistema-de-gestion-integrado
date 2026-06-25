@@ -1,154 +1,242 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { FileText, AlertOctagon, Gauge, ShieldAlert, ArrowRight } from "lucide-react";
+import { useMemo, useState, type ComponentType, type ReactNode } from "react";
+import {
+  FileText,
+  AlertOctagon,
+  Gauge,
+  ShieldAlert,
+  ArrowRight,
+} from "lucide-react";
 import type { ProcesoCalor, EstadoSenal } from "@/lib/api/mapaCalor";
 
-// Estilos por estado. 'gris' = sin datos (no evaluable).
-const ESTILO: Record<EstadoSenal, { card: string; punto: string; texto: string; etiqueta: string }> = {
-  verde: {
-    card: "border-emerald-200 bg-emerald-50/40",
-    punto: "bg-emerald-500",
-    texto: "text-emerald-700",
-    etiqueta: "En control",
-  },
-  amarillo: {
-    card: "border-amber-200 bg-amber-50/50",
-    punto: "bg-amber-500",
-    texto: "text-amber-700",
-    etiqueta: "Requiere atención",
-  },
-  rojo: {
-    card: "border-rose-200 bg-rose-50/50",
-    punto: "bg-rose-500",
-    texto: "text-rose-700",
-    etiqueta: "Crítico",
-  },
-  gris: {
-    card: "border-border bg-muted/30",
-    punto: "bg-muted-foreground/40",
-    texto: "text-muted-foreground",
-    etiqueta: "Sin datos",
-  },
+// ---------------------------------------------------------------------------
+// Estilos por estado.
+// Los colores de las celdas del heatmap son tonos semánticos fijos (no varían
+// con el tema): un estado "rojo" debe verse rojo siempre. El resto del chrome
+// (textos, bordes, fondos) usa las clases semánticas del proyecto.
+// ---------------------------------------------------------------------------
+
+const PUNTO: Record<EstadoSenal, string> = {
+  verde: "bg-emerald-500",
+  amarillo: "bg-amber-500",
+  rojo: "bg-rose-500",
+  gris: "bg-muted-foreground/40",
 };
 
-const TIPO_LABEL: Record<string, string> = {
-  estrategico: "Procesos estratégicos",
-  operativo: "Procesos operativos",
-  apoyo: "Procesos de apoyo",
+// Relleno de la celda del heatmap (tono pastel calibrado).
+const CELDA_FILL: Record<EstadoSenal, string> = {
+  verde: "#D6EFE6",
+  amarillo: "#FBE6C8",
+  rojo: "#FAD9D9",
+  gris: "#E9E7DF",
 };
-const TIPO_ORDEN = ["estrategico", "operativo", "apoyo"];
 
-function Punto({ estado }: { estado: EstadoSenal }) {
-  return <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${ESTILO[estado].punto}`} />;
+const RESUMEN: Record<EstadoSenal, { label: string; dot: string }> = {
+  rojo: { label: "Críticos", dot: "bg-rose-500" },
+  amarillo: { label: "Atención", dot: "bg-amber-500" },
+  verde: { label: "En control", dot: "bg-emerald-500" },
+  gris: { label: "Sin datos", dot: "bg-muted-foreground/40" },
+};
+
+// Chip de tipo de proceso. Colores planos por categoría (claro + oscuro del mismo ramp).
+const TIPO_CHIP: Record<string, { label: string; bg: string; tx: string }> = {
+  estrategico: { label: "Estratégico", bg: "#EEEDFE", tx: "#3C3489" },
+  operativo: { label: "Operativo", bg: "#E6F1FB", tx: "#0C447C" },
+  apoyo: { label: "Apoyo", bg: "#E1F5EE", tx: "#085041" },
+};
+
+// Orden de criticidad: lo que arde primero, lo gris al final.
+const ORDEN_CRITICIDAD: Record<EstadoSenal, number> = {
+  rojo: 0,
+  amarillo: 1,
+  verde: 2,
+  gris: 3,
+};
+
+// ---------------------------------------------------------------------------
+
+function Celda({ estado, detalle }: { estado: EstadoSenal; detalle: string }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <td className="px-1 py-1.5">
+      <div className="relative flex justify-center">
+        <span
+          className="inline-block h-[30px] w-[30px] rounded-[7px]"
+          style={{ backgroundColor: CELDA_FILL[estado] }}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+          aria-label={detalle}
+        />
+        {hover && (
+          <span
+            role="tooltip"
+            className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2.5 py-1.5 text-[11px] font-normal leading-snug text-background shadow-sm"
+          >
+            {detalle}
+          </span>
+        )}
+      </div>
+    </td>
+  );
 }
 
-function Senal({
-  icon: Icon,
-  label,
-  estado,
-  detalle,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  estado: EstadoSenal;
-  detalle: string;
-}) {
+function FilaProceso({ p, ultima }: { p: ProcesoCalor; ultima: boolean }) {
+  const chip = TIPO_CHIP[p.tipo] ?? null;
   return (
-    <div className="flex items-center gap-2">
-      <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-      <span className="text-xs text-muted-foreground w-20 shrink-0">{label}</span>
-      <Punto estado={estado} />
-      <span className={`text-xs ${ESTILO[estado].texto} truncate`}>{detalle}</span>
+    <tr
+      className={
+        "group transition-colors hover:bg-muted/40 " +
+        (ultima ? "" : "border-b border-border")
+      }
+    >
+      <td className="px-3.5 py-2.5">
+        <Link
+          href={`/procesos/${p.procesoId}`}
+          className="flex min-w-0 items-center gap-2.5"
+        >
+          <span
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${PUNTO[p.colorGlobal]}`}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate font-medium text-foreground group-hover:underline">
+              {p.nombre}
+            </span>
+            <span className="mt-0.5 flex items-center gap-2">
+              <span className="font-mono text-[10px] text-muted-foreground/80">
+                {p.codigo}
+              </span>
+              {chip && (
+                <span
+                  className="rounded-[5px] px-1.5 py-px text-[10px] font-medium"
+                  style={{ backgroundColor: chip.bg, color: chip.tx }}
+                >
+                  {chip.label}
+                </span>
+              )}
+            </span>
+          </span>
+        </Link>
+      </td>
+
+      <Celda estado={p.nc.estado} detalle={p.nc.detalle} />
+      <Celda estado={p.doc.estado} detalle={p.doc.detalle} />
+      <Celda estado={p.ind.estado} detalle={p.ind.detalle} />
+      <Celda estado={p.riesgo.estado} detalle={p.riesgo.detalle} />
+
+      <td className="px-1 py-2.5 text-center">
+        <Link
+          href={`/procesos/${p.procesoId}`}
+          aria-label={`Ver proceso ${p.nombre}`}
+          className="inline-flex"
+        >
+          <ArrowRight className="h-4 w-4 text-muted-foreground/70 transition-colors group-hover:text-foreground" />
+        </Link>
+      </td>
+    </tr>
+  );
+}
+
+function ResumenChip({ estado, valor }: { estado: EstadoSenal; valor: number }) {
+  const r = RESUMEN[estado];
+  return (
+    <div className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5">
+      <span className={`h-2.5 w-2.5 rounded-full ${r.dot}`} />
+      <span className="font-serif text-lg font-semibold">{valor}</span>
+      <span className="text-xs text-muted-foreground">{r.label}</span>
     </div>
   );
 }
 
-function TarjetaProceso({ p }: { p: ProcesoCalor }) {
-  const e = ESTILO[p.colorGlobal];
+// Encabezado de columna con su ícono de señal.
+function ThSenal({
+  icon: Icon,
+  children,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  children: ReactNode;
+}) {
   return (
-    <Link
-      href={`/procesos/${p.procesoId}`}
-      className={`group block rounded-lg border p-4 transition-all hover:shadow-sm ${e.card}`}
-    >
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">{p.codigo}</div>
-          <div className="font-serif text-base font-semibold leading-tight tracking-tight truncate">{p.nombre}</div>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className={`h-2.5 w-2.5 rounded-full ${e.punto}`} />
-        </div>
-      </div>
-
-      <div className={`mb-3 inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium ${e.texto} bg-background/60`}>
-        {e.etiqueta}
-      </div>
-
-      <div className="space-y-1.5">
-        <Senal icon={AlertOctagon} label="No conf." estado={p.nc.estado} detalle={p.nc.detalle} />
-        <Senal icon={FileText} label="Documentos" estado={p.doc.estado} detalle={p.doc.detalle} />
-        <Senal icon={Gauge} label="Indicadores" estado={p.ind.estado} detalle={p.ind.detalle} />
-        <Senal icon={ShieldAlert} label="Riesgos" estado={p.riesgo.estado} detalle={p.riesgo.detalle} />
-      </div>
-
-      <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
-        Ver proceso <ArrowRight className="h-3 w-3" />
-      </div>
-    </Link>
+    <th className="px-1 py-2.5 font-medium text-muted-foreground">
+      <span className="flex items-center justify-center gap-1.5">
+        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+        <span className="text-xs">{children}</span>
+      </span>
+    </th>
   );
 }
 
 export function MapaCalor({ procesos }: { procesos: ProcesoCalor[] }) {
-  const grupos = useMemo(() => {
-    return TIPO_ORDEN.map((tipo) => ({
-      tipo,
-      label: TIPO_LABEL[tipo] ?? tipo,
-      procesos: procesos.filter((p) => p.tipo === tipo),
-    })).filter((g) => g.procesos.length > 0);
-  }, [procesos]);
-
-  // Resumen por color para el encabezado.
+  // Resumen por color para los chips superiores.
   const resumen = useMemo(() => {
-    const r = { verde: 0, amarillo: 0, rojo: 0, gris: 0 } as Record<EstadoSenal, number>;
+    const r = { verde: 0, amarillo: 0, rojo: 0, gris: 0 } as Record<
+      EstadoSenal,
+      number
+    >;
     for (const p of procesos) r[p.colorGlobal]++;
     return r;
   }, [procesos]);
 
+  // Una sola tabla, ordenada por criticidad (rojo → amarillo → verde → gris).
+  // Empate: alfabético por nombre para un orden estable.
+  const ordenados = useMemo(() => {
+    return [...procesos].sort((a, b) => {
+      const d = ORDEN_CRITICIDAD[a.colorGlobal] - ORDEN_CRITICIDAD[b.colorGlobal];
+      if (d !== 0) return d;
+      return a.nombre.localeCompare(b.nombre, "es");
+    });
+  }, [procesos]);
+
   return (
     <div>
-      {/* Resumen */}
-      <div className="mb-8 flex flex-wrap gap-3">
-        <ResumenChip estado="rojo" label="Críticos" valor={resumen.rojo} />
-        <ResumenChip estado="amarillo" label="Atención" valor={resumen.amarillo} />
-        <ResumenChip estado="verde" label="En control" valor={resumen.verde} />
-        <ResumenChip estado="gris" label="Sin datos" valor={resumen.gris} />
+      {/* Resumen por color */}
+      <div className="mb-5 flex flex-wrap gap-2">
+        <ResumenChip estado="rojo" valor={resumen.rojo} />
+        <ResumenChip estado="amarillo" valor={resumen.amarillo} />
+        <ResumenChip estado="verde" valor={resumen.verde} />
+        <ResumenChip estado="gris" valor={resumen.gris} />
       </div>
 
-      <div className="space-y-8">
-        {grupos.map((g) => (
-          <section key={g.tipo}>
-            <h2 className="mb-3 text-xs uppercase tracking-[0.2em] text-muted-foreground">{g.label}</h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {g.procesos.map((p) => (
-                <TarjetaProceso key={p.procesoId} p={p} />
-              ))}
-            </div>
-          </section>
-        ))}
+      {/* Matriz de calor */}
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <table className="w-full table-fixed border-collapse text-sm">
+          <colgroup>
+            <col style={{ width: "40%" }} />
+            <col />
+            <col />
+            <col />
+            <col />
+            <col style={{ width: "6%" }} />
+          </colgroup>
+          <thead>
+            <tr className="border-b border-border text-left">
+              <th className="px-3.5 py-2.5 font-medium text-muted-foreground">
+                <span className="text-xs">Proceso</span>
+              </th>
+              <ThSenal icon={AlertOctagon}>No conf.</ThSenal>
+              <ThSenal icon={FileText}>Docs</ThSenal>
+              <ThSenal icon={Gauge}>Indic.</ThSenal>
+              <ThSenal icon={ShieldAlert}>Riesgos</ThSenal>
+              <th aria-hidden="true" />
+            </tr>
+          </thead>
+          <tbody>
+            {ordenados.map((p, i) => (
+              <FilaProceso
+                key={p.procesoId}
+                p={p}
+                ultima={i === ordenados.length - 1}
+              />
+            ))}
+          </tbody>
+        </table>
       </div>
-    </div>
-  );
-}
 
-function ResumenChip({ estado, label, valor }: { estado: EstadoSenal; label: string; valor: number }) {
-  const e = ESTILO[estado];
-  return (
-    <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${e.card}`}>
-      <span className={`h-2.5 w-2.5 rounded-full ${e.punto}`} />
-      <span className="font-serif text-xl font-semibold">{valor}</span>
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <p className="mt-2.5 text-xs text-muted-foreground/80">
+        Cada celda muestra el peor estado de esa señal. Pasá el cursor sobre una
+        celda para ver el detalle.
+      </p>
     </div>
   );
 }
