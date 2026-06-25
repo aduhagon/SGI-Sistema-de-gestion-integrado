@@ -22,6 +22,7 @@ export type DocumentSummary = {
     color_hex: string | null;
   } | null;
   normas: Array<{ codigo: string; nombre_corto: string }>;
+  normaIds: string[];
 };
 
 type DocumentoRaw = {
@@ -38,6 +39,7 @@ type DocumentoRaw = {
   proceso: DocumentSummary["proceso"];
   documento_norma: Array<{
     version_norma: {
+      norma_id: string | null;
       norma: { codigo: string; nombre_corto: string } | null;
     } | null;
   }> | null;
@@ -48,6 +50,11 @@ function normalizar(doc: DocumentoRaw): DocumentSummary {
     (doc.documento_norma ?? [])
       .map((dn) => dn.version_norma?.norma)
       .filter((n): n is { codigo: string; nombre_corto: string } => n !== null && n !== undefined);
+
+  const normaIds =
+    (doc.documento_norma ?? [])
+      .map((dn) => dn.version_norma?.norma_id)
+      .filter((id): id is string => id !== null && id !== undefined);
 
   return {
     id: doc.id,
@@ -62,6 +69,7 @@ function normalizar(doc: DocumentoRaw): DocumentSummary {
     tipo: doc.tipo,
     proceso: doc.proceso,
     normas,
+    normaIds,
   };
 }
 
@@ -79,6 +87,7 @@ const SELECT_DOCUMENTO = `
   proceso:procesos!documentos_proceso_principal_id_fkey (codigo, nombre, color_hex),
   documento_norma (
     version_norma:versiones_norma (
+      norma_id,
       norma:normas (codigo, nombre_corto)
     )
   )
@@ -89,6 +98,7 @@ export type FiltrosDocumentos = {
   estado?: string;
   procesoId?: string;
   tipoId?: string;
+  normaId?: string;
 };
 
 export async function listarDocumentos(
@@ -125,7 +135,18 @@ export async function listarDocumentos(
     return [];
   }
 
-  return (data ?? []).map((d) => normalizar(d as unknown as DocumentoRaw));
+  const documentos = (data ?? []).map((d) =>
+    normalizar(d as unknown as DocumentoRaw),
+  );
+
+  // El filtro por norma se aplica en memoria: la norma vive en una relación
+  // anidada (documento_norma → versiones_norma → norma_id), many-to-many, y
+  // los filtros sobre relaciones anidadas en PostgREST son poco confiables.
+  if (filtros.normaId) {
+    return documentos.filter((doc) => doc.normaIds.includes(filtros.normaId!));
+  }
+
+  return documentos;
 }
 
 export async function listarDocumentosPorProceso(

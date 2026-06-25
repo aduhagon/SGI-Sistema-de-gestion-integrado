@@ -16,6 +16,7 @@ type Props = {
     estado?: string;
     proceso?: string;
     tipo?: string;
+    norma?: string;
   };
 };
 
@@ -26,6 +27,7 @@ export default async function DocumentosPage({ searchParams }: Props) {
       estado: searchParams.estado,
       procesoId: searchParams.proceso,
       tipoId: searchParams.tipo,
+      normaId: searchParams.norma,
     }),
     obtenerDatosForm(),
     obtenerPerfilMenu(),
@@ -41,12 +43,18 @@ export default async function DocumentosPage({ searchParams }: Props) {
     codigo: t.codigo,
     nombre: t.nombre,
   }));
+  const normasOpc = datosForm.normas.map((n: any) => ({
+    id: n.id,
+    codigo: n.codigo,
+    nombre: n.nombre_corto,
+  }));
 
   const hayFiltros =
     !!searchParams.q ||
     !!searchParams.estado ||
     !!searchParams.proceso ||
-    !!searchParams.tipo;
+    !!searchParams.tipo ||
+    !!searchParams.norma;
 
   return (
     <div className="mx-auto max-w-7xl p-6 sm:p-8 lg:p-10">
@@ -87,7 +95,7 @@ export default async function DocumentosPage({ searchParams }: Props) {
         </div>
       </header>
 
-      <DocumentFilters procesos={procesosOpc} tipos={tiposOpc} />
+      <DocumentFilters procesos={procesosOpc} tipos={tiposOpc} normas={normasOpc} />
 
       {documentos.length === 0 ? (
         hayFiltros ? (

@@ -9,6 +9,7 @@ type Opcion = { id: string; codigo: string; nombre: string };
 type Props = {
   procesos: Opcion[];
   tipos: Opcion[];
+  normas: Opcion[];
 };
 
 const ESTADOS = [
@@ -20,7 +21,7 @@ const ESTADOS = [
   { value: "obsoleto", label: "Obsoleto" },
 ];
 
-export function DocumentFilters({ procesos, tipos }: Props) {
+export function DocumentFilters({ procesos, tipos, normas }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -56,7 +57,8 @@ export function DocumentFilters({ procesos, tipos }: Props) {
   const estado = searchParams.get("estado") ?? "";
   const proceso = searchParams.get("proceso") ?? "";
   const tipo = searchParams.get("tipo") ?? "";
-  const hayFiltros = texto !== "" || estado !== "" || proceso !== "" || tipo !== "";
+  const norma = searchParams.get("norma") ?? "";
+  const hayFiltros = texto !== "" || estado !== "" || proceso !== "" || tipo !== "" || norma !== "";
 
   function limpiar() {
     setTexto("");
@@ -95,6 +97,15 @@ export function DocumentFilters({ procesos, tipos }: Props) {
       >
         <option value="">Todos los procesos</option>
         {procesos.map((p) => <option key={p.id} value={p.id}>{p.codigo} — {p.nombre}</option>)}
+      </select>
+
+      <select
+        value={norma}
+        onChange={(e) => aplicar({ norma: e.target.value })}
+        className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring max-w-[200px]"
+      >
+        <option value="">Todas las normas</option>
+        {normas.map((n) => <option key={n.id} value={n.id}>{n.nombre}</option>)}
       </select>
 
       <select
