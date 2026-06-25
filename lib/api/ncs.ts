@@ -57,6 +57,25 @@ export async function obtenerNCs(): Promise<NCLista[]> {
   return ((data ?? []) as any[]).map(mapLista);
 }
 
+/**
+ * No conformidades de un proceso, ordenadas por apertura (más recientes primero).
+ * Mismo criterio de visibilidad que obtenerNCs (activas, no eliminadas).
+ */
+export async function listarNCsPorProceso(procesoId: string): Promise<NCLista[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("no_conformidades")
+    .select(SELECT_LISTA)
+    .eq("activo", true)
+    .is("eliminado_en", null)
+    .eq("proceso_id", procesoId)
+    .order("fecha_apertura", { ascending: false });
+
+  if (error)
+    throw new Error(`No se pudieron cargar las no conformidades del proceso: ${error.message}`);
+  return ((data ?? []) as any[]).map(mapLista);
+}
+
 export async function obtenerNCDetalle(id: string): Promise<NCDetalle | null> {
   const supabase = createClient();
   const { data, error } = await supabase

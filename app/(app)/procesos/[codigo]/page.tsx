@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { ChevronLeft, FileText, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { listarDocumentosPorProceso } from "@/lib/api/documentos";
+import { listarNCsPorProceso } from "@/lib/api/ncs";
+import { listarRiesgos } from "@/lib/api/riesgos";
+import { listarIndicadores } from "@/lib/api/indicadores";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -10,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { getProcessIcon } from "@/components/procesos/icons";
 import { DocumentRow } from "@/components/documentos/DocumentRow";
 import { PerfilesProceso } from "@/components/procesos/PerfilesProceso";
+import { SenalesProceso } from "@/components/procesos/SenalesProceso";
 import { obtenerParticipacionesDeProceso } from "@/lib/api/participaciones";
 
 const TIPO_LABEL: Record<string, string> = {
@@ -55,7 +59,12 @@ export default async function ProcesoDetallePage({ params }: Props) {
     notFound();
   }
 
-  const participaciones = await obtenerParticipacionesDeProceso(proceso.id);
+  const [participaciones, ncs, riesgos, indicadores] = await Promise.all([
+    obtenerParticipacionesDeProceso(proceso.id),
+    listarNCsPorProceso(proceso.id),
+    listarRiesgos(proceso.id),
+    listarIndicadores(proceso.id),
+  ]);
 
   const Icon = getProcessIcon(proceso.icono);
   const color = proceso.color_hex ?? "#475569";
@@ -142,6 +151,8 @@ export default async function ProcesoDetallePage({ params }: Props) {
       )}
 
       <PerfilesProceso participaciones={participaciones} />
+
+      <SenalesProceso ncs={ncs} riesgos={riesgos} indicadores={indicadores} />
 
       <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
