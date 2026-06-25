@@ -93,7 +93,7 @@ function FilaProceso({ p, ultima }: { p: ProcesoCalor; ultima: boolean }) {
     >
       <td className="px-3.5 py-2.5">
         <Link
-          href={`/procesos/${p.procesoId}`}
+          href={`/procesos/${encodeURIComponent(p.codigo)}`}
           className="flex min-w-0 items-center gap-2.5"
         >
           <span
@@ -127,7 +127,7 @@ function FilaProceso({ p, ultima }: { p: ProcesoCalor; ultima: boolean }) {
 
       <td className="px-1 py-2.5 text-center">
         <Link
-          href={`/procesos/${p.procesoId}`}
+          href={`/procesos/${encodeURIComponent(p.codigo)}`}
           aria-label={`Ver proceso ${p.nombre}`}
           className="inline-flex"
         >
