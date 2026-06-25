@@ -15,8 +15,14 @@ const ROLES = [
 ];
 
 export function PerfilesProceso({ participaciones }: Props) {
+  // En esta vista no se muestran los lectores: solo los roles funcionales
+  // (responsable, elaborador, aprobadores).
+  const participacionesVisibles = participaciones.filter(
+    (p) => p.rol !== "lector",
+  );
+
   // Agrupar participaciones por rol.
-  const porRol = participaciones.reduce<Record<string, Participacion[]>>((acc, p) => {
+  const porRol = participacionesVisibles.reduce<Record<string, Participacion[]>>((acc, p) => {
     (acc[p.rol] ??= []).push(p);
     return acc;
   }, {});
@@ -42,7 +48,7 @@ export function PerfilesProceso({ participaciones }: Props) {
         </Link>
       </div>
 
-      {participaciones.length > 0 ? (
+      {participacionesVisibles.length > 0 ? (
         <div className="space-y-4">
           {ROLES.map((rol) => {
             const personas = porRol[rol.value] ?? [];
