@@ -14,6 +14,13 @@ export type Hallazgo = {
   documentoCodigo: string | null;
   detectadoEn: string;
   noConformidadId: string | null;
+  // Estado/cierre de la NC asociada (cuando el hallazgo se promovió a NC formal).
+  ncEstado: string | null;
+  ncFechaCierre: string | null;
+  // Seguimiento propio del hallazgo (observaciones / oportunidades sin NC).
+  tratamientoEstado: string;
+  tratamientoFechaCierre: string | null;
+  tratamientoResponsable: string | null;
 };
 
 export async function obtenerHallazgosDeAuditoria(
@@ -24,9 +31,12 @@ export async function obtenerHallazgosDeAuditoria(
     .from("hallazgos")
     .select(
       `id, codigo, tipo, severidad, titulo, descripcion, evidencia, estado, detectado_en, no_conformidad_id,
+       fecha_cierre_real, responsable_tratamiento_id,
        requisitos:requisitos!hallazgos_requisito_id_fkey (clausula),
        procesos:procesos!hallazgos_proceso_id_fkey (nombre),
-       documentos:documentos!hallazgos_documento_id_fkey (codigo)`,
+       documentos:documentos!hallazgos_documento_id_fkey (codigo),
+       responsable:puestos!hallazgos_responsable_tratamiento_id_fkey (nombre),
+       nc:no_conformidades!fk_hallazgos_no_conformidad (estado, fecha_cierre_real)`,
     )
     .eq("auditoria_id", auditoriaId)
     .eq("activo", true)
@@ -46,9 +56,13 @@ export async function obtenerHallazgosDeAuditoria(
     estado: string;
     detectado_en: string;
     no_conformidad_id: string | null;
+    fecha_cierre_real: string | null;
+    responsable_tratamiento_id: string | null;
     requisitos: { clausula: string } | null;
     procesos: { nombre: string } | null;
     documentos: { codigo: string } | null;
+    responsable: { nombre: string } | null;
+    nc: { estado: string; fecha_cierre_real: string | null } | null;
   };
 
   return ((data ?? []) as unknown as Fila[]).map((h) => ({
@@ -65,6 +79,11 @@ export async function obtenerHallazgosDeAuditoria(
     documentoCodigo: h.documentos?.codigo ?? null,
     detectadoEn: h.detectado_en,
     noConformidadId: h.no_conformidad_id,
+    ncEstado: h.nc?.estado ?? null,
+    ncFechaCierre: h.nc?.fecha_cierre_real ?? null,
+    tratamientoEstado: h.estado,
+    tratamientoFechaCierre: h.fecha_cierre_real ?? null,
+    tratamientoResponsable: h.responsable?.nombre ?? null,
   }));
 }
 

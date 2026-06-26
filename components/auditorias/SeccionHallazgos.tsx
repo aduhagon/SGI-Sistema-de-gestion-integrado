@@ -27,6 +27,27 @@ const TIPO_META: Record<string, { label: string; color: string; icon: typeof Eye
 
 const SEVERIDAD_LABEL: Record<string, string> = { alta: "Alta", media: "Media", baja: "Baja" };
 
+// Estado de tratamiento. Sirve tanto para el estado propio del hallazgo
+// (observaciones) como para el de la NC asociada, que comparten etiquetas.
+const ESTADO_META: Record<string, { label: string; color: string }> = {
+  abierto: { label: "Abierta", color: "#dc2626" },
+  abierta: { label: "Abierta", color: "#dc2626" },
+  en_analisis: { label: "En análisis", color: "#d97706" },
+  en_tratamiento: { label: "En tratamiento", color: "#0284c7" },
+  cerrado: { label: "Cerrada", color: "#059669" },
+  cerrada: { label: "Cerrada", color: "#059669" },
+  aceptado_riesgo: { label: "Riesgo aceptado", color: "#6b7280" },
+};
+
+function fechaCorta(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+}
+
+// Una fortaleza es un hallazgo positivo: no se gestiona ni se cierra.
+const TIPOS_SIN_TRATAMIENTO = ["fortaleza"];
+const TIPOS_NC = ["no_conformidad_mayor", "no_conformidad_menor"];
+
 export function SeccionHallazgos({ auditoriaId, hallazgos, requisitos, procesos }: Props) {
   const [abierto, setAbierto] = useState(false);
 
@@ -67,6 +88,29 @@ export function SeccionHallazgos({ auditoriaId, hallazgos, requisitos, procesos 
                           Severidad {SEVERIDAD_LABEL[h.severidad]}
                         </span>
                       )}
+                      {/* Estado de tratamiento. Para NC mostramos el estado de la NC
+                          asociada (más informativo); para el resto, el del hallazgo.
+                          Las fortalezas no llevan estado. */}
+                      {!TIPOS_SIN_TRATAMIENTO.includes(h.tipo) && (() => {
+                        const esNC = TIPOS_NC.includes(h.tipo);
+                        const estadoCrudo = esNC && h.noConformidadId ? h.ncEstado : h.tratamientoEstado;
+                        if (esNC && !h.noConformidadId) return null; // NC sin promover aún
+                        const em = estadoCrudo ? ESTADO_META[estadoCrudo] : null;
+                        if (!em) return null;
+                        const cierre = esNC ? fechaCorta(h.ncFechaCierre) : fechaCorta(h.tratamientoFechaCierre);
+                        const cerrada = em.label === "Cerrada";
+                        return (
+                          <span
+                            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium"
+                            style={{ backgroundColor: `${em.color}15`, color: em.color }}
+                            title={cerrada && cierre ? `Cerrada el ${cierre}` : em.label}
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: em.color }} aria-hidden="true" />
+                            {em.label}
+                            {cerrada && cierre && <span className="font-normal opacity-80">· {cierre}</span>}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <h3 className="font-medium text-foreground">{h.titulo}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{h.descripcion}</p>
@@ -105,6 +149,16 @@ export function SeccionHallazgos({ auditoriaId, hallazgos, requisitos, procesos 
                         className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                       >
                         Ver no conformidad asociada
+                      </a>
+                    )}
+                    {/* Observaciones y oportunidades: link a su propio tratamiento. */}
+                    {(h.tipo === "observacion" || h.tipo === "oportunidad_mejora") && (
+                      <a
+                        href={`/ncs/observacion/${h.id}`}
+                        className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                        {h.tratamientoEstado === "cerrado" ? "Ver tratamiento" : "Dar tratamiento"}
                       </a>
                     )}
                   </div>
