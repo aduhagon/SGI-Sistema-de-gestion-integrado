@@ -1,3 +1,5 @@
+"use client";
+
 import { Users, Crown, PenTool, CheckCircle2, CheckCheck, Eye } from "lucide-react";
 import type { Participacion } from "@/lib/api/participaciones";
 import { SeccionColapsable } from "@/components/procesos/SeccionColapsable";

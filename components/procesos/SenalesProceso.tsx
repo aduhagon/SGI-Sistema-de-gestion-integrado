@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { AlertOctagon, Gauge, ShieldAlert } from "lucide-react";
 import type { NCLista } from "@/lib/api/ncs";
