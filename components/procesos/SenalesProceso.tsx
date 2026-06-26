@@ -234,9 +234,10 @@ export function SenalesProceso({
             {riesgos.map((r, i) => {
               const n = NIVEL_RIESGO[r.nivel];
               return (
-                <div
+                <Link
                   key={r.id}
-                  className={`flex items-center justify-between gap-3 px-4 py-3 ${
+                  href={`/riesgos?riesgo=${r.id}`}
+                  className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/50 ${
                     i < riesgos.length - 1 ? "border-b border-border" : ""
                   }`}
                 >
@@ -256,7 +257,7 @@ export function SenalesProceso({
                     </div>
                   </div>
                   <Pill label={n.label} cls={n.cls} />
-                </div>
+                </Link>
               );
             })}
           </div>

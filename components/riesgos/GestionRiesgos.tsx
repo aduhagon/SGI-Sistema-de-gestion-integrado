@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Pencil, Trash2, Loader2, Save, ShieldAlert, TrendingUp, Search } from "lucide-react";
 import type { Riesgo, ProcesoOpcion, PuestoOpcion } from "@/lib/api/riesgos";
 import { clasificarNivel, type NivelRiesgo } from "@/lib/riesgos-utils";
@@ -44,6 +44,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
   puestos: PuestoOpcion[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [editando, setEditando] = useState<Riesgo | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
@@ -62,6 +63,18 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
     setImp(r ? r.impacto : 3);
     setAbierto(true);
   }
+
+  // Apertura automática del modal cuando se llega con ?riesgo=<id> (ej. desde la ficha del proceso).
+  useEffect(() => {
+    const riesgoId = searchParams.get("riesgo");
+    if (!riesgoId) return;
+    const r = riesgos.find((x) => x.id === riesgoId);
+    if (r) {
+      abrir(r);
+      // Limpiamos el query param para que un refresh no reabra el modal.
+      router.replace("/riesgos", { scroll: false });
+    }
+  }, [searchParams, riesgos, router]);
 
   async function quitar(id: string) {
     setEliminando(id);

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { listarRiesgos, obtenerDatosFormRiesgo } from "@/lib/api/riesgos";
 import { GestionRiesgos } from "@/components/riesgos/GestionRiesgos";
 
@@ -28,7 +29,9 @@ export default async function RiesgosPage() {
           </div>
         )}
       </header>
-      <GestionRiesgos riesgos={riesgos} procesos={procesos} puestos={puestos} />
+      <Suspense fallback={null}>
+        <GestionRiesgos riesgos={riesgos} procesos={procesos} puestos={puestos} />
+      </Suspense>
     </div>
   );
 }
