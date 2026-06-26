@@ -150,8 +150,6 @@ export default async function ProcesoDetallePage({ params }: Props) {
         </section>
       )}
 
-      <PerfilesProceso participaciones={participaciones} />
-
       <SenalesProceso ncs={ncs} riesgos={riesgos} indicadores={indicadores} />
 
       <section className="mb-10">
@@ -192,6 +190,8 @@ export default async function ProcesoDetallePage({ params }: Props) {
           </div>
         )}
       </section>
+
+      <PerfilesProceso participaciones={participaciones} />
     </div>
   );
 }

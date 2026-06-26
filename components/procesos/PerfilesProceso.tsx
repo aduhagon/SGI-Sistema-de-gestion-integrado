@@ -1,6 +1,6 @@
-import Link from "next/link";
-import { Users, Crown, PenTool, CheckCircle2, CheckCheck, Eye, Settings2 } from "lucide-react";
+import { Users, Crown, PenTool, CheckCircle2, CheckCheck, Eye } from "lucide-react";
 import type { Participacion } from "@/lib/api/participaciones";
+import { SeccionColapsable } from "@/components/procesos/SeccionColapsable";
 
 type Props = {
   participaciones: Participacion[];
@@ -27,35 +27,41 @@ export function PerfilesProceso({ participaciones }: Props) {
     return acc;
   }, {});
 
-  return (
-    <section className="mb-12">
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            Perfiles funcionales del proceso
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Quién cumple cada rol en este proceso. La participación se deriva de los puestos:
-            cada persona aparece acá según el puesto que ocupa y los roles que ese puesto tiene en el proceso.
-          </p>
-        </div>
-        <Link
-          href="/configuracion/puestos"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Settings2 className="h-3.5 w-3.5" />
-          Configurar puestos
-        </Link>
-      </div>
+  const sinAprobadores =
+    (porRol["aprobador_n1"]?.length ?? 0) === 0 &&
+    (porRol["aprobador_n2"]?.length ?? 0) === 0;
 
+  const totalPersonas = participacionesVisibles.length;
+
+  return (
+    <SeccionColapsable
+      icon={Users}
+      titulo="Perfiles funcionales del proceso"
+      colorIcono="#7c3aed"
+      conteo={
+        totalPersonas === 0
+          ? "Sin perfiles funcionales asignados."
+          : `${totalPersonas} ${totalPersonas === 1 ? "persona" : "personas"} en roles funcionales. La participación se deriva de los puestos.`
+      }
+      senalCritica={
+        totalPersonas > 0 && sinAprobadores
+          ? {
+              texto: "Sin aprobadores",
+              cls: "bg-amber-50 text-amber-700 border-amber-200",
+            }
+          : null
+      }
+      href="/configuracion/puestos"
+      hrefLabel="Configurar puestos"
+    >
       {participacionesVisibles.length > 0 ? (
-        <div className="space-y-4">
+        <div className="space-y-4 p-4">
           {ROLES.map((rol) => {
             const personas = porRol[rol.value] ?? [];
             if (personas.length === 0) return null;
             const Icon = rol.icon;
             return (
-              <div key={rol.value} className="rounded-lg border border-border bg-card p-4">
+              <div key={rol.value} className="rounded-lg border border-border bg-background p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <span className="flex h-7 w-7 items-center justify-center rounded-md" style={{ backgroundColor: `${rol.color}15`, color: rol.color }}>
                     <Icon className="h-4 w-4" />
@@ -67,7 +73,7 @@ export function PerfilesProceso({ participaciones }: Props) {
                 </div>
                 <div className="flex flex-wrap gap-2 pl-9">
                   {personas.map((p) => (
-                    <span key={p.id} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-sm" title={p.puestoNombre ? `Puesto: ${p.puestoNombre}` : undefined}>
+                    <span key={p.id} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-sm" title={p.puestoNombre ? `Puesto: ${p.puestoNombre}` : undefined}>
                       <Users className="h-3 w-3 text-muted-foreground" />
                       {p.usuarioNombre}
                       {p.puestoCodigo && (
@@ -81,7 +87,7 @@ export function PerfilesProceso({ participaciones }: Props) {
           })}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-10 text-center">
+        <div className="flex flex-col items-center justify-center px-5 py-10 text-center">
           <Users className="mb-3 h-6 w-6 text-muted-foreground" />
           <p className="text-sm font-medium">Este proceso no tiene perfiles asignados</p>
           <p className="mt-1 max-w-md text-xs text-muted-foreground">
@@ -90,6 +96,6 @@ export function PerfilesProceso({ participaciones }: Props) {
           </p>
         </div>
       )}
-    </section>
+    </SeccionColapsable>
   );
 }

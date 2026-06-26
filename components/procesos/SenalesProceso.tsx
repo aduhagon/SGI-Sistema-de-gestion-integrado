@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { AlertOctagon, Gauge, ShieldAlert, ArrowUpRight } from "lucide-react";
+import { AlertOctagon, Gauge, ShieldAlert } from "lucide-react";
 import type { NCLista } from "@/lib/api/ncs";
 import type { Riesgo, NivelRiesgo } from "@/lib/api/riesgos";
 import type { Indicador, CumplimientoEstado } from "@/lib/api/indicadores";
+import { SeccionColapsable } from "@/components/procesos/SeccionColapsable";
 
 // ---------------------------------------------------------------------------
 // Estilos de estado, alineados con el resto del sistema.
@@ -49,42 +50,9 @@ function Pill({ label, cls }: { label: string; cls: string }) {
   );
 }
 
-function EncabezadoSenal({
-  icon: Icon,
-  titulo,
-  resumen,
-  href,
-  hrefLabel,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  titulo: string;
-  resumen: string;
-  href: string;
-  hrefLabel: string;
-}) {
-  return (
-    <div className="mb-4 flex items-center justify-between gap-4">
-      <div className="min-w-0">
-        <h2 className="flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
-          <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-          {titulo}
-        </h2>
-        <p className="mt-1 text-xs text-muted-foreground">{resumen}</p>
-      </div>
-      <Link
-        href={href}
-        className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline"
-      >
-        {hrefLabel}
-        <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-      </Link>
-    </div>
-  );
-}
-
 function VacioSenal({ texto }: { texto: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/20 px-5 py-6 text-center text-sm text-muted-foreground">
+    <div className="px-5 py-6 text-center text-sm text-muted-foreground">
       {texto}
     </div>
   );
@@ -110,24 +78,32 @@ export function SenalesProceso({
   ).length;
 
   return (
-    <>
+    <div className="mb-10">
       {/* No conformidades */}
-      <section className="mb-10">
-        <EncabezadoSenal
-          icon={AlertOctagon}
-          titulo="No conformidades"
-          resumen={
-            ncs.length === 0
-              ? "Sin no conformidades registradas en este proceso."
-              : `${ncs.length} en total · ${ncsAbiertas} abierta${ncsAbiertas === 1 ? "" : "s"}.`
-          }
-          href="/ncs"
-          hrefLabel="Ver todas"
-        />
+      <SeccionColapsable
+        icon={AlertOctagon}
+        titulo="No conformidades"
+        colorIcono="#e11d48"
+        conteo={
+          ncs.length === 0
+            ? "Sin no conformidades registradas en este proceso."
+            : `${ncs.length} en total · ${ncsAbiertas} abierta${ncsAbiertas === 1 ? "" : "s"}.`
+        }
+        senalCritica={
+          ncsAbiertas > 0
+            ? {
+                texto: `${ncsAbiertas} abierta${ncsAbiertas === 1 ? "" : "s"}`,
+                cls: "bg-rose-50 text-rose-700 border-rose-200",
+              }
+            : null
+        }
+        href="/ncs"
+        hrefLabel="Ver todas"
+      >
         {ncs.length === 0 ? (
           <VacioSenal texto="Cuando se registre una NC asociada a este proceso, aparecerá acá." />
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border bg-card">
+          <div>
             {ncs.map((n, i) => (
               <Link
                 key={n.id}
@@ -150,9 +126,7 @@ export function SenalesProceso({
                   </div>
                 </div>
                 <Pill
-                  label={
-                    SEVERIDAD_NC[n.severidad]?.label ?? n.severidad
-                  }
+                  label={SEVERIDAD_NC[n.severidad]?.label ?? n.severidad}
                   cls={
                     SEVERIDAD_NC[n.severidad]?.cls ??
                     "bg-muted text-muted-foreground border-border"
@@ -162,25 +136,33 @@ export function SenalesProceso({
             ))}
           </div>
         )}
-      </section>
+      </SeccionColapsable>
 
       {/* Indicadores */}
-      <section className="mb-10">
-        <EncabezadoSenal
-          icon={Gauge}
-          titulo="Indicadores"
-          resumen={
-            indicadores.length === 0
-              ? "Sin indicadores definidos para este proceso."
-              : `${indicadores.length} indicador${indicadores.length === 1 ? "" : "es"}${indIncumple > 0 ? ` · ${indIncumple} incumple${indIncumple === 1 ? "" : "n"} la meta` : ""}.`
-          }
-          href="/indicadores"
-          hrefLabel="Ver todos"
-        />
+      <SeccionColapsable
+        icon={Gauge}
+        titulo="Indicadores"
+        colorIcono="#0284c7"
+        conteo={
+          indicadores.length === 0
+            ? "Sin indicadores definidos para este proceso."
+            : `${indicadores.length} indicador${indicadores.length === 1 ? "" : "es"}${indIncumple > 0 ? ` · ${indIncumple} incumple${indIncumple === 1 ? "" : "n"} la meta` : ""}.`
+        }
+        senalCritica={
+          indIncumple > 0
+            ? {
+                texto: `${indIncumple} incumple${indIncumple === 1 ? "" : "n"}`,
+                cls: "bg-rose-50 text-rose-700 border-rose-200",
+              }
+            : null
+        }
+        href="/indicadores"
+        hrefLabel="Ver todos"
+      >
         {indicadores.length === 0 ? (
           <VacioSenal texto="Definí indicadores para medir el desempeño de este proceso." />
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border bg-card">
+          <div>
             {indicadores.map((ind, i) => {
               const c = CUMPLIMIENTO[ind.cumplimiento];
               return (
@@ -212,25 +194,33 @@ export function SenalesProceso({
             })}
           </div>
         )}
-      </section>
+      </SeccionColapsable>
 
       {/* Riesgos */}
-      <section className="mb-10">
-        <EncabezadoSenal
-          icon={ShieldAlert}
-          titulo="Riesgos y oportunidades"
-          resumen={
-            riesgos.length === 0
-              ? "Sin riesgos ni oportunidades identificados."
-              : `${riesgos.length} en total${riesgosAltos > 0 ? ` · ${riesgosAltos} de nivel alto o extremo` : ""}.`
-          }
-          href="/riesgos"
-          hrefLabel="Ver todos"
-        />
+      <SeccionColapsable
+        icon={ShieldAlert}
+        titulo="Riesgos y oportunidades"
+        colorIcono="#d97706"
+        conteo={
+          riesgos.length === 0
+            ? "Sin riesgos ni oportunidades identificados."
+            : `${riesgos.length} en total${riesgosAltos > 0 ? ` · ${riesgosAltos} de nivel alto o extremo` : ""}.`
+        }
+        senalCritica={
+          riesgosAltos > 0
+            ? {
+                texto: `${riesgosAltos} alto${riesgosAltos === 1 ? "" : "s"}`,
+                cls: "bg-orange-50 text-orange-700 border-orange-200",
+              }
+            : null
+        }
+        href="/riesgos"
+        hrefLabel="Ver todos"
+      >
         {riesgos.length === 0 ? (
           <VacioSenal texto="Identificá los riesgos y oportunidades de este proceso." />
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border bg-card">
+          <div>
             {riesgos.map((r, i) => {
               const n = NIVEL_RIESGO[r.nivel];
               return (
@@ -262,7 +252,7 @@ export function SenalesProceso({
             })}
           </div>
         )}
-      </section>
-    </>
+      </SeccionColapsable>
+    </div>
   );
 }
