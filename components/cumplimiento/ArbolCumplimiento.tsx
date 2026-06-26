@@ -73,6 +73,9 @@ function Fila({
   forzarAbierto: boolean;
 }) {
   const tieneHijos = nodo.hijos.length > 0;
+  const tieneDocs = !tieneHijos && nodo.coberturas.length > 0;
+  // Expandible si es un punto con subpuntos, o una hoja con documentos.
+  const expandible = tieneHijos || tieneDocs;
   // Nace comprimido: solo "Expandir todo" fuerza la apertura. El usuario
   // abre lo que necesita. Los padres colapsados con un crítico debajo igual
   // lo señalan (franja roja + badge), así que no hace falta auto-expandir.
@@ -91,20 +94,20 @@ function Fila({
         className={
           "flex items-center gap-3 border-b border-border px-4 py-2.5 transition-colors " +
           (urgente ? "bg-rose-50/60 " : "hover:bg-muted/40 ") +
-          (tieneHijos ? "cursor-pointer select-none" : "")
+          (expandible ? "cursor-pointer select-none" : "")
         }
         style={{
           paddingLeft: padLeft,
           // Glow solo en urgentes: resplandor sutil que rompe el patrón neutro.
           boxShadow: urgente ? "inset 3px 0 0 0 #e11d48" : undefined,
         }}
-        onClick={tieneHijos ? () => setAbierto((v) => !v) : undefined}
-        role={tieneHijos ? "button" : undefined}
-        aria-expanded={tieneHijos ? abierto : undefined}
+        onClick={expandible ? () => setAbierto((v) => !v) : undefined}
+        role={expandible ? "button" : undefined}
+        aria-expanded={expandible ? abierto : undefined}
       >
         {/* Chevron / espaciador */}
         <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground">
-          {tieneHijos ? (
+          {expandible ? (
             <ChevronRight
               className={"h-4 w-4 transition-transform " + (abierto ? "rotate-90" : "")}
               aria-hidden="true"
@@ -140,6 +143,12 @@ function Fila({
               crítico sin cubrir
             </span>
           )}
+          {tieneDocs && !abierto && (
+            <span className="ml-2 align-middle text-[11px] font-medium text-muted-foreground">
+              {nodo.coberturas.length}{" "}
+              {nodo.coberturas.length === 1 ? "documento" : "documentos"}
+            </span>
+          )}
         </span>
 
         {/* Magnitud + número (señal de respaldo, no protagonista) */}
@@ -163,8 +172,8 @@ function Fila({
         </div>
       )}
 
-      {/* Documentos que cubren esta hoja: código + nombre + tipo de cobertura + estado */}
-      {!tieneHijos && nodo.coberturas.length > 0 && (
+      {/* Documentos que cubren esta hoja: visibles solo al expandir la hoja */}
+      {tieneDocs && abierto && (
         <div
           className="border-b border-border bg-muted/20 py-1.5"
           style={{ paddingLeft: padLeft + 38, paddingRight: 16 }}
