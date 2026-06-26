@@ -73,11 +73,10 @@ function Fila({
   forzarAbierto: boolean;
 }) {
   const tieneHijos = nodo.hijos.length > 0;
-  // Estado inicial: si "Expandir todo" está activo, abierto; si no, abrir los
-  // nodos raíz que tengan una urgencia debajo (el ojo va directo al problema).
-  const [abierto, setAbierto] = useState<boolean>(
-    forzarAbierto || (depth === 0 && tieneUrgenteDebajo(nodo)),
-  );
+  // Nace comprimido: solo "Expandir todo" fuerza la apertura. El usuario
+  // abre lo que necesita. Los padres colapsados con un crítico debajo igual
+  // lo señalan (franja roja + badge), así que no hace falta auto-expandir.
+  const [abierto, setAbierto] = useState<boolean>(forzarAbierto);
 
   const pct = nodo.pctCumplimiento;
   const c = SEMAFORO[estadoDe(pct)];
@@ -164,29 +163,62 @@ function Fila({
         </div>
       )}
 
-      {/* Documentos que cubren una hoja: se muestran al abrir su fila padre */}
+      {/* Documentos que cubren esta hoja: código + nombre + tipo de cobertura + estado */}
       {!tieneHijos && nodo.coberturas.length > 0 && (
         <div
-          className="flex flex-wrap gap-1.5 border-b border-border bg-muted/20 py-2"
-          style={{ paddingLeft: padLeft + 38 }}
+          className="border-b border-border bg-muted/20 py-1.5"
+          style={{ paddingLeft: padLeft + 38, paddingRight: 16 }}
         >
           {nodo.coberturas.map((cob) => (
             <Link
               key={cob.documentoId}
               href={`/documentos/${cob.documentoId}`}
-              className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-0.5 text-xs hover:bg-muted/50"
-              title={`${cob.titulo} · cobertura ${cob.tipoCobertura}`}
+              className="group flex items-center gap-2.5 rounded-md px-2 py-1 transition-colors hover:bg-card"
             >
+              {/* Tipo de cobertura */}
               <span
-                className="h-1.5 w-1.5 rounded-full"
+                className="h-2 w-2 shrink-0 rounded-full"
                 style={{ backgroundColor: COLOR_COBERTURA[cob.tipoCobertura] ?? "#475569" }}
+                title={`Cobertura ${cob.tipoCobertura}`}
               />
-              <span className="font-mono">{cob.codigo}</span>
+              {/* Código */}
+              <span className="shrink-0 font-mono text-xs text-muted-foreground group-hover:text-foreground">
+                {cob.codigo}
+              </span>
+              {/* Nombre del documento */}
+              <span className="flex-1 truncate text-xs text-foreground/90" title={cob.titulo}>
+                {cob.titulo}
+              </span>
+              {/* Estado del documento */}
+              <EstadoDoc estado={cob.estadoDocumento} />
             </Link>
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+const ESTADO_DOC: Record<string, { label: string; punto: string; texto: string }> = {
+  aprobado: { label: "Vigente", punto: "#059669", texto: "#047857" },
+  pendiente_aprobacion: { label: "En aprobación", punto: "#d97706", texto: "#b45309" },
+  borrador: { label: "Borrador", punto: "#64748b", texto: "#475569" },
+};
+
+function EstadoDoc({ estado }: { estado: string }) {
+  const e = ESTADO_DOC[estado] ?? {
+    label: estado,
+    punto: "#64748b",
+    texto: "#475569",
+  };
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium"
+      style={{ color: e.texto }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: e.punto }} />
+      {e.label}
+    </span>
   );
 }
 
@@ -222,8 +254,13 @@ export default function ArbolCumplimiento({
 
       {/* Referencias: explican cada señal visual para lectura sin asistencia */}
       <div className="mt-4 rounded-lg border border-border bg-muted/20 p-4">
-        <p className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Referencias
+        </p>
+
+        {/* Estado de cumplimiento del punto */}
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          Cumplimiento del punto
         </p>
         <div className="grid grid-cols-1 gap-x-8 gap-y-2 text-xs text-muted-foreground sm:grid-cols-2">
           <span className="flex items-center gap-2">
@@ -251,10 +288,39 @@ export default function ArbolCumplimiento({
             El % de un punto es el promedio de sus subpuntos
           </span>
         </div>
+
+        {/* Documentos que cubren cada subpunto */}
+        <p className="mb-2 mt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          Documentos que lo cubren
+        </p>
+        <div className="grid grid-cols-1 gap-x-8 gap-y-2 text-xs text-muted-foreground sm:grid-cols-2">
+          <span className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: COLOR_COBERTURA.total }} />
+            Cobertura total
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: COLOR_COBERTURA.parcial }} />
+            Cobertura parcial
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: COLOR_COBERTURA.referencia }} />
+            Referencia
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ESTADO_DOC.aprobado.punto }} />
+            Vigente · {""}
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ESTADO_DOC.pendiente_aprobacion.punto }} />
+            En aprobación · {""}
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ESTADO_DOC.borrador.punto }} />
+            Borrador
+          </span>
+        </div>
+
         <p className="mt-3 border-t border-border pt-2.5 text-[11px] leading-relaxed text-muted-foreground">
           Cada subpunto cuenta como cubierto (cobertura total), medio cubierto (parcial) o
           sin cubrir. Cuando un subpunto tiene varios documentos, se toma el de mayor
-          cobertura: tener más documentos no eleva artificialmente el porcentaje.
+          cobertura: tener más documentos no eleva artificialmente el porcentaje. Un
+          documento en borrador o en aprobación todavía no es evidencia vigente para auditoría.
         </p>
       </div>
     </div>
