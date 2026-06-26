@@ -1,5 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
-import { clasificarNivel, type NivelRiesgo } from "@/lib/riesgos-utils";
+import {
+  clasificarNivel,
+  type NivelRiesgo,
+  type GradoControl,
+} from "@/lib/riesgos-utils";
 
 export type { NivelRiesgo };
 export { clasificarNivel };
@@ -20,6 +24,7 @@ export type Riesgo = {
   nivel: NivelRiesgo;
   tipoTratamiento: string | null;
   tratamientoPlanificado: string | null;
+  gradoControl: GradoControl;
   responsableId: string | null;
   responsableNombre: string | null;
   fechaRevision: string | null;
@@ -34,8 +39,8 @@ export async function listarRiesgos(procesoId?: string): Promise<Riesgo[]> {
     .from("riesgos")
     .select(
       `id, codigo, proceso_id, categoria, titulo, descripcion, causa, consecuencia,
-       probabilidad, impacto, tipo_tratamiento, tratamiento_planificado, responsable_id,
-       fecha_revision, estado,
+       probabilidad, impacto, tipo_tratamiento, tratamiento_planificado, grado_control,
+       responsable_id, fecha_revision, estado,
        proceso:procesos!riesgos_proceso_id_fkey (nombre),
        responsable:puestos!riesgos_responsable_id_fkey (codigo, nombre)`,
     )
@@ -65,6 +70,7 @@ export async function listarRiesgos(procesoId?: string): Promise<Riesgo[]> {
         nivel,
         tipoTratamiento: r.tipo_tratamiento,
         tratamientoPlanificado: r.tratamiento_planificado,
+        gradoControl: r.grado_control ?? null,
         responsableId: r.responsable_id,
         responsableNombre: r.responsable?.nombre ?? null,
         fechaRevision: r.fecha_revision,
@@ -88,4 +94,91 @@ export async function obtenerDatosFormRiesgo(): Promise<{ procesos: ProcesoOpcio
   const puestos = ((puestoRes.data ?? []) as any[]).map((p) => ({ id: p.id, nombre: p.nombre }));
 
   return { procesos, puestos };
+}
+
+// ── Árbol de riesgos por proceso ─────────────────────────────────────────────
+// Un riesgo dentro del árbol (ya con residual calculado por la función SQL).
+export type RiesgoArbol = {
+  id: string;
+  codigo: string;
+  categoria: "riesgo" | "oportunidad";
+  titulo: string;
+  causa: string | null;
+  consecuencia: string | null;
+  probabilidad: number;
+  impacto: number;
+  inherente: number;
+  residualNum: number;
+  gradoControl: GradoControl;
+  mitigante: string | null;
+  estado: string;
+};
+
+export type NodoProcesoRiesgo = {
+  procesoId: string;
+  codigo: string;
+  nombre: string;
+  procesoPadreId: string | null;
+  peorResidual: number;
+  totalRiesgos: number;
+  riesgos: RiesgoArbol[];
+  hijos: NodoProcesoRiesgo[];
+};
+
+// Fila plana tal como la devuelve la RPC.
+type FilaArbol = {
+  proceso_id: string;
+  codigo: string;
+  nombre: string;
+  proceso_padre_id: string | null;
+  orden_visualizacion: number;
+  peor_residual: number;
+  total_riesgos: number;
+  riesgos: RiesgoArbol[];
+};
+
+// Llama a la función SQL y arma el anidamiento padre/hijo en memoria
+// (mismo patrón que listarPuestos: PostgREST no resuelve bien self-joins).
+export async function obtenerArbolRiesgos(): Promise<NodoProcesoRiesgo[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_arbol_riesgos_por_proceso");
+  if (error || !data) return [];
+
+  const filas = data as FilaArbol[];
+
+  // 1. Construir todos los nodos indexados por id
+  const porId = new Map<string, NodoProcesoRiesgo>();
+  for (const f of filas) {
+    porId.set(f.proceso_id, {
+      procesoId: f.proceso_id,
+      codigo: f.codigo,
+      nombre: f.nombre,
+      procesoPadreId: f.proceso_padre_id,
+      peorResidual: f.peor_residual,
+      totalRiesgos: f.total_riesgos,
+      riesgos: Array.isArray(f.riesgos) ? f.riesgos : [],
+      hijos: [],
+    });
+  }
+
+  // 2. Enganchar hijos a sus padres; recolectar raíces
+  const raices: NodoProcesoRiesgo[] = [];
+  for (const nodo of porId.values()) {
+    if (nodo.procesoPadreId && porId.has(nodo.procesoPadreId)) {
+      porId.get(nodo.procesoPadreId)!.hijos.push(nodo);
+    } else {
+      raices.push(nodo);
+    }
+  }
+
+  // 3. Mostrar primero los procesos con más riesgos. Los vacíos van al final
+  //    pero se conservan (un proceso sin riesgos también es información: nadie
+  //    los identificó todavía).
+  const ordenar = (ns: NodoProcesoRiesgo[]) => {
+    ns.sort((a, b) => b.totalRiesgos - a.totalRiesgos || a.codigo.localeCompare(b.codigo));
+    ns.forEach((n) => ordenar(n.hijos));
+  };
+  ordenar(raices);
+
+  return raices;
 }

@@ -1,13 +1,14 @@
 import { Suspense } from "react";
-import { listarRiesgos, obtenerDatosFormRiesgo } from "@/lib/api/riesgos";
-import { GestionRiesgos } from "@/components/riesgos/GestionRiesgos";
+import { listarRiesgos, obtenerDatosFormRiesgo, obtenerArbolRiesgos } from "@/lib/api/riesgos";
+import { RiesgosVista } from "@/components/riesgos/RiesgosVista";
 
 export const dynamic = "force-dynamic";
 
 export default async function RiesgosPage() {
-  const [riesgos, { procesos, puestos }] = await Promise.all([
+  const [riesgos, { procesos, puestos }, arbol] = await Promise.all([
     listarRiesgos(),
     obtenerDatosFormRiesgo(),
+    obtenerArbolRiesgos(),
   ]);
 
   const extremos = riesgos.filter((r) => r.nivel === "extremo").length;
@@ -30,7 +31,7 @@ export default async function RiesgosPage() {
         )}
       </header>
       <Suspense fallback={null}>
-        <GestionRiesgos riesgos={riesgos} procesos={procesos} puestos={puestos} />
+        <RiesgosVista riesgos={riesgos} procesos={procesos} puestos={puestos} arbol={arbol} />
       </Suspense>
     </div>
   );

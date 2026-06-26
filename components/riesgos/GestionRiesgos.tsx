@@ -5,7 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Pencil, Trash2, Loader2, Save, ShieldAlert, TrendingUp, Search } from "lucide-react";
 import type { Riesgo, ProcesoOpcion, PuestoOpcion } from "@/lib/api/riesgos";
-import { clasificarNivel, type NivelRiesgo } from "@/lib/riesgos-utils";
+import { clasificarNivel, type NivelRiesgo, GRADOS_CONTROL, GRADO_CONTROL_LABEL } from "@/lib/riesgos-utils";
 import { guardarRiesgo, eliminarRiesgo, type EstadoRiesgo } from "@/app/(app)/riesgos/actions";
 import { Button } from "@/components/ui/button";
 
@@ -279,7 +279,16 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="tratamientoPlanificado" className="text-sm font-medium">Plan de tratamiento <span className="text-muted-foreground">(opc.)</span></label>
+                  <label htmlFor="gradoControl" className="text-sm font-medium">Grado de control <span className="text-muted-foreground">(opc.)</span></label>
+                  <select id="gradoControl" name="gradoControl" defaultValue={editando?.gradoControl ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <option value="">Sin evaluar</option>
+                    {GRADOS_CONTROL.map((g) => <option key={g} value={g}>{GRADO_CONTROL_LABEL[g]}</option>)}
+                  </select>
+                  <p className="text-[11px] text-muted-foreground">Sin evaluar no equivale a controlado: el riesgo aparece en gris en la vista por proceso hasta clasificarlo.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="tratamientoPlanificado" className="text-sm font-medium">Plan de tratamiento / Mitigante <span className="text-muted-foreground">(opc.)</span></label>
                   <textarea id="tratamientoPlanificado" name="tratamientoPlanificado" rows={2} defaultValue={editando?.tratamientoPlanificado ?? ""} placeholder="Acciones para abordar este riesgo…" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
                 </div>
 

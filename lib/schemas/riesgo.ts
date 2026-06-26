@@ -16,6 +16,10 @@ export const riesgoSchema = z.object({
   impacto: z.coerce.number().int().min(1).max(5),
   tipoTratamiento: z.string().trim().optional().or(z.literal("")),
   tratamientoPlanificado: z.string().trim().max(3000).optional().or(z.literal("")),
+  gradoControl: z
+    .enum(["control_total", "control_parcial", "sin_control", "desestimado_gerencia"])
+    .optional()
+    .or(z.literal("")),
   responsableId: z.string().uuid().optional().or(z.literal("")),
   fechaRevision: z.string().trim().optional().or(z.literal("")),
   estado: z.enum(["identificado", "en_tratamiento", "controlado", "materializado", "cerrado"]),
