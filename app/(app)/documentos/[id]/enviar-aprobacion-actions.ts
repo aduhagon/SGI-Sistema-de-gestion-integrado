@@ -27,6 +27,7 @@ export async function enviarAAprobacion(
     aprobadorN1Id: formData.get("aprobadorN1Id"),
     aprobadorN2Id: formData.get("aprobadorN2Id"),
     plazoDias: formData.get("plazoDias") || undefined,
+    motivoOverride: formData.get("motivoOverride") || undefined,
   });
 
   if (!parsed.success) {
@@ -34,7 +35,7 @@ export async function enviarAAprobacion(
     return { ok: false, error: primer.message, campo: primer.path.join(".") };
   }
 
-  const { versionId, aprobadorN1Id, aprobadorN2Id, plazoDias } = parsed.data;
+  const { versionId, aprobadorN1Id, aprobadorN2Id, plazoDias, motivoOverride } = parsed.data;
 
   // Traer la versión y validar estado.
   const { data: version, error: errVer } = await supabase
@@ -92,6 +93,39 @@ export async function enviarAAprobacion(
     };
   }
 
+  // Regla de aprobación por tipo (sugerida, no bloqueante): si los aprobadores
+  // elegidos no cumplen el nivel sugerido, se exige un motivo de override.
+  const { data: sugRows } = await supabase.rpc("fn_sugerencia_aprobacion", {
+    p_documento_id: documentoId,
+  });
+  const sug = (sugRows as Array<{
+    nivel_n1: string | null; nivel_n2: string | null; requiere_n2: boolean;
+  }> | null)?.[0] ?? null;
+
+  let desvio = false;
+  if (sug) {
+    const { data: elegRows } = await supabase.rpc("fn_usuarios_elegibles_con_nivel");
+    const nivelDe = new Map<string, string | null>(
+      ((elegRows ?? []) as Array<{ usuario_id: string; nivel_jerarquico: string | null }>)
+        .map((r) => [r.usuario_id, r.nivel_jerarquico]),
+    );
+    const n1Cumple = !sug.nivel_n1 || nivelDe.get(aprobadorN1Id) === sug.nivel_n1;
+    const n2Cumple = !sug.nivel_n2 || nivelDe.get(aprobadorN2Id) === sug.nivel_n2;
+    desvio = !n1Cumple || !n2Cumple;
+  }
+
+  if (desvio && (!motivoOverride || motivoOverride.length < 5)) {
+    return {
+      ok: false,
+      error: "Elegiste aprobadores que no cumplen el nivel sugerido para este tipo de documento. Indicá un motivo (mínimo 5 caracteres) para continuar.",
+      campo: "motivoOverride",
+    };
+  }
+
+  const comentarioInicial = desvio && motivoOverride
+    ? `[Override de regla de aprobación] ${motivoOverride}`
+    : null;
+
   const ahora = new Date();
   const plazo = plazoDias
     ? new Date(ahora.getTime() + plazoDias * 24 * 60 * 60 * 1000).toISOString()
@@ -105,6 +139,7 @@ export async function enviarAAprobacion(
     plazo_objetivo_n1: plazo,
     plazo_objetivo_n2: plazo,
     iniciada_en: ahora.toISOString(),
+    comentario_n1: comentarioInicial,
     creado_por: usuarioId,
   });
 

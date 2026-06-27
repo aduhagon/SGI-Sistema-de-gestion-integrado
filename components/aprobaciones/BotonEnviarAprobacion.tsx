@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Send } from "lucide-react";
-import type { UsuarioElegible } from "@/lib/api/envio";
+import type { UsuarioElegible, SugerenciaAprobacion } from "@/lib/api/envio";
 import { Button } from "@/components/ui/button";
 import { EnviarAprobacionDialog } from "./EnviarAprobacionDialog";
 
@@ -11,6 +11,7 @@ type Props = {
   versionId: string;
   numeroVersion: string;
   usuarios: UsuarioElegible[];
+  sugerencia: SugerenciaAprobacion;
 };
 
 export function BotonEnviarAprobacion({
@@ -18,6 +19,7 @@ export function BotonEnviarAprobacion({
   versionId,
   numeroVersion,
   usuarios,
+  sugerencia,
 }: Props) {
   const [abierto, setAbierto] = useState(false);
 
@@ -33,6 +35,7 @@ export function BotonEnviarAprobacion({
         versionId={versionId}
         numeroVersion={numeroVersion}
         usuarios={usuarios}
+        sugerencia={sugerencia}
         abierto={abierto}
         onClose={() => setAbierto(false)}
       />

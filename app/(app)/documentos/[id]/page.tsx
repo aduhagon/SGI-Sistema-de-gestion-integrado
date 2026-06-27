@@ -18,7 +18,7 @@ import { StatusDot } from "@/components/documentos/StatusDot";
 import { buttonVariants } from "@/components/ui/button";
 import { BotonEnviarAprobacion } from "@/components/aprobaciones/BotonEnviarAprobacion";
 import { BotonAprobarAdmin } from "@/components/documentos/BotonAprobarAdmin";
-import { obtenerUsuariosElegibles } from "@/lib/api/envio";
+import { obtenerUsuariosElegibles, obtenerSugerenciaAprobacion } from "@/lib/api/envio";
 import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
 import { GestionCoberturas } from "@/components/coberturas/GestionCoberturas";
 import { obtenerCoberturasDeDocumento, obtenerRequisitosDeNorma } from "@/lib/api/coberturas";
@@ -181,6 +181,7 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
   const usuariosElegibles = enviable
     ? await obtenerUsuariosElegibles(versionActual.creado_por)
     : [];
+  const sugerenciaAprobacion = enviable ? await obtenerSugerenciaAprobacion(doc.id) : null;
 
   // Perfil para el atajo de aprobación administrativa (solo gestores).
   const perfil = await obtenerPerfilMenu();
@@ -412,6 +413,7 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
                   versionId={versionActual.id}
                   numeroVersion={versionActual.numero_version}
                   usuarios={usuariosElegibles}
+                  sugerencia={sugerenciaAprobacion}
                 />
               </CardContent>
             </Card>
