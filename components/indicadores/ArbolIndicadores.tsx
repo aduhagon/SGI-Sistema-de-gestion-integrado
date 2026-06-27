@@ -256,7 +256,7 @@ export default function ArbolIndicadores({ raices }: { raices: NodoProcesoIndica
 
         <p className="mt-3 border-t border-border pt-2.5 text-[11px] leading-relaxed text-muted-foreground">
           Cada proceso muestra cuántos de sus indicadores tienen mediciones cargadas
-          ("X/Y medidos"). Mientras no haya mediciones, el punto es neutro y refleja la
+          («X/Y medidos»). Mientras no haya mediciones, el punto es neutro y refleja la
           cobertura. Cuando hay indicadores medidos con meta, el punto toma el peor estado
           de cumplimiento del proceso (igual criterio que el árbol de riesgos: manda el más
           expuesto, no el promedio). Un indicador sin meta o sin medición no cuenta como
