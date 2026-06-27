@@ -15,8 +15,8 @@ export default async function NuevaAuditoriaPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl p-6 sm:p-8 lg:p-10">
-      <nav aria-label="Breadcrumb" className="mb-8">
+    <div className="mx-auto max-w-3xl p-5 sm:p-6 lg:p-8">
+      <nav aria-label="Breadcrumb" className="mb-4">
         <Link
           href="/auditorias"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -26,16 +26,15 @@ export default async function NuevaAuditoriaPage() {
         </Link>
       </nav>
 
-      <header className="mb-10">
-        <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+      <header className="mb-6">
+        <p className="mb-1.5 text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Nueva auditoría
         </p>
-        <h1 className="mb-3 font-serif text-4xl font-semibold tracking-tight">
+        <h1 className="mb-1.5 font-serif text-2xl sm:text-3xl font-semibold tracking-tight">
           Planificar auditoría
         </h1>
-        <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
+        <p className="text-sm leading-relaxed text-muted-foreground">
           Definí el tipo, la fecha y el alcance. El código se genera automáticamente.
-          Después vas a poder sumar el equipo auditor y registrar hallazgos.
         </p>
       </header>
 
