@@ -18,7 +18,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
-  Info,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,7 +85,6 @@ const PASOS = [
 ] as const;
 
 const TOTAL_PASOS = PASOS.length;
-const BANNER_KEY = "sgi.docform.ayuda.oculta";
 
 export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
   const [pending, startTransition] = useTransition();
@@ -96,7 +94,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [paso, setPaso] = useState(1);
-  const [ayudaOculta, setAyudaOculta] = useState(false);
 
   const [paisCodigo, setPaisCodigo] = useState(paises[0]?.codigo ?? "A");
   const [tipoId, setTipoId] = useState<string>("");
@@ -117,24 +114,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
   const procesosEstrategicos = procesos.filter((p) => p.tipo === "estrategico");
   const procesosOperativos = procesos.filter((p) => p.tipo === "operativo");
   const procesosApoyo = procesos.filter((p) => p.tipo === "apoyo");
-
-  // Preferencia de banner persistida por usuario en el navegador.
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(BANNER_KEY) === "1") setAyudaOculta(true);
-    } catch {
-      /* localStorage no disponible: se mantiene visible */
-    }
-  }, []);
-
-  function ocultarAyuda() {
-    setAyudaOculta(true);
-    try {
-      localStorage.setItem(BANNER_KEY, "1");
-    } catch {
-      /* sin persistencia: igual se oculta en esta sesión */
-    }
-  }
 
   useEffect(() => {
     if (!requierePadre || !procesoId) {
@@ -288,29 +267,6 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
     <form action={handleSubmit} className="space-y-6">
       {/* Indicador de pasos */}
       <Stepper paso={paso} />
-
-      {/* Banner de ayuda descartable, sólo en el paso 1 */}
-      {paso === 1 && !ayudaOculta && (
-        <div className="flex items-start gap-3 rounded-md border border-primary/20 bg-primary/5 p-3">
-          <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
-          <p className="flex-1 text-sm text-foreground leading-relaxed">
-            El código se genera automáticamente según la nomenclatura formal de MSU.
-            Completá la clasificación y avanzá con los pasos. Pasá el cursor sobre los
-            íconos{" "}
-            <HelpCircle className="inline h-3.5 w-3.5 align-text-bottom text-muted-foreground" aria-hidden="true" />{" "}
-            para ver la ayuda de cada campo.
-          </p>
-          <button
-            type="button"
-            onClick={ocultarAyuda}
-            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            aria-label="No mostrar esta ayuda de nuevo"
-            title="No mostrar de nuevo"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-      )}
 
       {estado && !estado.ok && (
         <div
