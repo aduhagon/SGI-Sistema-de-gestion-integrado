@@ -28,7 +28,7 @@ const ESTADOS = ["identificado", "en_tratamiento", "controlado", "materializado"
 const TRATAMIENTOS = ["evitar", "mitigar", "transferir", "aceptar", "explotar"];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 
-const PASOS = ["Identificación", "Análisis", "Evaluación"] as const;
+const PASOS = ["Identificación", "Análisis", "Evaluación", "Tratamiento"] as const;
 const INPUT =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
@@ -405,7 +405,11 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
                       y se reclasifica con los mismos cortes (bajo ≤4, medio 5–9, alto 10–15, extremo ≥16). “Sin control” y “desestimado por gerencia” no reducen el número; este último marca un riesgo aceptado conscientemente. Sin grado de control, el riesgo queda sin clasificar (gris en la vista por proceso).
                     </p>
                   </div>
+                </div>
 
+                {/* Paso 4 — Tratamiento */}
+                <div hidden={paso !== 3} className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Definí cómo se va a abordar el riesgo y cuándo se revisa.</p>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-2">
                       <label htmlFor="tipoTratamiento" className="text-sm font-medium">Tratamiento <span className="text-muted-foreground">(opc.)</span></label>
@@ -422,7 +426,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
 
                   <div className="space-y-2">
                     <label htmlFor="tratamientoPlanificado" className="text-sm font-medium">Plan de tratamiento / Mitigante <span className="text-muted-foreground">(opc.)</span></label>
-                    <textarea id="tratamientoPlanificado" name="tratamientoPlanificado" rows={2} defaultValue={editando?.tratamientoPlanificado ?? ""} placeholder="Acciones para abordar este riesgo…" className={INPUT} />
+                    <textarea id="tratamientoPlanificado" name="tratamientoPlanificado" rows={5} defaultValue={editando?.tratamientoPlanificado ?? ""} placeholder="Acciones para abordar este riesgo…" className={INPUT} />
                   </div>
                 </div>
 
