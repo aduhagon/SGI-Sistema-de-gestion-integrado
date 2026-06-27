@@ -32,6 +32,14 @@ export default async function AppLayout({
   // menú. La escritura igual está protegida en la base por las funciones.
   const { data: esSuperadmin } = await supabase.rpc("fn_es_superadmin");
 
+  // Admin del SGI (admin, responsable del SGI o superadmin): controla la
+  // visibilidad de reportes de administración como la matriz RACI.
+  const [{ data: esAdmin }, { data: esResponsableSgi }] = await Promise.all([
+    supabase.rpc("fn_usuario_es_admin"),
+    supabase.rpc("fn_usuario_tiene_rol_global", { codigo_rol: "responsable_sgi" }),
+  ]);
+  const esAdminSgi = Boolean(esAdmin) || Boolean(esResponsableSgi) || Boolean(esSuperadmin);
+
   return (
     <SidebarMobileProvider>
       <div className="flex h-screen flex-col bg-background">
@@ -40,7 +48,7 @@ export default async function AppLayout({
 
         {/* Fila inferior: sidebar claro + contenido */}
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar esSuperadmin={esSuperadmin ?? false} />
+          <Sidebar esSuperadmin={esSuperadmin ?? false} esAdminSgi={esAdminSgi} />
           <main className="flex-1 overflow-y-auto">{children}</main>
         </div>
       </div>
