@@ -1,12 +1,16 @@
 import Link from "next/link";
-import { Plus, AlertOctagon, BarChart3, Eye } from "lucide-react";
-import { obtenerNCs } from "@/lib/api/ncs";
+import { AlertOctagon, BarChart3, Eye } from "lucide-react";
+import { obtenerNCs, obtenerHallazgosSinNC } from "@/lib/api/ncs";
 import { obtenerObservaciones, contarObservacionesPendientes } from "@/lib/api/observaciones";
 import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
 import { obtenerTableroNC } from "@/lib/api/tableroNC";
 import { resolverRango, etiquetaRango, type PresetRango } from "@/lib/api/rangoFechasNC";
+import { obtenerProcesosParaAlcance } from "@/lib/api/auditorias";
+import { obtenerNormasConRequisitos } from "@/lib/api/matriz";
+import { obtenerRequisitosDeNorma } from "@/lib/api/coberturas";
 import { PanelTableroNC } from "@/components/tablero-nc/PanelTableroNC";
 import { BotonTablero } from "@/components/tablero-nc/BotonTablero";
+import { BotonNuevaNC } from "@/components/ncs/BotonNuevaNC";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +61,27 @@ export default async function NCsPage({ searchParams }: Props) {
     periodoLabel = etiquetaRango(preset, desde, hasta);
   }
 
+  // Datos para el modal de alta de NC. Solo se cargan en la vista de NC
+  // (en la pestaña de observaciones el botón no aparece).
+  let datosNuevaNC: {
+    procesos: Awaited<ReturnType<typeof obtenerProcesosParaAlcance>>;
+    hallazgos: Awaited<ReturnType<typeof obtenerHallazgosSinNC>>;
+    normas: Awaited<ReturnType<typeof obtenerNormasConRequisitos>>;
+    requisitosPorNorma: Record<string, Awaited<ReturnType<typeof obtenerRequisitosDeNorma>>>;
+  } | null = null;
+  if (vista === "ncs") {
+    const [procesos, hallazgos, normas] = await Promise.all([
+      obtenerProcesosParaAlcance(),
+      obtenerHallazgosSinNC(),
+      obtenerNormasConRequisitos(),
+    ]);
+    const requisitosPorNorma: Record<string, Awaited<ReturnType<typeof obtenerRequisitosDeNorma>>> = {};
+    for (const n of normas) {
+      requisitosPorNorma[n.versionNormaId] = await obtenerRequisitosDeNorma(n.versionNormaId);
+    }
+    datosNuevaNC = { procesos, hallazgos, normas, requisitosPorNorma };
+  }
+
   return (
     <div className="mx-auto max-w-5xl p-6 sm:p-8 lg:p-10">
       <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -78,10 +103,13 @@ export default async function NCsPage({ searchParams }: Props) {
               <BarChart3 className="h-4 w-4" aria-hidden="true" />Reporte
             </Link>
           )}
-          {vista === "ncs" && (
-            <Link href="/ncs/nueva" className={cn(buttonVariants({ variant: "default" }))}>
-              <Plus className="h-4 w-4" aria-hidden="true" />Abrir no conformidad
-            </Link>
+          {vista === "ncs" && datosNuevaNC && (
+            <BotonNuevaNC
+              procesos={datosNuevaNC.procesos}
+              hallazgos={datosNuevaNC.hallazgos}
+              normas={datosNuevaNC.normas}
+              requisitosPorNorma={datosNuevaNC.requisitosPorNorma}
+            />
           )}
         </div>
       </header>
@@ -121,7 +149,19 @@ export default async function NCsPage({ searchParams }: Props) {
       {tableroAbierto && tableroDatos && <PanelTableroNC datos={tableroDatos} periodoLabel={periodoLabel} />}
 
       {vista === "ncs" ? (
-        <ListaNC ncs={ncs} />
+        <ListaNC
+          ncs={ncs}
+          slotNuevaNC={
+            datosNuevaNC ? (
+              <BotonNuevaNC
+                procesos={datosNuevaNC.procesos}
+                hallazgos={datosNuevaNC.hallazgos}
+                normas={datosNuevaNC.normas}
+                requisitosPorNorma={datosNuevaNC.requisitosPorNorma}
+              />
+            ) : null
+          }
+        />
       ) : (
         <ListaObservaciones observaciones={observaciones} />
       )}
@@ -129,7 +169,13 @@ export default async function NCsPage({ searchParams }: Props) {
   );
 }
 
-function ListaNC({ ncs }: { ncs: Awaited<ReturnType<typeof obtenerNCs>> }) {
+function ListaNC({
+  ncs,
+  slotNuevaNC,
+}: {
+  ncs: Awaited<ReturnType<typeof obtenerNCs>>;
+  slotNuevaNC?: React.ReactNode;
+}) {
   if (ncs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
@@ -139,9 +185,7 @@ function ListaNC({ ncs }: { ncs: Awaited<ReturnType<typeof obtenerNCs>> }) {
           Cuando se detecte un incumplimiento (en una auditoría, un reclamo o un control interno),
           abrí una no conformidad para gestionarla hasta su cierre.
         </p>
-        <Link href="/ncs/nueva" className={cn(buttonVariants({ variant: "default" }), "mt-6")}>
-          <Plus className="h-4 w-4" aria-hidden="true" />Abrir no conformidad
-        </Link>
+        <div className="mt-6">{slotNuevaNC}</div>
       </div>
     );
   }
