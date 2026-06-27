@@ -1,12 +1,13 @@
-import { listarIndicadores, obtenerDatosFormIndicador } from "@/lib/api/indicadores";
-import { GestionIndicadores } from "@/components/indicadores/GestionIndicadores";
+import { listarIndicadores, obtenerDatosFormIndicador, obtenerArbolIndicadores } from "@/lib/api/indicadores";
+import { IndicadoresVista } from "@/components/indicadores/IndicadoresVista";
 
 export const dynamic = "force-dynamic";
 
 export default async function IndicadoresPage() {
-  const [indicadores, { procesos, puestos }] = await Promise.all([
+  const [indicadores, { procesos, puestos }, arbol] = await Promise.all([
     listarIndicadores(),
     obtenerDatosFormIndicador(),
+    obtenerArbolIndicadores(),
   ]);
 
   const incumplen = indicadores.filter((i) => i.cumplimiento === "incumple").length;
@@ -28,7 +29,7 @@ export default async function IndicadoresPage() {
           </div>
         )}
       </header>
-      <GestionIndicadores indicadores={indicadores} procesos={procesos} puestos={puestos} />
+      <IndicadoresVista indicadores={indicadores} procesos={procesos} puestos={puestos} arbol={arbol} />
     </div>
   );
 }
