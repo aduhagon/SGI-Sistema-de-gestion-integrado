@@ -37,6 +37,11 @@ export async function guardarPuesto(
   const reportaAId =
     input.reportaAId && input.reportaAId !== "" ? input.reportaAId : null;
 
+  // Nivel jerárquico: validado contra el enum; "" o desconocido → null.
+  const NIVELES = ["gerente", "jefatura", "analista", "operativo"] as const;
+  const nivelRaw = (formData.get("nivelJerarquico") as string | null) ?? "";
+  const nivelJerarquico = (NIVELES as readonly string[]).includes(nivelRaw) ? nivelRaw : null;
+
   if (esEdicion && reportaAId === input.id) {
     return { ok: false, error: "Un puesto no puede reportarse a sí mismo.", campo: "reportaAId" };
   }
@@ -47,6 +52,7 @@ export async function guardarPuesto(
     descripcion: input.descripcion ?? null,
     area_id: areaId,
     reporta_a_id: reportaAId,
+    nivel_jerarquico: nivelJerarquico,
   };
 
   if (esEdicion) {

@@ -259,13 +259,14 @@ export type Puesto = {
   reportaAId: string | null;
   reportaACodigo: string | null;
   reportaANombre: string | null;
+  nivelJerarquico: "gerente" | "jefatura" | "analista" | "operativo" | null;
 };
 
 export async function listarPuestos(): Promise<Puesto[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("puestos")
-    .select("id, codigo, nombre, descripcion, area_id, reporta_a_id")
+    .select("id, codigo, nombre, descripcion, area_id, reporta_a_id, nivel_jerarquico")
     .eq("activo", true)
     .is("eliminado_en", null)
     .order("codigo", { ascending: true });
@@ -324,6 +325,7 @@ export async function listarPuestos(): Promise<Puesto[]> {
       reportaAId: p.reporta_a_id ?? null,
       reportaACodigo: sup?.codigo ?? null,
       reportaANombre: sup?.nombre ?? null,
+      nivelJerarquico: p.nivel_jerarquico ?? null,
     };
   });
 }

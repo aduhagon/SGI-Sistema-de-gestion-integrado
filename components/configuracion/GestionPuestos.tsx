@@ -107,6 +107,17 @@ export function GestionPuestos({ puestos, areas }: { puestos: Puesto[]; areas: A
                   <p className="text-xs text-muted-foreground">El puesto al que este reporta en la cadena jerárquica.</p>
                 </div>
                 <div className="space-y-2">
+                  <label htmlFor="nivelJerarquico" className="text-sm font-medium">Nivel jerárquico <span className="text-muted-foreground">(opcional)</span></label>
+                  <select id="nivelJerarquico" name="nivelJerarquico" defaultValue={editando?.nivelJerarquico ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <option value="">Sin definir</option>
+                    <option value="gerente">Gerente</option>
+                    <option value="jefatura">Jefatura</option>
+                    <option value="analista">Analista</option>
+                    <option value="operativo">Operativo</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">Define qué documentos puede aprobar este puesto. Los manuales, planes y políticas requieren un gerente en la segunda aprobación.</p>
+                </div>
+                <div className="space-y-2">
                   <label htmlFor="descripcion" className="text-sm font-medium">Descripción <span className="text-muted-foreground">(opcional)</span></label>
                   <textarea id="descripcion" name="descripcion" rows={2} defaultValue={editando?.descripcion ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
                 </div>
@@ -126,8 +137,20 @@ export function GestionPuestos({ puestos, areas }: { puestos: Puesto[]; areas: A
   );
 }
 
-// ---- Agrupamiento gerencia -> área -> puestos ----
+type NivelJ = "gerente" | "jefatura" | "analista" | "operativo";
+function nivelLabel(n: NivelJ): string {
+  return { gerente: "Gerente", jefatura: "Jefatura", analista: "Analista", operativo: "Operativo" }[n];
+}
+function nivelChipCls(n: NivelJ): string {
+  return {
+    gerente: "bg-[#EEEDFE] text-[#3C3489]",
+    jefatura: "bg-[#E1F5EE] text-[#0F6E56]",
+    analista: "bg-[#E6F1FB] text-[#185FA5]",
+    operativo: "bg-muted text-muted-foreground",
+  }[n];
+}
 
+// ---- Agrupamiento gerencia -> área -> puestos ----
 const ORDEN_GERENCIAS = [
   "Gerencia General",
   "Gerencia Producción Agrícola",
@@ -258,6 +281,11 @@ function AreaSub({
                 <td className="px-4 py-2 pl-12 font-mono text-xs w-32">{p.codigo}</td>
                 <td className="px-4 py-2 font-medium">
                   <Link href={`/configuracion/puestos/${p.id}`} className="hover:underline">{p.nombre}</Link>
+                  {p.nivelJerarquico && (
+                    <span className={"ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium " + nivelChipCls(p.nivelJerarquico)}>
+                      {nivelLabel(p.nivelJerarquico)}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-2 text-xs">
                   {p.reportaACodigo ? (
