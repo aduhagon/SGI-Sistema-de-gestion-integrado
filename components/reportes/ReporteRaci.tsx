@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Network, FileText, Download, Printer } from "lucide-react";
+import { Network, FileText, Download, Printer, FlipHorizontal2 } from "lucide-react";
 import type { MatrizRaci } from "@/lib/api/raci";
 import { MatrizRaciTabla, RACI_META } from "@/components/reportes/MatrizRaciTabla";
 
@@ -9,6 +9,7 @@ type Tab = "proceso" | "documento";
 
 export function ReporteRaci({ porProceso, porDocumento }: { porProceso: MatrizRaci; porDocumento: MatrizRaci }) {
   const [tab, setTab] = useState<Tab>("proceso");
+  const [transpuesta, setTranspuesta] = useState(false);
 
   const matriz = tab === "proceso" ? porProceso : porDocumento;
   const etiquetaColumna = tab === "proceso" ? "procesos" : "documentos";
@@ -16,26 +17,39 @@ export function ReporteRaci({ porProceso, porDocumento }: { porProceso: MatrizRa
 
   // ── Export a Excel (.xls vía tabla HTML; Excel lo abre nativo) ─────────────
   function exportarExcel() {
-    const filasHtml = matriz.puestos
-      .map((pu) => {
-        const celdas = matriz.columnas
-          .map((c) => `<td>${matriz.celdas[pu]?.[c.codigo] ?? ""}</td>`)
-          .join("");
-        return `<tr><td>${escapar(pu)}</td>${celdas}</tr>`;
+    // Ejes según orientación: normal = filas puestos; transpuesta = filas columnas.
+    const ejeFilas = transpuesta
+      ? matriz.columnas.map((c) => ({ clave: c.codigo, etiqueta: c.codigo }))
+      : matriz.puestos.map((p) => ({ clave: p, etiqueta: p }));
+    const ejeCols = transpuesta
+      ? matriz.puestos.map((p) => ({ clave: p, etiqueta: p }))
+      : matriz.columnas.map((c) => ({ clave: c.codigo, etiqueta: c.codigo }));
+
+    const leerCelda = (filaClave: string, colClave: string) => {
+      const puesto = transpuesta ? colClave : filaClave;
+      const columna = transpuesta ? filaClave : colClave;
+      return matriz.celdas[puesto]?.[columna] ?? "";
+    };
+
+    const encabezados = ejeCols.map((c) => `<th>${escapar(c.etiqueta)}</th>`).join("");
+    const filasHtml = ejeFilas
+      .map((f) => {
+        const celdas = ejeCols.map((c) => `<td>${leerCelda(f.clave, c.clave)}</td>`).join("");
+        return `<tr><td>${escapar(f.etiqueta)}</td>${celdas}</tr>`;
       })
       .join("");
-    const encabezados = matriz.columnas.map((c) => `<th>${escapar(c.codigo)}</th>`).join("");
+    const esquina = transpuesta ? etiquetaColumna.charAt(0).toUpperCase() + etiquetaColumna.slice(1, -1) : "Puesto";
     const leyenda = matriz.columnas.map((c) => `${c.codigo}: ${escapar(c.etiqueta)}`).join(" | ");
 
     const html =
       `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>` +
       `<h3>${escapar(titulo)}</h3>` +
-      `<table border="1"><thead><tr><th>Puesto</th>${encabezados}</tr></thead><tbody>${filasHtml}</tbody></table>` +
+      `<table border="1"><thead><tr><th>${escapar(esquina)}</th>${encabezados}</tr></thead><tbody>${filasHtml}</tbody></table>` +
       `<p>A = aprueba · R = ejecuta · I = informado</p>` +
       `<p>${leyenda}</p></body></html>`;
 
     const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel" });
-    descargar(blob, `raci-${tab}.xls`);
+    descargar(blob, `raci-${tab}${transpuesta ? "-transpuesta" : ""}.xls`);
   }
 
   // ── Export a PDF: usa el diálogo de impresión del navegador ────────────────
@@ -82,6 +96,16 @@ export function ReporteRaci({ porProceso, porDocumento }: { porProceso: MatrizRa
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={() => setTranspuesta((t) => !t)}
+            className={"inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors " + (transpuesta ? "border-primary/40 bg-primary/5 text-foreground" : "border-border bg-card hover:bg-muted/50")}
+            aria-pressed={transpuesta}
+            title="Intercambiar filas y columnas"
+          >
+            <FlipHorizontal2 className="h-4 w-4" />
+            Trasponer
+          </button>
+          <button
+            type="button"
             onClick={exportarExcel}
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted/50"
           >
@@ -119,7 +143,7 @@ export function ReporteRaci({ porProceso, porDocumento }: { porProceso: MatrizRa
       {/* Zona imprimible */}
       <div id="raci-print">
         <h2 className="mb-3 hidden font-serif text-lg font-semibold print:block">{titulo}</h2>
-        <MatrizRaciTabla matriz={matriz} etiquetaColumna={etiquetaColumna} />
+        <MatrizRaciTabla matriz={matriz} etiquetaColumna={etiquetaColumna} transpuesta={transpuesta} />
       </div>
 
       <p className="raci-no-print mt-4 rounded-lg border border-border bg-muted/20 p-4 text-[11px] leading-relaxed text-muted-foreground">

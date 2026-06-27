@@ -10,8 +10,18 @@ const RACI_META: Record<Exclude<RaciValor, null>, { bg: string; fg: string; labe
   I: { bg: "#E6F1FB", fg: "#185FA5", label: "Informado" },
 };
 
-export function MatrizRaciTabla({ matriz, etiquetaColumna }: { matriz: MatrizRaci; etiquetaColumna: string }) {
-  const [puestoSel, setPuestoSel] = useState<string | null>(null);
+type Eje = { clave: string; titulo: string; etiquetaCorta: string };
+
+export function MatrizRaciTabla({
+  matriz,
+  etiquetaColumna,
+  transpuesta = false,
+}: {
+  matriz: MatrizRaci;
+  etiquetaColumna: string;
+  transpuesta?: boolean;
+}) {
+  const [sel, setSel] = useState<string | null>(null);
 
   if (matriz.puestos.length === 0) {
     return (
@@ -21,10 +31,31 @@ export function MatrizRaciTabla({ matriz, etiquetaColumna }: { matriz: MatrizRac
     );
   }
 
+  // Ejes según orientación.
+  const ejePuestos: Eje[] = matriz.puestos.map((p) => ({ clave: p, titulo: p, etiquetaCorta: p }));
+  const ejeColumnas: Eje[] = matriz.columnas.map((c) => ({ clave: c.codigo, titulo: c.etiqueta, etiquetaCorta: c.codigo }));
+
+  // En la orientación normal: filas = puestos, columnas = procesos/docs.
+  // Transpuesta: filas = procesos/docs, columnas = puestos.
+  const filas = transpuesta ? ejeColumnas : ejePuestos;
+  const cols = transpuesta ? ejePuestos : ejeColumnas;
+
+  // Lee la celda RACI sea cual sea la orientación.
+  function valor(filaClave: string, colClave: string): RaciValor {
+    const puesto = transpuesta ? colClave : filaClave;
+    const columna = transpuesta ? filaClave : colClave;
+    return matriz.celdas[puesto]?.[columna] ?? null;
+  }
+
+  // La primera columna (encabezado de fila). Cuando las filas son puestos, es
+  // texto largo y va sin truncar; cuando son procesos/docs, va con su código.
+  const filasSonPuestos = !transpuesta;
+  const sujeto = filasSonPuestos ? "puesto" : etiquetaColumna.replace(/s$/, "");
+
   return (
     <div>
       <p className="mb-3 text-xs text-muted-foreground">
-        {matriz.puestos.length} puestos · {matriz.columnas.length} {etiquetaColumna}. Tocá un puesto para ver solo su fila.
+        {matriz.puestos.length} puestos · {matriz.columnas.length} {etiquetaColumna}. Tocá un{filasSonPuestos ? "" : "a"} {sujeto} para resaltar su fila.
       </p>
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full border-collapse text-xs">
@@ -32,43 +63,55 @@ export function MatrizRaciTabla({ matriz, etiquetaColumna }: { matriz: MatrizRac
             <tr>
               <th
                 className="sticky left-0 z-20 border-b border-r border-border bg-muted/60 px-3 py-2 text-left font-medium"
-                style={{ minWidth: 180 }}
+                style={{ minWidth: filasSonPuestos ? 180 : 130 }}
               >
-                Puesto
+                {filasSonPuestos ? "Puesto" : etiquetaColumna.charAt(0).toUpperCase() + etiquetaColumna.slice(1, -1)}
               </th>
-              {matriz.columnas.map((c) => (
+              {cols.map((c) => (
                 <th
-                  key={c.codigo}
-                  title={c.etiqueta}
-                  className="border-b border-border bg-muted/40 px-1.5 py-2 text-center font-mono text-[10px] font-normal text-muted-foreground"
-                  style={{ minWidth: 46 }}
+                  key={c.clave}
+                  title={c.titulo}
+                  className={
+                    "border-b border-border bg-muted/40 py-2 text-center font-normal text-muted-foreground " +
+                    (transpuesta ? "px-2 text-[10px]" : "px-1.5 font-mono text-[10px]")
+                  }
+                  style={{ minWidth: transpuesta ? 60 : 46, maxWidth: transpuesta ? 92 : undefined }}
                 >
-                  {c.codigo}
+                  {transpuesta ? (
+                    <span className="block truncate" title={c.titulo}>{c.etiquetaCorta}</span>
+                  ) : (
+                    c.etiquetaCorta
+                  )}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {matriz.puestos.map((pu) => {
-              const dim = puestoSel && puestoSel !== pu;
-              const activo = puestoSel === pu;
+            {filas.map((f) => {
+              const dim = sel && sel !== f.clave;
+              const activo = sel === f.clave;
               return (
                 <tr
-                  key={pu}
-                  onClick={() => setPuestoSel(activo ? null : pu)}
+                  key={f.clave}
+                  onClick={() => setSel(activo ? null : f.clave)}
                   className="cursor-pointer transition-opacity"
                   style={{ opacity: dim ? 0.3 : 1 }}
                 >
                   <td
                     className={"sticky left-0 z-10 border-b border-r border-border px-3 py-1.5 " + (activo ? "bg-primary/10 font-medium" : "bg-card")}
                     style={{ whiteSpace: "nowrap" }}
+                    title={f.titulo}
                   >
-                    {pu}
+                    {filasSonPuestos ? (
+                      f.etiquetaCorta
+                    ) : (
+                      <span className="font-mono text-[11px]">{f.etiquetaCorta}</span>
+                    )}
                   </td>
-                  {matriz.columnas.map((c) => {
-                    const v = matriz.celdas[pu]?.[c.codigo] ?? null;
+                  {cols.map((c) => {
+                    const v = valor(f.clave, c.clave);
                     return (
-                      <td key={c.codigo} className="border-b border-border px-1.5 py-1.5 text-center">
+                      <td key={c.clave} className="border-b border-border px-1.5 py-1.5 text-center">
                         {v ? (
                           <span
                             className="inline-flex h-5 w-5 items-center justify-center rounded text-[11px] font-medium"
