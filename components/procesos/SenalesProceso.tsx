@@ -81,61 +81,60 @@ export function SenalesProceso({
 
   return (
     <div className="mb-10">
-      {/* No conformidades */}
+      {/* Riesgos */}
       <SeccionColapsable
-        icon={AlertOctagon}
-        titulo="No conformidades"
-        colorIcono="#e11d48"
+        icon={ShieldAlert}
+        titulo="Riesgos y oportunidades"
+        colorIcono="#d97706"
         conteo={
-          ncs.length === 0
-            ? "Sin no conformidades registradas en este proceso."
-            : `${ncs.length} en total · ${ncsAbiertas} abierta${ncsAbiertas === 1 ? "" : "s"}.`
+          riesgos.length === 0
+            ? "Sin riesgos ni oportunidades identificados."
+            : `${riesgos.length} en total${riesgosAltos > 0 ? ` · ${riesgosAltos} de nivel alto o extremo` : ""}.`
         }
         senalCritica={
-          ncsAbiertas > 0
+          riesgosAltos > 0
             ? {
-                texto: `${ncsAbiertas} abierta${ncsAbiertas === 1 ? "" : "s"}`,
-                cls: "bg-rose-50 text-rose-700 border-rose-200",
+                texto: `${riesgosAltos} alto${riesgosAltos === 1 ? "" : "s"}`,
+                cls: "bg-orange-50 text-orange-700 border-orange-200",
               }
             : null
         }
-        href="/ncs"
-        hrefLabel="Ver todas"
+        href="/riesgos"
+        hrefLabel="Ver todos"
       >
-        {ncs.length === 0 ? (
-          <VacioSenal texto="Cuando se registre una NC asociada a este proceso, aparecerá acá." />
+        {riesgos.length === 0 ? (
+          <VacioSenal texto="Identificá los riesgos y oportunidades de este proceso." />
         ) : (
           <div>
-            {ncs.map((n, i) => (
-              <Link
-                key={n.id}
-                href={`/ncs/${n.id}`}
-                className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40 ${
-                  i < ncs.length - 1 ? "border-b border-border" : ""
-                }`}
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[11px] text-muted-foreground">
-                      {n.codigo}
-                    </span>
-                    <span className="truncate text-sm font-medium text-foreground">
-                      {n.titulo}
-                    </span>
+            {riesgos.map((r, i) => {
+              const n = NIVEL_RIESGO[r.nivel];
+              return (
+                <Link
+                  key={r.id}
+                  href={`/riesgos?riesgo=${r.id}`}
+                  className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/50 ${
+                    i < riesgos.length - 1 ? "border-b border-border" : ""
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        {r.codigo}
+                      </span>
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {r.titulo}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-[11px] capitalize text-muted-foreground">
+                      {r.categoria}
+                      {" · "}
+                      P{r.probabilidad} × I{r.impacto}
+                    </div>
                   </div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground">
-                    {ESTADO_NC_LABEL[n.estado] ?? n.estado.replace(/_/g, " ")}
-                  </div>
-                </div>
-                <Pill
-                  label={SEVERIDAD_NC[n.severidad]?.label ?? n.severidad}
-                  cls={
-                    SEVERIDAD_NC[n.severidad]?.cls ??
-                    "bg-muted text-muted-foreground border-border"
-                  }
-                />
-              </Link>
-            ))}
+                  <Pill label={n.label} cls={n.cls} />
+                </Link>
+              );
+            })}
           </div>
         )}
       </SeccionColapsable>
@@ -198,60 +197,61 @@ export function SenalesProceso({
         )}
       </SeccionColapsable>
 
-      {/* Riesgos */}
+      {/* No conformidades */}
       <SeccionColapsable
-        icon={ShieldAlert}
-        titulo="Riesgos y oportunidades"
-        colorIcono="#d97706"
+        icon={AlertOctagon}
+        titulo="No conformidades"
+        colorIcono="#e11d48"
         conteo={
-          riesgos.length === 0
-            ? "Sin riesgos ni oportunidades identificados."
-            : `${riesgos.length} en total${riesgosAltos > 0 ? ` · ${riesgosAltos} de nivel alto o extremo` : ""}.`
+          ncs.length === 0
+            ? "Sin no conformidades registradas en este proceso."
+            : `${ncs.length} en total · ${ncsAbiertas} abierta${ncsAbiertas === 1 ? "" : "s"}.`
         }
         senalCritica={
-          riesgosAltos > 0
+          ncsAbiertas > 0
             ? {
-                texto: `${riesgosAltos} alto${riesgosAltos === 1 ? "" : "s"}`,
-                cls: "bg-orange-50 text-orange-700 border-orange-200",
+                texto: `${ncsAbiertas} abierta${ncsAbiertas === 1 ? "" : "s"}`,
+                cls: "bg-rose-50 text-rose-700 border-rose-200",
               }
             : null
         }
-        href="/riesgos"
-        hrefLabel="Ver todos"
+        href="/ncs"
+        hrefLabel="Ver todas"
       >
-        {riesgos.length === 0 ? (
-          <VacioSenal texto="Identificá los riesgos y oportunidades de este proceso." />
+        {ncs.length === 0 ? (
+          <VacioSenal texto="Cuando se registre una NC asociada a este proceso, aparecerá acá." />
         ) : (
           <div>
-            {riesgos.map((r, i) => {
-              const n = NIVEL_RIESGO[r.nivel];
-              return (
-                <Link
-                  key={r.id}
-                  href={`/riesgos?riesgo=${r.id}`}
-                  className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/50 ${
-                    i < riesgos.length - 1 ? "border-b border-border" : ""
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[11px] text-muted-foreground">
-                        {r.codigo}
-                      </span>
-                      <span className="truncate text-sm font-medium text-foreground">
-                        {r.titulo}
-                      </span>
-                    </div>
-                    <div className="mt-0.5 text-[11px] capitalize text-muted-foreground">
-                      {r.categoria}
-                      {" · "}
-                      P{r.probabilidad} × I{r.impacto}
-                    </div>
+            {ncs.map((n, i) => (
+              <Link
+                key={n.id}
+                href={`/ncs/${n.id}`}
+                className={`flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40 ${
+                  i < ncs.length - 1 ? "border-b border-border" : ""
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {n.codigo}
+                    </span>
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {n.titulo}
+                    </span>
                   </div>
-                  <Pill label={n.label} cls={n.cls} />
-                </Link>
-              );
-            })}
+                  <div className="mt-0.5 text-[11px] text-muted-foreground">
+                    {ESTADO_NC_LABEL[n.estado] ?? n.estado.replace(/_/g, " ")}
+                  </div>
+                </div>
+                <Pill
+                  label={SEVERIDAD_NC[n.severidad]?.label ?? n.severidad}
+                  cls={
+                    SEVERIDAD_NC[n.severidad]?.cls ??
+                    "bg-muted text-muted-foreground border-border"
+                  }
+                />
+              </Link>
+            ))}
           </div>
         )}
       </SeccionColapsable>
