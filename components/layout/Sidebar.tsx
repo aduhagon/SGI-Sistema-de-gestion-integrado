@@ -17,6 +17,7 @@ import {
   Scale,
   LineChart,
   Table2,
+  Users,
   Settings,
   SlidersHorizontal,
   ChevronRight,
@@ -55,6 +56,7 @@ const navItems: NavItem[] = [
   { href: "/indicadores",   label: "Indicadores",        icon: Gauge,      section: "analisis" },
   { href: "/tablero",       label: "Tablero de control", icon: LineChart,  section: "analisis" },
   { href: "/reportes/raci", label: "Matriz RACI",        icon: Table2,     section: "analisis", soloAdminSgi: true },
+  { href: "/reportes/personas", label: "Perfil por persona", icon: Users,  section: "analisis", soloAdminSgi: true },
 
   // Sistema
   { href: "/configuracion", label: "Configuración",             icon: Settings,           section: "admin" },
