@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, Gauge, AlertTriangle } from "lucide-react";
+import { ChevronRight, Gauge, AlertTriangle, Pencil } from "lucide-react";
 import type { NodoProcesoIndicador, IndicadorArbol } from "@/lib/api/indicadores";
 import type { CumplimientoEstado } from "@/lib/indicadores-utils";
 import { SENTIDO_LABEL, PERIODICIDAD_LABEL } from "@/lib/indicadores-utils";
@@ -89,6 +89,15 @@ function FilaIndicador({ ind, padLeft }: { ind: IndicadorArbol; padLeft: number 
           {ind.ultimoValor !== null ? fmtValor(ind.ultimoValor, ind.unidad) : "Sin medición"}
         </span>
         <ChipCumplimiento estado={ind.cumplimiento} />
+        <a
+          href={`/indicadores/${ind.id}`}
+          onClick={(e) => e.stopPropagation()}
+          className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          title="Editar indicador"
+          aria-label={`Editar ${ind.codigo}`}
+        >
+          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+        </a>
       </div>
 
       {abierto && (

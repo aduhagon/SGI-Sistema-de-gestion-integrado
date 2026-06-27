@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, Gauge } from "lucide-react";
-import { obtenerIndicador, listarMediciones } from "@/lib/api/indicadores";
+import { obtenerIndicador, listarMediciones, obtenerDatosFormIndicador } from "@/lib/api/indicadores";
 import { SENTIDO_LABEL, PERIODICIDAD_LABEL } from "@/lib/indicadores-utils";
 import { GestionMediciones } from "@/components/indicadores/GestionMediciones";
+import { BotonEditarIndicador } from "@/components/indicadores/BotonEditarIndicador";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,10 @@ export default async function IndicadorDetallePage({ params }: Props) {
   const indicador = await obtenerIndicador(params.id);
   if (!indicador) notFound();
 
-  const mediciones = await listarMediciones(params.id);
+  const [mediciones, { procesos, puestos }] = await Promise.all([
+    listarMediciones(params.id),
+    obtenerDatosFormIndicador(),
+  ]);
 
   function metaTexto(): string {
     if (indicador!.sentido === "rango_optimo") {
@@ -33,14 +37,17 @@ export default async function IndicadorDetallePage({ params }: Props) {
       </nav>
 
       <header className="mb-8">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-            <Gauge className="h-6 w-6" />
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+              <Gauge className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="font-mono text-xs text-muted-foreground">{indicador.codigo}</p>
+              <h1 className="font-serif text-3xl font-semibold tracking-tight">{indicador.nombre}</h1>
+            </div>
           </div>
-          <div>
-            <p className="font-mono text-xs text-muted-foreground">{indicador.codigo}</p>
-            <h1 className="font-serif text-3xl font-semibold tracking-tight">{indicador.nombre}</h1>
-          </div>
+          <BotonEditarIndicador indicador={indicador} procesos={procesos} puestos={puestos} />
         </div>
         {indicador.descripcion && <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{indicador.descripcion}</p>}
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-sm">
