@@ -3,9 +3,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Pencil, Trash2, Loader2, Save, ShieldAlert, TrendingUp, Search } from "lucide-react";
+import {
+  Plus, Pencil, Trash2, Loader2, Save, ShieldAlert, TrendingUp, Search,
+  Check, ArrowLeft, ArrowRight,
+} from "lucide-react";
 import type { Riesgo, ProcesoOpcion, PuestoOpcion } from "@/lib/api/riesgos";
-import { clasificarNivel, type NivelRiesgo, GRADOS_CONTROL, GRADO_CONTROL_LABEL } from "@/lib/riesgos-utils";
+import {
+  clasificarNivel, residual, type NivelRiesgo,
+  GRADOS_CONTROL, GRADO_CONTROL_LABEL, factorControl, type GradoControl,
+} from "@/lib/riesgos-utils";
 import { guardarRiesgo, eliminarRiesgo, type EstadoRiesgo } from "@/app/(app)/riesgos/actions";
 import { Button } from "@/components/ui/button";
 
@@ -22,10 +28,22 @@ const ESTADOS = ["identificado", "en_tratamiento", "controlado", "materializado"
 const TRATAMIENTOS = ["evitar", "mitigar", "transferir", "aceptar", "explotar"];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 
+const PASOS = ["Identificación", "Análisis", "Evaluación"] as const;
+const INPUT =
+  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+// Factor de control en texto, para la línea de fórmula del residual.
+const FACTOR_TXT: Record<Exclude<GradoControl, null>, string> = {
+  control_total: "control total (×0,25)",
+  control_parcial: "control parcial (×0,5)",
+  sin_control: "sin control (×1)",
+  desestimado_gerencia: "desestimado por gerencia (×1)",
+};
+
 function SubmitButton({ edicion }: { edicion: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending} className="flex-1">
+    <Button type="submit" disabled={pending}>
       {pending ? <><Loader2 className="h-4 w-4 animate-spin" />Guardando…</> : <><Save className="h-4 w-4" />{edicion ? "Guardar cambios" : "Crear riesgo"}</>}
     </Button>
   );
@@ -51,7 +69,15 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
   const [filtro, setFiltro] = useState("");
   const [prob, setProb] = useState(3);
   const [imp, setImp] = useState(3);
+  const [gradoControl, setGradoControl] = useState<string>("");
   const [estado, formAction] = useFormState<EstadoRiesgo, FormData>(guardarRiesgo, null);
+
+  // Estado del wizard
+  const [paso, setPaso] = useState(0);
+  const [titulo, setTitulo] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [procesoId, setProcesoId] = useState("");
+  const [errorPaso, setErrorPaso] = useState<string | null>(null);
 
   useEffect(() => {
     if (estado?.ok) { setAbierto(false); setEditando(null); router.refresh(); }
@@ -61,19 +87,25 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
     setEditando(r);
     setProb(r ? r.probabilidad : 3);
     setImp(r ? r.impacto : 3);
+    setGradoControl(r?.gradoControl ?? "");
+    setTitulo(r?.titulo ?? "");
+    setCodigo(r?.codigo ?? "");
+    setProcesoId(r?.procesoId ?? "");
+    setPaso(0);
+    setErrorPaso(null);
     setAbierto(true);
   }
 
-  // Apertura automática del modal cuando se llega con ?riesgo=<id> (ej. desde la ficha del proceso).
+  // Apertura automática cuando se llega con ?riesgo=<id> (ej. desde la ficha del proceso).
   useEffect(() => {
     const riesgoId = searchParams.get("riesgo");
     if (!riesgoId) return;
     const r = riesgos.find((x) => x.id === riesgoId);
     if (r) {
       abrir(r);
-      // Limpiamos el query param para que un refresh no reabra el modal.
       router.replace("/riesgos", { scroll: false });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, riesgos, router]);
 
   async function quitar(id: string) {
@@ -92,6 +124,35 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
   }, [filtro, riesgos]);
 
   const nivelActual = clasificarNivel(prob, imp);
+  const gc = (gradoControl === "" ? null : gradoControl) as GradoControl;
+  const resid = residual(prob, imp, gc);
+
+  // Validación por paso. Los obligatorios (código, título, proceso) caen en el paso 1.
+  function validarPaso(n: number): string | null {
+    if (n === 0) {
+      if (!codigo.trim()) return "El código es obligatorio.";
+      if (!titulo.trim()) return "El título es obligatorio.";
+      if (!procesoId) return "Elegí un proceso.";
+    }
+    return null;
+  }
+  function avanzar() {
+    const err = validarPaso(paso);
+    if (err) { setErrorPaso(err); return; }
+    setErrorPaso(null);
+    setPaso((p) => Math.min(PASOS.length - 1, p + 1));
+  }
+  function retroceder() {
+    setErrorPaso(null);
+    setPaso((p) => Math.max(0, p - 1));
+  }
+  function onSubmitGuard(e: React.FormEvent<HTMLFormElement>) {
+    for (let i = 0; i < PASOS.length; i++) {
+      const err = validarPaso(i);
+      if (err) { e.preventDefault(); setPaso(i); setErrorPaso(err); return; }
+    }
+  }
+  const enUltimo = paso === PASOS.length - 1;
 
   return (
     <div>
@@ -112,40 +173,42 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
                 <th className="px-4 py-2.5 font-medium text-muted-foreground">Riesgo</th>
                 <th className="px-4 py-2.5 font-medium text-muted-foreground hidden md:table-cell">Proceso</th>
                 <th className="px-4 py-2.5 font-medium text-muted-foreground text-center">Nivel</th>
-                <th className="px-4 py-2.5 font-medium text-muted-foreground hidden lg:table-cell">Estado</th>
                 <th className="px-4 py-2.5 w-20"></th>
               </tr>
             </thead>
             <tbody>
-              {filtrados.map((r) => (
-                <tr key={r.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-2.5 font-mono text-xs align-top">{r.codigo}</td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-1.5 font-medium">
-                      {r.categoria === "oportunidad" ? <TrendingUp className="h-3.5 w-3.5 text-emerald-600" /> : <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />}
-                      {r.titulo}
-                    </div>
-                    {r.responsableNombre && <div className="text-xs text-muted-foreground">Resp.: {r.responsableNombre}</div>}
-                  </td>
-                  <td className="px-4 py-2.5 text-muted-foreground hidden md:table-cell">{r.procesoNombre}</td>
-                  <td className="px-4 py-2.5 text-center">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${NIVEL_COLOR[r.nivel]}`}>
-                      {NIVEL_LABEL[r.nivel]} ({r.nivelNumerico})
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-muted-foreground hidden lg:table-cell text-xs">{cap(r.estado)}</td>
-                  <td className="px-4 py-2.5 align-top">
-                    <div className="flex justify-end gap-1">
-                      <button onClick={() => abrir(r)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Editar" aria-label="Editar">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={() => quitar(r.id)} disabled={eliminando === r.id} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title="Eliminar" aria-label="Eliminar">
-                        {eliminando === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filtrados.map((r) => {
+                const nivel = clasificarNivel(r.probabilidad, r.impacto);
+                return (
+                  <tr key={r.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-2.5 font-mono text-xs align-top">{r.codigo}</td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-1.5">
+                        {r.categoria === "oportunidad"
+                          ? <TrendingUp className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          : <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                        <span className="font-medium">{r.titulo}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground hidden md:table-cell text-xs">{r.procesoNombre}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${NIVEL_COLOR[nivel.nivel]}`}>
+                        {NIVEL_LABEL[nivel.nivel]} ({nivel.numerico})
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 align-top">
+                      <div className="flex justify-end gap-1">
+                        <button onClick={() => abrir(r)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Editar" aria-label="Editar">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => quitar(r.id)} disabled={eliminando === r.id} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title="Eliminar" aria-label="Eliminar">
+                          {eliminando === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -163,141 +226,225 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
 
       {abierto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAbierto(false)} />
-          <div className="relative z-10 w-full max-w-2xl rounded-xl border border-border bg-card shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAbierto(false)} aria-hidden="true" />
+          <div className="relative z-10 w-full max-w-2xl rounded-xl border border-border bg-card shadow-2xl">
             <div className="p-6">
               <h2 className="font-serif text-2xl font-semibold tracking-tight">{editando ? "Editar riesgo" : "Nuevo riesgo"}</h2>
-              <form action={formAction} className="mt-6 space-y-4">
+              <p className="mt-1 text-sm text-muted-foreground">El nivel se calcula con probabilidad × impacto.</p>
+
+              {/* Indicador de pasos */}
+              <div className="mt-5 flex items-center gap-1.5">
+                {PASOS.map((nombre, i) => {
+                  const activo = i === paso;
+                  const completo = i < paso;
+                  return (
+                    <div key={nombre} className="flex flex-1 items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => { if (i <= paso) { setErrorPaso(null); setPaso(i); } else avanzar(); }}
+                        className="flex items-center gap-1.5"
+                      >
+                        <span className={
+                          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium transition-colors " +
+                          (activo ? "bg-foreground text-background" : completo ? "bg-emerald-100 text-emerald-700" : "border border-border bg-muted/40 text-muted-foreground")
+                        }>
+                          {completo ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : i + 1}
+                        </span>
+                        <span className={"hidden text-xs sm:inline " + (activo ? "font-medium text-foreground" : "text-muted-foreground")}>{nombre}</span>
+                      </button>
+                      {i < PASOS.length - 1 && <span className="h-px flex-1 bg-border" aria-hidden="true" />}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <form action={formAction} onSubmit={onSubmitGuard} className="mt-6">
                 {editando && <input type="hidden" name="id" value={editando.id} />}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <label htmlFor="codigo" className="text-sm font-medium">Código</label>
-                    <input id="codigo" name="codigo" required defaultValue={editando?.codigo ?? ""} placeholder="R-COM-01"
-                      onInput={(e) => { const el = e.currentTarget; el.value = el.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""); }}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+
+                {/* Paso 1 — Identificación */}
+                <div hidden={paso !== 0} className="space-y-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <label htmlFor="codigo" className="text-sm font-medium">Código</label>
+                      <input id="codigo" name="codigo" required value={codigo} placeholder="R-COM-01"
+                        onChange={(e) => setCodigo(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
+                        className={INPUT + " font-mono"} />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="categoria" className="text-sm font-medium">Categoría</label>
+                      <select id="categoria" name="categoria" defaultValue={editando?.categoria ?? "riesgo"} className={INPUT}>
+                        <option value="riesgo">Riesgo</option>
+                        <option value="oportunidad">Oportunidad</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="estado" className="text-sm font-medium">Estado</label>
+                      <select id="estado" name="estado" defaultValue={editando?.estado ?? "identificado"} className={INPUT}>
+                        {ESTADOS.map((s) => <option key={s} value={s}>{cap(s)}</option>)}
+                      </select>
+                    </div>
                   </div>
+
                   <div className="space-y-2">
-                    <label htmlFor="categoria" className="text-sm font-medium">Categoría</label>
-                    <select id="categoria" name="categoria" defaultValue={editando?.categoria ?? "riesgo"} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      <option value="riesgo">Riesgo</option>
-                      <option value="oportunidad">Oportunidad</option>
-                    </select>
+                    <label htmlFor="titulo" className="text-sm font-medium">Título</label>
+                    <input id="titulo" name="titulo" required value={titulo} onChange={(e) => setTitulo(e.target.value)} className={INPUT} />
                   </div>
-                  <div className="space-y-2">
-                    <label htmlFor="estado" className="text-sm font-medium">Estado</label>
-                    <select id="estado" name="estado" defaultValue={editando?.estado ?? "identificado"} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      {ESTADOS.map((s) => <option key={s} value={s}>{cap(s)}</option>)}
-                    </select>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label htmlFor="procesoId" className="text-sm font-medium">Proceso</label>
+                      <select id="procesoId" name="procesoId" required value={procesoId} onChange={(e) => setProcesoId(e.target.value)} className={INPUT}>
+                        <option value="">Elegí un proceso…</option>
+                        {procesos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="responsableId" className="text-sm font-medium">Puesto responsable <span className="text-muted-foreground">(opc.)</span></label>
+                      <select id="responsableId" name="responsableId" defaultValue={editando?.responsableId ?? ""} className={INPUT}>
+                        <option value="">Sin asignar</option>
+                        {puestos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="titulo" className="text-sm font-medium">Título</label>
-                  <input id="titulo" name="titulo" required defaultValue={editando?.titulo ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <label htmlFor="procesoId" className="text-sm font-medium">Proceso</label>
-                    <select id="procesoId" name="procesoId" required defaultValue={editando?.procesoId ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      <option value="">Elegí un proceso…</option>
-                      {procesos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="responsableId" className="text-sm font-medium">Puesto responsable <span className="text-muted-foreground">(opc.)</span></label>
-                    <select id="responsableId" name="responsableId" defaultValue={editando?.responsableId ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      <option value="">Sin asignar</option>
-                      {puestos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
+                {/* Paso 2 — Análisis */}
+                <div hidden={paso !== 1} className="space-y-4">
+                  <p className="text-sm text-muted-foreground">Describí qué origina el riesgo y qué pasaría si se materializa.</p>
                   <div className="space-y-2">
                     <label htmlFor="causa" className="text-sm font-medium">Causa <span className="text-muted-foreground">(opc.)</span></label>
-                    <textarea id="causa" name="causa" rows={2} defaultValue={editando?.causa ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                    <textarea id="causa" name="causa" rows={4} defaultValue={editando?.causa ?? ""} placeholder="¿Qué condiciones o factores lo originan?" className={INPUT} />
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="consecuencia" className="text-sm font-medium">Consecuencia <span className="text-muted-foreground">(opc.)</span></label>
-                    <textarea id="consecuencia" name="consecuencia" rows={2} defaultValue={editando?.consecuencia ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                    <textarea id="consecuencia" name="consecuencia" rows={4} defaultValue={editando?.consecuencia ?? ""} placeholder="¿Qué impacto tendría si se materializa?" className={INPUT} />
                   </div>
                 </div>
 
-                <div className="rounded-md border border-border bg-muted/20 p-4">
-                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Evaluación del riesgo</p>
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <div className="flex-1 space-y-3">
-                      <div className="space-y-1">
-                        <label htmlFor="probabilidad" className="flex justify-between text-sm"><span>Probabilidad</span><span className="font-medium">{prob}</span></label>
-                        <input id="probabilidad" name="probabilidad" type="range" min={1} max={5} value={prob} onChange={(e) => setProb(Number(e.target.value))} className="w-full" />
+                {/* Paso 3 — Evaluación y tratamiento */}
+                <div hidden={paso !== 2} className="space-y-4">
+                  <div className="rounded-md border border-border bg-muted/20 p-4">
+                    <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Evaluación del riesgo</p>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                      <div className="flex-1 space-y-3">
+                        <div className="space-y-1">
+                          <label htmlFor="probabilidad" className="flex justify-between text-sm"><span>Probabilidad</span><span className="font-medium">{prob}</span></label>
+                          <input id="probabilidad" name="probabilidad" type="range" min={1} max={5} value={prob} onChange={(e) => setProb(Number(e.target.value))} className="w-full" />
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor="impacto" className="flex justify-between text-sm"><span>Impacto</span><span className="font-medium">{imp}</span></label>
+                          <input id="impacto" name="impacto" type="range" min={1} max={5} value={imp} onChange={(e) => setImp(Number(e.target.value))} className="w-full" />
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <label htmlFor="impacto" className="flex justify-between text-sm"><span>Impacto</span><span className="font-medium">{imp}</span></label>
-                        <input id="impacto" name="impacto" type="range" min={1} max={5} value={imp} onChange={(e) => setImp(Number(e.target.value))} className="w-full" />
+                      <div className="shrink-0 self-center sm:self-start">
+                        <div className="grid grid-cols-5 gap-0.5">
+                          {[5, 4, 3, 2, 1].map((iVal) =>
+                            [1, 2, 3, 4, 5].map((pVal) => {
+                              const cls = clasificarNivel(pVal, iVal);
+                              const activa = pVal === prob && iVal === imp;
+                              return (
+                                <div key={`${pVal}-${iVal}`}
+                                  className={`flex h-7 w-7 items-center justify-center rounded-sm text-[10px] ${celdaColor(cls.nivel)} ${activa ? "ring-2 ring-foreground ring-offset-1" : "opacity-70"}`}
+                                  title={`P${pVal} × I${iVal} = ${cls.numerico}`}>
+                                  {pVal * iVal}
+                                </div>
+                              );
+                            }),
+                          )}
+                        </div>
+                        <p className="mt-1 text-center text-[10px] text-muted-foreground">Probabilidad → / Impacto ↑</p>
                       </div>
-                      <div className="flex items-center gap-2 pt-1">
-                        <span className="text-sm text-muted-foreground">Nivel resultante:</span>
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${NIVEL_COLOR[nivelActual.nivel]}`}>
+                    </div>
+
+                    {/* Grado de control */}
+                    <div className="mt-4 space-y-2 border-t border-border pt-4">
+                      <label htmlFor="gradoControl" className="text-sm font-medium">Grado de control <span className="text-muted-foreground">(opc.)</span></label>
+                      <select id="gradoControl" name="gradoControl" value={gradoControl} onChange={(e) => setGradoControl(e.target.value)} className={INPUT}>
+                        <option value="">Sin evaluar</option>
+                        {GRADOS_CONTROL.map((g) => <option key={g} value={g}>{GRADO_CONTROL_LABEL[g]}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Inherente → Residual en vivo */}
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                      <div className="flex-1 rounded-md border border-border bg-card p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Nivel inherente</p>
+                        <span className={`mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${NIVEL_COLOR[nivelActual.nivel]}`}>
                           {NIVEL_LABEL[nivelActual.nivel]} ({nivelActual.numerico})
                         </span>
+                        <p className="mt-1.5 text-[11px] text-muted-foreground">probabilidad × impacto</p>
                       </div>
-                    </div>
-                    <div className="shrink-0">
-                      <div className="grid grid-cols-5 gap-0.5">
-                        {[5, 4, 3, 2, 1].map((iVal) =>
-                          [1, 2, 3, 4, 5].map((pVal) => {
-                            const cls = clasificarNivel(pVal, iVal);
-                            const activa = pVal === prob && iVal === imp;
-                            return (
-                              <div key={`${pVal}-${iVal}`}
-                                className={`flex h-7 w-7 items-center justify-center rounded-sm text-[10px] ${celdaColor(cls.nivel)} ${activa ? "ring-2 ring-foreground ring-offset-1" : "opacity-70"}`}
-                                title={`P${pVal} × I${iVal} = ${cls.numerico}`}>
-                                {pVal * iVal}
-                              </div>
-                            );
-                          }),
+                      <div className="hidden items-center justify-center text-muted-foreground sm:flex">
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </div>
+                      <div className="flex-1 rounded-md border border-border bg-card p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Nivel residual</p>
+                        {gc === null ? (
+                          <>
+                            <span className="mt-1 inline-flex items-center text-xs text-muted-foreground">— sin evaluar —</span>
+                            <p className="mt-1.5 text-[11px] text-muted-foreground">Elegí un grado de control para calcularlo.</p>
+                          </>
+                        ) : (
+                          <>
+                            <span className={`mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${NIVEL_COLOR[resid.nivel]}`}>
+                              {NIVEL_LABEL[resid.nivel]} ({resid.numerico})
+                            </span>
+                            <p className="mt-1.5 text-[11px] text-muted-foreground">
+                              {nivelActual.numerico} × {factorControl(gc).toString().replace(".", ",")} = <span className="font-medium text-foreground">{resid.numerico}</span>
+                            </p>
+                          </>
                         )}
                       </div>
-                      <p className="mt-1 text-center text-[10px] text-muted-foreground">Probabilidad → / Impacto ↑</p>
+                    </div>
+
+                    {/* Explicación de la fórmula */}
+                    <p className="mt-3 border-t border-border pt-3 text-[11px] leading-relaxed text-muted-foreground">
+                      El <span className="font-medium text-foreground">nivel inherente</span> es el riesgo en bruto (probabilidad × impacto). El{" "}
+                      <span className="font-medium text-foreground">residual</span> lo multiplica por el factor del grado de control
+                      {gc ? <> — {FACTOR_TXT[gc as Exclude<GradoControl, null>]}</> : null}{" "}
+                      y se reclasifica con los mismos cortes (bajo ≤4, medio 5–9, alto 10–15, extremo ≥16). “Sin control” y “desestimado por gerencia” no reducen el número; este último marca un riesgo aceptado conscientemente. Sin grado de control, el riesgo queda sin clasificar (gris en la vista por proceso).
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label htmlFor="tipoTratamiento" className="text-sm font-medium">Tratamiento <span className="text-muted-foreground">(opc.)</span></label>
+                      <select id="tipoTratamiento" name="tipoTratamiento" defaultValue={editando?.tipoTratamiento ?? ""} className={INPUT}>
+                        <option value="">Sin definir</option>
+                        {TRATAMIENTOS.map((t) => <option key={t} value={t}>{cap(t)}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="fechaRevision" className="text-sm font-medium">Próxima revisión <span className="text-muted-foreground">(opc.)</span></label>
+                      <input id="fechaRevision" name="fechaRevision" type="date" defaultValue={editando?.fechaRevision ?? ""} className={INPUT} />
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <label htmlFor="tipoTratamiento" className="text-sm font-medium">Tratamiento <span className="text-muted-foreground">(opc.)</span></label>
-                    <select id="tipoTratamiento" name="tipoTratamiento" defaultValue={editando?.tipoTratamiento ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      <option value="">Sin definir</option>
-                      {TRATAMIENTOS.map((t) => <option key={t} value={t}>{cap(t)}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="fechaRevision" className="text-sm font-medium">Próxima revisión <span className="text-muted-foreground">(opc.)</span></label>
-                    <input id="fechaRevision" name="fechaRevision" type="date" defaultValue={editando?.fechaRevision ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                    <label htmlFor="tratamientoPlanificado" className="text-sm font-medium">Plan de tratamiento / Mitigante <span className="text-muted-foreground">(opc.)</span></label>
+                    <textarea id="tratamientoPlanificado" name="tratamientoPlanificado" rows={2} defaultValue={editando?.tratamientoPlanificado ?? ""} placeholder="Acciones para abordar este riesgo…" className={INPUT} />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="gradoControl" className="text-sm font-medium">Grado de control <span className="text-muted-foreground">(opc.)</span></label>
-                  <select id="gradoControl" name="gradoControl" defaultValue={editando?.gradoControl ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    <option value="">Sin evaluar</option>
-                    {GRADOS_CONTROL.map((g) => <option key={g} value={g}>{GRADO_CONTROL_LABEL[g]}</option>)}
-                  </select>
-                  <p className="text-[11px] text-muted-foreground">Sin evaluar no equivale a controlado: el riesgo aparece en gris en la vista por proceso hasta clasificarlo.</p>
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="tratamientoPlanificado" className="text-sm font-medium">Plan de tratamiento / Mitigante <span className="text-muted-foreground">(opc.)</span></label>
-                  <textarea id="tratamientoPlanificado" name="tratamientoPlanificado" rows={2} defaultValue={editando?.tratamientoPlanificado ?? ""} placeholder="Acciones para abordar este riesgo…" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-                </div>
-
-                {estado && !estado.ok && (
-                  <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>
+                {errorPaso && (
+                  <div role="alert" className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{errorPaso}</div>
                 )}
-                <div className="flex gap-3 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
-                  <SubmitButton edicion={!!editando} />
+                {estado && !estado.ok && (
+                  <div role="alert" className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>
+                )}
+
+                <div className="mt-6 flex items-center gap-3 border-t border-border pt-4">
+                  {paso > 0 ? (
+                    <Button type="button" variant="outline" onClick={retroceder}><ArrowLeft className="h-4 w-4" />Atrás</Button>
+                  ) : (
+                    <Button type="button" variant="outline" onClick={() => setAbierto(false)}>Cancelar</Button>
+                  )}
+                  <div className="flex-1" />
+                  {enUltimo ? (
+                    <SubmitButton edicion={!!editando} />
+                  ) : (
+                    <Button type="button" onClick={avanzar}>Siguiente<ArrowRight className="h-4 w-4" /></Button>
+                  )}
                 </div>
               </form>
             </div>
