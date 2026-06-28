@@ -34,11 +34,17 @@ export default async function AppLayout({
 
   // Admin del SGI (admin, responsable del SGI o superadmin): controla la
   // visibilidad de reportes de administración como la matriz RACI.
-  const [{ data: esAdmin }, { data: esResponsableSgi }] = await Promise.all([
+  const [{ data: esAdmin }, { data: esResponsableSgi }, { data: modulos }] = await Promise.all([
     supabase.rpc("fn_usuario_es_admin"),
     supabase.rpc("fn_usuario_tiene_rol_global", { codigo_rol: "responsable_sgi" }),
+    supabase.rpc("fn_obtener_modulos"),
   ]);
   const esAdminSgi = Boolean(esAdmin) || Boolean(esResponsableSgi) || Boolean(esSuperadmin);
+
+  // Códigos de módulos habilitados, para filtrar el menú lateral.
+  const modulosHabilitados = ((modulos ?? []) as Array<{ codigo: string; habilitado: boolean }>)
+    .filter((m) => m.habilitado)
+    .map((m) => m.codigo);
 
   return (
     <SidebarMobileProvider>
@@ -48,7 +54,7 @@ export default async function AppLayout({
 
         {/* Fila inferior: sidebar claro + contenido */}
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar esSuperadmin={esSuperadmin ?? false} esAdminSgi={esAdminSgi} />
+          <Sidebar esSuperadmin={esSuperadmin ?? false} esAdminSgi={esAdminSgi} modulosHabilitados={modulosHabilitados} />
           <main className="flex-1 overflow-y-auto">{children}</main>
         </div>
       </div>

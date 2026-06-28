@@ -36,6 +36,7 @@ type NavItem = {
   section: Seccion;
   soloSuperadmin?: boolean;
   soloAdminSgi?: boolean;
+  modulo?: string; // código en modulos_sistema; si está, solo se muestra si el módulo está habilitado
 };
 
 const navItems: NavItem[] = [
@@ -46,16 +47,16 @@ const navItems: NavItem[] = [
   { href: "/acuses",        label: "Acuses",           icon: PenSquare,       section: "inicio" },
 
   // Gestión del SGI — registros que se mantienen
-  { href: "/documentos",         label: "Documentos",         icon: FileText,       section: "gestion" },
-  { href: "/procesos",           label: "Procesos",           icon: Network,        section: "gestion" },
-  { href: "/cumplimiento",       label: "Cumplimiento",       icon: Grid3x3,        section: "gestion" },
+  { href: "/documentos",         label: "Documentos",         icon: FileText,       section: "gestion", modulo: "documentos" },
+  { href: "/procesos",           label: "Procesos",           icon: Network,        section: "gestion", modulo: "procesos" },
+  { href: "/cumplimiento",       label: "Cumplimiento",       icon: Grid3x3,        section: "gestion", modulo: "cumplimiento" },
   { href: "/requisitos-legales", label: "Requisitos legales", icon: Scale,          section: "gestion" },
-  { href: "/riesgos",            label: "Riesgos",            icon: ShieldAlert,    section: "gestion" },
-  { href: "/auditorias",         label: "Auditorías",         icon: ClipboardCheck, section: "gestion" },
-  { href: "/ncs",                label: "No conformidades",   icon: AlertOctagon,   section: "gestion" },
+  { href: "/riesgos",            label: "Riesgos",            icon: ShieldAlert,    section: "gestion", modulo: "riesgos" },
+  { href: "/auditorias",         label: "Auditorías",         icon: ClipboardCheck, section: "gestion", modulo: "auditorias" },
+  { href: "/ncs",                label: "No conformidades",   icon: AlertOctagon,   section: "gestion", modulo: "no_conformidades" },
 
   // Análisis — lectura / reporte
-  { href: "/indicadores",   label: "Indicadores",        icon: Gauge,      section: "analisis" },
+  { href: "/indicadores",   label: "Indicadores",        icon: Gauge,      section: "analisis", modulo: "indicadores" },
   { href: "/tablero",       label: "Tablero de control", icon: LineChart,  section: "analisis" },
   { href: "/reportes/raci", label: "Matriz RACI",        icon: Table2,     section: "analisis", soloAdminSgi: true },
   { href: "/reportes/personas", label: "Perfil por persona", icon: Users,  section: "analisis", soloAdminSgi: true },
@@ -72,14 +73,14 @@ const GRUPOS: { key: Seccion; title: string }[] = [
   { key: "admin",    title: "Sistema" },
 ];
 
-export function Sidebar({ esSuperadmin = false, esAdminSgi = false }: { esSuperadmin?: boolean; esAdminSgi?: boolean }) {
+export function Sidebar({ esSuperadmin = false, esAdminSgi = false, modulosHabilitados = [] }: { esSuperadmin?: boolean; esAdminSgi?: boolean; modulosHabilitados?: string[] }) {
   const { abierto, cerrar } = useSidebarMobile();
 
   return (
     <>
       {/* Desktop: barra lateral fija */}
       <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border bg-[#f7f5ef]">
-        <MenuContenido esSuperadmin={esSuperadmin} esAdminSgi={esAdminSgi} />
+        <MenuContenido esSuperadmin={esSuperadmin} esAdminSgi={esAdminSgi} modulosHabilitados={modulosHabilitados} />
       </aside>
 
       {/* Mobile: drawer deslizable con overlay */}
@@ -132,7 +133,7 @@ export function Sidebar({ esSuperadmin = false, esAdminSgi = false }: { esSupera
               <X className="h-5 w-5" />
             </button>
           </div>
-          <MenuContenido esSuperadmin={esSuperadmin} esAdminSgi={esAdminSgi} onNavegar={cerrar} />
+          <MenuContenido esSuperadmin={esSuperadmin} esAdminSgi={esAdminSgi} modulosHabilitados={modulosHabilitados} onNavegar={cerrar} />
         </div>
       </div>
     </>
@@ -147,10 +148,12 @@ export function Sidebar({ esSuperadmin = false, esAdminSgi = false }: { esSupera
 function MenuContenido({
   esSuperadmin,
   esAdminSgi,
+  modulosHabilitados,
   onNavegar,
 }: {
   esSuperadmin: boolean;
   esAdminSgi: boolean;
+  modulosHabilitados: string[];
   onNavegar?: () => void;
 }) {
   const pathname = usePathname();
@@ -172,7 +175,11 @@ function MenuContenido({
       <nav className="flex-1 overflow-y-auto px-3 py-5">
         {GRUPOS.map(({ key, title }) => {
           const items = navItems.filter(
-            (i) => i.section === key && (!i.soloSuperadmin || esSuperadmin) && (!i.soloAdminSgi || esAdminSgi),
+            (i) =>
+              i.section === key &&
+              (!i.soloSuperadmin || esSuperadmin) &&
+              (!i.soloAdminSgi || esAdminSgi) &&
+              (!i.modulo || modulosHabilitados.includes(i.modulo)),
           );
           if (items.length === 0) return null;
 
