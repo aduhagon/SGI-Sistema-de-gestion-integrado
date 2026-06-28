@@ -13,6 +13,8 @@ import { BotonTablero } from "@/components/tablero-nc/BotonTablero";
 import { BotonNuevaNC } from "@/components/ncs/BotonNuevaNC";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { obtenerZonaHoraria } from "@/lib/api/ajustes";
+import { estaVencida, formatearFechaCorta } from "@/lib/fechas";
 
 export const dynamic = "force-dynamic";
 
@@ -44,11 +46,12 @@ type Props = {
 export default async function NCsPage({ searchParams }: Props) {
   const vista = searchParams.vista === "observaciones" ? "observaciones" : "ncs";
 
-  const [ncs, observaciones, obsPendientes, perfil] = await Promise.all([
+  const [ncs, observaciones, obsPendientes, perfil, zona] = await Promise.all([
     obtenerNCs(),
     obtenerObservaciones(),
     contarObservacionesPendientes(),
     obtenerPerfilMenu(),
+    obtenerZonaHoraria(),
   ]);
 
   const tableroAbierto = perfil.esGestor && searchParams.tablero === "1" && vista === "ncs";
@@ -156,6 +159,7 @@ export default async function NCsPage({ searchParams }: Props) {
       {vista === "ncs" ? (
         <ListaNC
           ncs={ncs}
+          zona={zona}
           slotNuevaNC={
             datosNuevaNC ? (
               <BotonNuevaNC
@@ -168,7 +172,7 @@ export default async function NCsPage({ searchParams }: Props) {
           }
         />
       ) : (
-        <ListaObservaciones observaciones={observaciones} />
+        <ListaObservaciones observaciones={observaciones} zona={zona} />
       )}
     </div>
   );
@@ -176,9 +180,11 @@ export default async function NCsPage({ searchParams }: Props) {
 
 function ListaNC({
   ncs,
+  zona,
   slotNuevaNC,
 }: {
   ncs: Awaited<ReturnType<typeof obtenerNCs>>;
+  zona: string;
   slotNuevaNC?: React.ReactNode;
 }) {
   if (ncs.length === 0) {
@@ -205,8 +211,8 @@ function ListaNC({
       </div>
       {ncs.map((nc) => {
         const meta = ESTADO_NC[nc.estado] ?? ESTADO_NC.abierta;
-        const vencida = nc.fechaLimiteCierre && new Date(nc.fechaLimiteCierre) < new Date() && nc.estado !== "cerrada";
-        const fecha = new Date(nc.fechaApertura).toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+        const vencida = estaVencida(nc.fechaLimiteCierre, zona, nc.estado === "cerrada");
+        const fecha = formatearFechaCorta(nc.fechaApertura, zona);
         return (
           <Link
             key={nc.id}
@@ -235,7 +241,7 @@ function ListaNC({
   );
 }
 
-function ListaObservaciones({ observaciones }: { observaciones: Awaited<ReturnType<typeof obtenerObservaciones>> }) {
+function ListaObservaciones({ observaciones, zona }: { observaciones: Awaited<ReturnType<typeof obtenerObservaciones>>; zona: string }) {
   if (observaciones.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
@@ -259,10 +265,8 @@ function ListaObservaciones({ observaciones }: { observaciones: Awaited<ReturnTy
       </div>
       {observaciones.map((o) => {
         const meta = ESTADO_OBS[o.estado] ?? ESTADO_OBS.abierto;
-        const vencida = o.fechaLimite && new Date(o.fechaLimite) < new Date() && o.estado !== "cerrado";
-        const limite = o.fechaLimite
-          ? new Date(o.fechaLimite).toLocaleDateString("es-AR", { day: "numeric", month: "short" })
-          : "—";
+        const vencida = estaVencida(o.fechaLimite, zona, o.estado === "cerrado");
+        const limite = formatearFechaCorta(o.fechaLimite, zona);
         return (
           <Link
             key={o.id}
