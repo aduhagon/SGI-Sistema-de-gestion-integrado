@@ -75,3 +75,19 @@ export function formatearFechaCorta(fecha: string | null, zona: string): string 
     month: "short",
   }).format(d);
 }
+
+/**
+ * Igual que formatearFechaCorta pero en formato largo: "28 de junio de 2026".
+ * Para títulos y detalles donde el contexto pide la fecha completa.
+ */
+export function formatearFechaLarga(fecha: string | null, zona: string): string {
+  if (!fecha) return "—";
+  const esDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
+  const d = esDateOnly ? new Date(`${fecha}T12:00:00Z`) : new Date(fecha);
+  return new Intl.DateTimeFormat("es-AR", {
+    timeZone: zona,
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(d);
+}

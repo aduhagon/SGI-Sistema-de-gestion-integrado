@@ -6,6 +6,8 @@ import {
   obtenerPuestosParaObservacion,
 } from "@/lib/api/observaciones";
 import { FormTratamientoObservacion } from "@/components/ncs/FormTratamientoObservacion";
+import { obtenerZonaHoraria } from "@/lib/api/ajustes";
+import { formatearFechaCorta } from "@/lib/fechas";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +23,10 @@ const SEVERIDAD_LABEL: Record<string, string> = {
 };
 
 export default async function ObservacionPage({ params }: { params: { id: string } }) {
-  const [obs, puestos] = await Promise.all([
+  const [obs, puestos, zona] = await Promise.all([
     obtenerObservacionDetalle(params.id),
     obtenerPuestosParaObservacion(),
+    obtenerZonaHoraria(),
   ]);
 
   if (!obs) notFound();
@@ -60,7 +63,7 @@ export default async function ObservacionPage({ params }: { params: { id: string
         <div className="flex flex-wrap gap-x-8 gap-y-2 pt-1 text-xs text-muted-foreground">
           {obs.procesoNombre && <span>Proceso: <span className="text-foreground/80">{obs.procesoNombre}</span></span>}
           {obs.requisitoClausula && <span>Requisito: <span className="font-mono text-foreground/80">{obs.requisitoClausula}</span></span>}
-          <span>Detectada: <span className="text-foreground/80">{new Date(obs.detectadoEn).toLocaleDateString("es-AR")}</span></span>
+          <span>Detectada: <span className="text-foreground/80">{formatearFechaCorta(obs.detectadoEn, zona)}</span></span>
         </div>
       </section>
 

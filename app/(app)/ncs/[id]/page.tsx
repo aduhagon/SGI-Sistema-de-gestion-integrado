@@ -12,6 +12,8 @@ import { AnalisisCausaForm } from "@/components/ncs/AnalisisCausaForm";
 import { GestionAcciones } from "@/components/ncs/GestionAcciones";
 import { VerificacionEficaciaSection } from "@/components/ncs/VerificacionEficacia";
 import { AdjuntosNCSection } from "@/components/ncs/AdjuntosNC";
+import { obtenerZonaHoraria } from "@/lib/api/ajustes";
+import { formatearFechaLarga } from "@/lib/fechas";
 
 export const dynamic = "force-dynamic";
 
@@ -39,10 +41,11 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
   const nc = await obtenerNCDetalle(params.id);
   if (!nc) notFound();
 
-  const [acciones, verificaciones, usuarios] = await Promise.all([
+  const [acciones, verificaciones, usuarios, zona] = await Promise.all([
     obtenerAccionesDeNC(params.id),
     obtenerVerificacionesDeNC(params.id),
     obtenerUsuariosElegibles(null),
+    obtenerZonaHoraria(),
   ]);
 
   const adjuntos = await obtenerAdjuntosDeNC(params.id);
@@ -87,7 +90,7 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
           {nc.hallazgoCodigo && (<><span className="text-muted-foreground/40">·</span><span className="font-mono text-xs">Hallazgo {nc.hallazgoCodigo}</span></>)}
           {nc.procesoNombre && (<><span className="text-muted-foreground/40">·</span><span className="flex items-center gap-1"><Network className="h-3.5 w-3.5" aria-hidden="true" />{nc.procesoNombre}</span></>)}
           <span className="text-muted-foreground/40">·</span>
-          <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" aria-hidden="true" />Abierta {new Date(nc.fechaApertura).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}</span>
+          <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" aria-hidden="true" />Abierta {formatearFechaLarga(nc.fechaApertura, zona)}</span>
         </div>
       </header>
 
