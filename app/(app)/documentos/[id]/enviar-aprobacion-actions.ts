@@ -114,8 +114,11 @@ export async function enviarAAprobacion(
         .map((r) => [r.usuario_id, r.nivel_jerarquico]),
     );
     const n1Cumple = !sug.nivel_n1 || nivelDe.get(aprobadorN1Id) === sug.nivel_n1;
-    // El nivel de N2 solo se evalúa si el tipo efectivamente requiere N2.
-    const n2Cumple = !requiereN2 || !sug.nivel_n2 || nivelDe.get(aprobadorN2Id) === sug.nivel_n2;
+    // El nivel de N2 solo se evalúa si el tipo efectivamente requiere N2 y hay un N2 elegido.
+    const n2Cumple =
+      !requiereN2 ||
+      !sug.nivel_n2 ||
+      (!!aprobadorN2Id && nivelDe.get(aprobadorN2Id) === sug.nivel_n2);
     desvio = !n1Cumple || !n2Cumple;
   }
 
@@ -124,6 +127,15 @@ export async function enviarAAprobacion(
       ok: false,
       error: "Elegiste aprobadores que no cumplen el nivel sugerido para este tipo de documento. Indicá un motivo (mínimo 5 caracteres) para continuar.",
       campo: "motivoOverride",
+    };
+  }
+
+  // Si el tipo requiere N2, debe haberse elegido un aprobador de nivel 2.
+  if (requiereN2 && !aprobadorN2Id) {
+    return {
+      ok: false,
+      error: "Este tipo de documento requiere un aprobador de nivel 2.",
+      campo: "aprobadorN2Id",
     };
   }
 
