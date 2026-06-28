@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   Users, Network, FileType, BookOpen, Building, MapPin,
-  UserCheck, Archive, ChevronRight, Settings, Briefcase, ShieldCheck, FileClock,
+  UserCheck, Archive, ChevronRight, Settings, Briefcase, ShieldCheck, FileClock, SlidersHorizontal,
 } from "lucide-react";
 import { obtenerConteosConfig } from "@/lib/api/configuracion";
 
@@ -11,6 +11,7 @@ export default async function ConfiguracionPage() {
   const c = await obtenerConteosConfig();
 
   const secciones = [
+    { href: "/configuracion/ajustes", icon: SlidersHorizontal, label: "Ajustes generales", desc: "Zona horaria y parámetros globales del sistema.", conteo: undefined, disponible: true },
     { href: "/configuracion/areas", icon: Building, label: "Áreas", desc: "Unidades organizativas de la empresa.", conteo: c.areas, disponible: true },
     { href: "/configuracion/sedes", icon: MapPin, label: "Sedes", desc: "Ubicaciones físicas: plantas, oficinas, campos.", conteo: c.sedes, disponible: true },
     { href: "/configuracion/puestos", icon: Briefcase, label: "Puestos", desc: "Cargos formales (Jefe de Calidad, etc.) con roles en procesos.", conteo: c.puestos, disponible: true },
