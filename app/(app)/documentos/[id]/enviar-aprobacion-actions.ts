@@ -102,6 +102,10 @@ export async function enviarAAprobacion(
     nivel_n1: string | null; nivel_n2: string | null; requiere_n2: boolean;
   }> | null)?.[0] ?? null;
 
+  // ¿El tipo documental requiere segundo nivel de aprobación?
+  // Si no lo requiere, N2 se omite por completo (aprobador_n2_id = null).
+  const requiereN2 = sug?.requiere_n2 ?? true;
+
   let desvio = false;
   if (sug) {
     const { data: elegRows } = await supabase.rpc("fn_usuarios_elegibles_con_nivel");
@@ -110,7 +114,8 @@ export async function enviarAAprobacion(
         .map((r) => [r.usuario_id, r.nivel_jerarquico]),
     );
     const n1Cumple = !sug.nivel_n1 || nivelDe.get(aprobadorN1Id) === sug.nivel_n1;
-    const n2Cumple = !sug.nivel_n2 || nivelDe.get(aprobadorN2Id) === sug.nivel_n2;
+    // El nivel de N2 solo se evalúa si el tipo efectivamente requiere N2.
+    const n2Cumple = !requiereN2 || !sug.nivel_n2 || nivelDe.get(aprobadorN2Id) === sug.nivel_n2;
     desvio = !n1Cumple || !n2Cumple;
   }
 
@@ -132,12 +137,13 @@ export async function enviarAAprobacion(
     : null;
 
   // 1. Crear la aprobación. El trigger de segregación valida N1/N2 vs elaborador.
+  //    Si el tipo no requiere N2, aprobador_n2_id queda null (aprobación de un solo nivel).
   const { error: errAprob } = await supabase.from("aprobaciones").insert({
     version_id: versionId,
     aprobador_n1_id: aprobadorN1Id,
-    aprobador_n2_id: aprobadorN2Id,
+    aprobador_n2_id: requiereN2 ? aprobadorN2Id : null,
     plazo_objetivo_n1: plazo,
-    plazo_objetivo_n2: plazo,
+    plazo_objetivo_n2: requiereN2 ? plazo : null,
     iniciada_en: ahora.toISOString(),
     comentario_n1: comentarioInicial,
     creado_por: usuarioId,

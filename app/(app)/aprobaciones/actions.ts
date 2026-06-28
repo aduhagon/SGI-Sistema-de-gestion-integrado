@@ -112,11 +112,17 @@ export async function decidirAprobacion(
           comentario_n2: comentario ?? null,
         };
 
+  // ¿Este documento tiene segundo nivel? (null = no requiere N2)
+  const sinN2 = aprob.aprobador_n2_id == null;
+
   // Si esta decisión cierra el flujo, marcar cerrada_en:
   //  - cualquier rechazo cierra
   //  - aprobación de N2 cierra
+  //  - aprobación de N1 cierra cuando el documento no requiere N2
   const cierra =
-    decision === "rechazado" || (nivel === 2 && decision === "aprobado");
+    decision === "rechazado" ||
+    (nivel === 2 && decision === "aprobado") ||
+    (nivel === 1 && decision === "aprobado" && sinN2);
   if (cierra) {
     camposUpdate.cerrada_en = ahora;
   }
@@ -163,6 +169,9 @@ export async function decidirAprobacion(
   if (decision === "rechazado") {
     nuevoEstadoVersion = "rechazado";
   } else if (nivel === 2 && decision === "aprobado") {
+    nuevoEstadoVersion = "aprobado";
+  } else if (nivel === 1 && decision === "aprobado" && sinN2) {
+    // Documento de un solo nivel: la aprobación de N1 deja la versión aprobada.
     nuevoEstadoVersion = "aprobado";
   }
 
