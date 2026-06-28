@@ -9,6 +9,7 @@ import {
   FileText,
   CheckSquare,
   PenSquare,
+  ListChecks,
   ClipboardCheck,
   AlertOctagon,
   Grid3x3,
@@ -39,6 +40,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   // Inicio — el trabajo pendiente del usuario
+  { href: "/mis-pendientes", label: "Mis pendientes",    icon: ListChecks,     section: "inicio" },
   { href: "/dashboard",     label: "Dashboard",        icon: LayoutDashboard, section: "inicio" },
   { href: "/aprobaciones",  label: "Aprobaciones",     icon: CheckSquare,     section: "inicio" },
   { href: "/acuses",        label: "Acuses",           icon: PenSquare,       section: "inicio" },
