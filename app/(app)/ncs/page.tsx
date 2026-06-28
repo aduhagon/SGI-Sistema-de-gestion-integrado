@@ -75,9 +75,14 @@ export default async function NCsPage({ searchParams }: Props) {
       obtenerHallazgosSinNC(),
       obtenerNormasConRequisitos(),
     ]);
+    // Cargar los requisitos de todas las normas en paralelo (antes era un
+    // loop secuencial: un round-trip por norma encadenado con await).
     const requisitosPorNorma: Record<string, Awaited<ReturnType<typeof obtenerRequisitosDeNorma>>> = {};
-    for (const n of normas) {
-      requisitosPorNorma[n.versionNormaId] = await obtenerRequisitosDeNorma(n.versionNormaId);
+    const requisitosResueltos = await Promise.all(
+      normas.map(async (n) => [n.versionNormaId, await obtenerRequisitosDeNorma(n.versionNormaId)] as const),
+    );
+    for (const [versionNormaId, requisitos] of requisitosResueltos) {
+      requisitosPorNorma[versionNormaId] = requisitos;
     }
     datosNuevaNC = { procesos, hallazgos, normas, requisitosPorNorma };
   }
