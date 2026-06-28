@@ -24,14 +24,15 @@ export type GrupoPendientes = {
 const MODULO_LABEL: Record<string, string> = {
   aprobaciones: "Aprobaciones de documentos",
   acuses: "Acuses de lectura",
-  riesgos: "Riesgos",
   no_conformidades: "No conformidades",
   acciones: "Acciones de tratamiento",
+  riesgos: "Riesgos",
+  indicadores: "Indicadores por medir",
   documentos: "Documentos por revisar",
 };
 
 // Orden de presentación de las secciones en la pantalla.
-const ORDEN_MODULO = ["aprobaciones", "acuses", "no_conformidades", "acciones", "riesgos", "documentos"];
+const ORDEN_MODULO = ["aprobaciones", "acuses", "no_conformidades", "acciones", "riesgos", "indicadores", "documentos"];
 
 /**
  * Devuelve los pendientes del usuario actual, agrupados por módulo.
