@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 const FRECUENCIAS = ["trimestral", "semestral", "anual", "bienal", "trienal", "quinquenal", "ad_hoc", "sin_revision"];
 const CRITICIDADES = ["critico", "alto", "medio", "bajo"];
 const CONFIDENCIALIDADES = ["publico", "interno", "confidencial", "restringido"];
+const NIVELES = ["gerente", "jefatura", "analista", "operativo"];
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 
@@ -29,6 +30,20 @@ export function GestionTiposDocumentales({ tipos }: { tipos: TipoDocumental[] })
   const [abierto, setAbierto] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
   const [estado, formAction] = useFormState<EstadoConfig, FormData>(guardarTipoDocumental, null);
+
+  // Estado local de la configuración de aprobación (controla qué controles se ven).
+  const [requiereAprob, setRequiereAprob] = useState(true);
+  const [requiereN2, setRequiereN2] = useState(false);
+
+  // Al abrir el dialog, sincronizar los checkboxes con el tipo que se edita.
+  useEffect(() => {
+    if (abierto) {
+      const req = editando ? editando.requiereAprobacion : true;
+      const dos = editando ? editando.nivelN2 != null : false;
+      setRequiereAprob(req);
+      setRequiereN2(dos);
+    }
+  }, [abierto, editando]);
 
   useEffect(() => {
     if (estado?.ok) { setAbierto(false); setEditando(null); router.refresh(); }
@@ -130,16 +145,74 @@ export function GestionTiposDocumentales({ tipos }: { tipos: TipoDocumental[] })
                   <textarea id="descripcion" name="descripcion" rows={2} defaultValue={editando?.descripcion ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
                 </div>
 
-                <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Comportamiento</p>
+                <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Aprobación</p>
+
                   <label className="flex cursor-pointer items-center gap-2 text-sm">
-                    <input type="checkbox" name="requiereAprobacion" defaultChecked={editando ? editando.requiereAprobacion : true} className="h-4 w-4" />
-                    Requiere aprobación de dos niveles
+                    <input
+                      type="checkbox"
+                      name="requiereAprobacion"
+                      checked={requiereAprob}
+                      onChange={(e) => {
+                        setRequiereAprob(e.target.checked);
+                        if (!e.target.checked) setRequiereN2(false);
+                      }}
+                      className="h-4 w-4"
+                    />
+                    Requiere aprobación
                   </label>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm">
-                    <input type="checkbox" name="requiereAcuseLectura" defaultChecked={editando ? editando.requiereAcuseLectura : false} className="h-4 w-4" />
-                    Requiere acuse de lectura del personal
-                  </label>
+
+                  {requiereAprob && (
+                    <>
+                      <div className="grid grid-cols-2 gap-3 pl-6">
+                        <div className="space-y-1">
+                          <label htmlFor="nivelN1" className="text-xs text-muted-foreground">Nivel del 1er aprobador</label>
+                          <select id="nivelN1" name="nivelN1" defaultValue={editando?.nivelN1 ?? "jefatura"} className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            {NIVELES.map((n) => <option key={n} value={n}>{cap(n)}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor="nivelRevisor" className="text-xs text-muted-foreground">Nivel del revisor <span className="text-muted-foreground/60">(opcional)</span></label>
+                          <select id="nivelRevisor" name="nivelRevisor" defaultValue={editando?.nivelRevisor ?? "analista"} className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            {NIVELES.map((n) => <option key={n} value={n}>{cap(n)}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      <label className="flex cursor-pointer items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          name="requiereSegundoNivel"
+                          checked={requiereN2}
+                          onChange={(e) => setRequiereN2(e.target.checked)}
+                          className="h-4 w-4"
+                        />
+                        Requiere segundo nivel de aprobación
+                      </label>
+
+                      {requiereN2 && (
+                        <div className="pl-6">
+                          <div className="space-y-1">
+                            <label htmlFor="nivelN2" className="text-xs text-muted-foreground">Nivel del 2do aprobador</label>
+                            <select id="nivelN2" name="nivelN2" defaultValue={editando?.nivelN2 ?? "gerente"} className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                              {NIVELES.map((n) => <option key={n} value={n}>{cap(n)}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {!requiereAprob && (
+                    <p className="pl-6 text-xs text-muted-foreground">Este tipo se publica sin firma de aprobación.</p>
+                  )}
+
+                  <div className="border-t border-border/60 pt-3">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm">
+                      <input type="checkbox" name="requiereAcuseLectura" defaultChecked={editando ? editando.requiereAcuseLectura : false} className="h-4 w-4" />
+                      Requiere acuse de lectura del personal
+                    </label>
+                  </div>
                 </div>
 
                 <div className="space-y-2">

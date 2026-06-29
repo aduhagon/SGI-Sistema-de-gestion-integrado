@@ -203,6 +203,8 @@ export async function listarProcesosCatalogo(): Promise<ProcesoCatalogo[]> {
 }
 
 // ---- Tipos documentales ----
+export type NivelJerarquicoTipo = "gerente" | "jefatura" | "analista" | "operativo";
+
 export type TipoDocumental = {
   id: string;
   codigo: string;
@@ -216,6 +218,10 @@ export type TipoDocumental = {
   confidencialidadDefault: string | null;
   ordenVisualizacion: number;
   nivelJerarquico: number | null;
+  // Regla de aprobación (de reglas_aprobacion_tipo). null = sin regla configurada.
+  nivelRevisor: NivelJerarquicoTipo | null;
+  nivelN1: NivelJerarquicoTipo | null;
+  nivelN2: NivelJerarquicoTipo | null;
 };
 
 export async function listarTiposDocumentales(): Promise<TipoDocumental[]> {
@@ -223,27 +229,36 @@ export async function listarTiposDocumentales(): Promise<TipoDocumental[]> {
   const { data, error } = await supabase
     .from("tipos_documentales")
     .select(
-      "id, codigo, nombre, nombre_plural, descripcion, requiere_aprobacion, requiere_acuse_lectura, frecuencia_revision_default, criticidad_default, confidencialidad_default, orden_visualizacion, nivel_jerarquico",
+      "id, codigo, nombre, nombre_plural, descripcion, requiere_aprobacion, requiere_acuse_lectura, frecuencia_revision_default, criticidad_default, confidencialidad_default, orden_visualizacion, nivel_jerarquico, reglas_aprobacion_tipo (nivel_revisor, nivel_n1, nivel_n2)",
     )
     .eq("activo", true)
     .is("eliminado_en", null)
     .order("orden_visualizacion", { ascending: true })
     .order("codigo", { ascending: true });
   if (error) return [];
-  return ((data ?? []) as any[]).map((t) => ({
-    id: t.id,
-    codigo: t.codigo,
-    nombre: t.nombre,
-    nombrePlural: t.nombre_plural,
-    descripcion: t.descripcion,
-    requiereAprobacion: t.requiere_aprobacion,
-    requiereAcuseLectura: t.requiere_acuse_lectura,
-    frecuenciaRevisionDefault: t.frecuencia_revision_default,
-    criticidadDefault: t.criticidad_default,
-    confidencialidadDefault: t.confidencialidad_default,
-    ordenVisualizacion: t.orden_visualizacion,
-    nivelJerarquico: t.nivel_jerarquico,
-  }));
+  return ((data ?? []) as any[]).map((t) => {
+    // reglas_aprobacion_tipo es 1:1 pero PostgREST lo devuelve como array.
+    const regla = Array.isArray(t.reglas_aprobacion_tipo)
+      ? t.reglas_aprobacion_tipo[0] ?? null
+      : t.reglas_aprobacion_tipo ?? null;
+    return {
+      id: t.id,
+      codigo: t.codigo,
+      nombre: t.nombre,
+      nombrePlural: t.nombre_plural,
+      descripcion: t.descripcion,
+      requiereAprobacion: t.requiere_aprobacion,
+      requiereAcuseLectura: t.requiere_acuse_lectura,
+      frecuenciaRevisionDefault: t.frecuencia_revision_default,
+      criticidadDefault: t.criticidad_default,
+      confidencialidadDefault: t.confidencialidad_default,
+      ordenVisualizacion: t.orden_visualizacion,
+      nivelJerarquico: t.nivel_jerarquico,
+      nivelRevisor: regla?.nivel_revisor ?? null,
+      nivelN1: regla?.nivel_n1 ?? null,
+      nivelN2: regla?.nivel_n2 ?? null,
+    };
+  });
 }
 
 // ---- Puestos ----

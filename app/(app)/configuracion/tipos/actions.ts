@@ -25,6 +25,10 @@ export async function guardarTipoDocumental(
     nombrePlural: formData.get("nombrePlural"),
     descripcion: formData.get("descripcion") || undefined,
     requiereAprobacion: formData.get("requiereAprobacion") === "on",
+    requiereSegundoNivel: formData.get("requiereSegundoNivel") === "on",
+    nivelN1: formData.get("nivelN1") || undefined,
+    nivelN2: formData.get("nivelN2") || undefined,
+    nivelRevisor: formData.get("nivelRevisor") || undefined,
     requiereAcuseLectura: formData.get("requiereAcuseLectura") === "on",
     frecuenciaRevisionDefault: formData.get("frecuenciaRevisionDefault") || undefined,
     criticidadDefault: formData.get("criticidadDefault") || undefined,
@@ -42,6 +46,25 @@ export async function guardarTipoDocumental(
   const limpio = (v?: string | number) =>
     v === undefined || v === "" ? null : v;
 
+  // Determinar los niveles de la regla según los checkboxes:
+  //   - sin aprobación  -> nivelN1 = null (no hay regla)
+  //   - un nivel        -> nivelN1 set, nivelN2 = null
+  //   - dos niveles     -> nivelN1 set, nivelN2 set
+  const reglaN1 = i.requiereAprobacion ? (limpio(i.nivelN1) as string | null) : null;
+  const reglaN2 =
+    i.requiereAprobacion && i.requiereSegundoNivel
+      ? (limpio(i.nivelN2) as string | null)
+      : null;
+  const reglaRevisor = i.requiereAprobacion ? (limpio(i.nivelRevisor) as string | null) : null;
+
+  // Validaciones de coherencia de la regla (la función SQL también las protege).
+  if (i.requiereAprobacion && !reglaN1) {
+    return { ok: false, error: "Elegí el nivel jerárquico del primer aprobador.", campo: "nivelN1" };
+  }
+  if (i.requiereAprobacion && i.requiereSegundoNivel && !reglaN2) {
+    return { ok: false, error: "Elegí el nivel jerárquico del segundo aprobador.", campo: "nivelN2" };
+  }
+
   const payload = {
     codigo: i.codigo,
     nombre: i.nombre,
@@ -56,6 +79,8 @@ export async function guardarTipoDocumental(
     nivel_jerarquico: limpio(i.nivelJerarquico as any),
   };
 
+  let tipoId: string | null = esEdicion ? (i.id as string) : null;
+
   if (esEdicion) {
     const { error } = await supabase
       .from("tipos_documentales")
@@ -63,10 +88,28 @@ export async function guardarTipoDocumental(
       .eq("id", i.id);
     if (error) return { ok: false, error: traducir(error.message) };
   } else {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("tipos_documentales")
-      .insert({ ...payload, creado_por: usuarioId });
+      .insert({ ...payload, creado_por: usuarioId })
+      .select("id")
+      .single();
     if (error) return { ok: false, error: traducir(error.message) };
+    tipoId = (data?.id as string) ?? null;
+  }
+
+  // Sincronizar la regla de aprobación de forma coherente (única fuente de verdad
+  // de los niveles). fn_set_regla_aprobacion también ajusta requiere_aprobacion.
+  if (tipoId) {
+    const { error: errRegla } = await supabase.rpc("fn_set_regla_aprobacion", {
+      p_tipo_id: tipoId,
+      p_nivel_revisor: reglaRevisor,
+      p_nivel_n1: reglaN1,
+      p_nivel_n2: reglaN2,
+      p_nota: null,
+    });
+    if (errRegla) {
+      return { ok: false, error: `Se guardó el tipo pero falló la regla de aprobación: ${errRegla.message}` };
+    }
   }
 
   revalidatePath("/configuracion/tipos");
