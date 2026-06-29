@@ -18,6 +18,8 @@ import { StatusDot } from "@/components/documentos/StatusDot";
 import { buttonVariants } from "@/components/ui/button";
 import { BotonEnviarAprobacion } from "@/components/aprobaciones/BotonEnviarAprobacion";
 import { BotonAprobarAdmin } from "@/components/documentos/BotonAprobarAdmin";
+import { BotonAdjuntarArchivo } from "@/components/documentos/BotonAdjuntarArchivo";
+import { BotonReabrirRechazado } from "@/components/documentos/BotonReabrirRechazado";
 import { obtenerUsuariosElegibles, obtenerSugerenciaAprobacion } from "@/lib/api/envio";
 import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
 import { GestionCoberturas } from "@/components/coberturas/GestionCoberturas";
@@ -192,6 +194,27 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
       doc.estado_actual,
     );
 
+  // Estado de la versión actual para guiar los flujos de carga y corrección.
+  const esRechazada = versionActual?.estado === "rechazado";
+  const esBorradorSinArchivo =
+    versionActual != null &&
+    ["borrador", "confeccionado"].includes(versionActual.estado) &&
+    archivoPrincipal == null;
+
+  // Si la versión fue rechazada, traer el comentario del aprobador para mostrarlo.
+  let comentarioRechazo: string | null = null;
+  if (esRechazada && versionActual) {
+    const { data: dec } = await supabase
+      .from("decisiones_aprobacion")
+      .select("nivel, comentario, timestamp_decision")
+      .eq("version_id", versionActual.id)
+      .eq("decision", "rechazado")
+      .order("timestamp_decision", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    comentarioRechazo = (dec?.comentario as string) ?? null;
+  }
+
   // Datos para la gestión de coberturas (matriz documento-requisito).
   const [coberturasActuales, normasConReq] = await Promise.all([
     obtenerCoberturasDeDocumento(doc.id),
@@ -344,6 +367,15 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
                   </div>
                 </CardContent>
               </Card>
+            ) : esBorradorSinArchivo ? (
+              <Card className="border-dashed">
+                <CardContent className="p-5">
+                  <p className="mb-3 text-sm text-muted-foreground">
+                    Este documento todavía no tiene archivo principal. Adjuntalo para poder enviarlo a aprobación.
+                  </p>
+                  <BotonAdjuntarArchivo documentoId={doc.id} />
+                </CardContent>
+              </Card>
             ) : (
               <Card className="border-dashed">
                 <CardContent className="p-5 text-sm text-muted-foreground text-center">
@@ -395,6 +427,29 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
             normas={normasConReq}
             requisitosPorNorma={requisitosPorNorma}
           />
+
+          {esRechazada && (
+            <Card className="border-destructive/30">
+              <CardHeader>
+                <CardTitle className="text-base text-destructive">Documento rechazado</CardTitle>
+                <CardDescription className="leading-relaxed">
+                  Esta versión fue rechazada en la aprobación. Revisá las observaciones,
+                  reabrila para corregir el archivo y volvé a enviarla a aprobación.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {comentarioRechazo && (
+                  <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+                    <div className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Observaciones del aprobador
+                    </div>
+                    <p className="text-foreground">{comentarioRechazo}</p>
+                  </div>
+                )}
+                <BotonReabrirRechazado documentoId={doc.id} versionId={versionActual.id} />
+              </CardContent>
+            </Card>
+          )}
 
           {enviable && usuariosElegibles.length > 0 ? (
             <Card>

@@ -201,8 +201,11 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
 
   const paso2Completo = useMemo(() => titulo.trim().length > 0, [titulo]);
 
+  // El archivo es obligatorio para crear el documento (no se crean borradores vacíos).
+  const paso3Completo = useMemo(() => archivo != null, [archivo]);
+
   const pasoActualCompleto =
-    paso === 1 ? paso1Completo : paso === 2 ? paso2Completo : true;
+    paso === 1 ? paso1Completo : paso === 2 ? paso2Completo : paso3Completo;
 
   function irAtras() {
     setPaso((p) => Math.max(1, p - 1));
@@ -569,7 +572,7 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
       <div className={paso === 3 ? "block" : "hidden"}>
         <Section
           titulo="Archivo principal"
-          descripcion="Subí el documento en PDF, Word, Excel o PowerPoint. Máximo 50 MB. Opcional."
+          descripcion="Subí el documento en PDF, Word, Excel o PowerPoint. Máximo 50 MB. Obligatorio."
         >
           {!archivo ? (
             <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/30 px-6 py-10">
@@ -672,7 +675,7 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </Button>
         ) : (
-          <Button type="submit" disabled={pending || !codigo || !titulo.trim()}>
+          <Button type="submit" disabled={pending || !codigo || !titulo.trim() || !archivo}>
             {pending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

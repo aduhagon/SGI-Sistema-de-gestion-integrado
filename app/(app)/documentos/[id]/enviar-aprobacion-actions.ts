@@ -78,15 +78,22 @@ export async function enviarAAprobacion(
     }
   }
 
-  // ¿Ya existe una aprobación abierta para esta versión?
+  // ¿Ya existe una aprobación para esta versión?
+  //  - Si está ABIERTA y con decisiones tomadas -> hay un proceso en curso: bloquear.
+  //  - Si está abierta SIN decisiones (versión reabierta tras rechazo) -> se reutiliza.
   const { data: existente } = await supabase
     .from("aprobaciones")
-    .select("id, cerrada_en")
+    .select("id, cerrada_en, decision_n1, decision_n2")
     .eq("version_id", versionId)
     .is("cerrada_en", null)
     .maybeSingle();
 
-  if (existente) {
+  const reutilizable =
+    existente &&
+    existente.decision_n1 === "pendiente" &&
+    existente.decision_n2 === "pendiente";
+
+  if (existente && !reutilizable) {
     return {
       ok: false,
       error: "Esta versión ya tiene un proceso de aprobación abierto.",
@@ -148,18 +155,38 @@ export async function enviarAAprobacion(
     ? new Date(ahora.getTime() + plazoDias * 24 * 60 * 60 * 1000).toISOString()
     : null;
 
-  // 1. Crear la aprobación. El trigger de segregación valida N1/N2 vs elaborador.
+  // 1. Crear o reutilizar la aprobación. El trigger de segregación valida N1/N2 vs elaborador.
   //    Si el tipo no requiere N2, aprobador_n2_id queda null (aprobación de un solo nivel).
-  const { error: errAprob } = await supabase.from("aprobaciones").insert({
-    version_id: versionId,
+  //    Si la versión fue reabierta tras un rechazo, se reutiliza su fila (reutilizable).
+  const datosAprob = {
     aprobador_n1_id: aprobadorN1Id,
     aprobador_n2_id: requiereN2 ? aprobadorN2Id : null,
     plazo_objetivo_n1: plazo,
     plazo_objetivo_n2: requiereN2 ? plazo : null,
     iniciada_en: ahora.toISOString(),
     comentario_n1: comentarioInicial,
-    creado_por: usuarioId,
-  });
+  };
+
+  const { error: errAprob } = reutilizable
+    ? await supabase
+        .from("aprobaciones")
+        .update({
+          ...datosAprob,
+          // Reset defensivo por si quedó algún rastro de la decisión previa.
+          decision_n1: "pendiente",
+          fecha_decision_n1: null,
+          decision_n2: "pendiente",
+          fecha_decision_n2: null,
+          comentario_n2: null,
+          cerrada_en: null,
+          actualizado_por: usuarioId,
+        })
+        .eq("id", existente!.id)
+    : await supabase.from("aprobaciones").insert({
+        version_id: versionId,
+        ...datosAprob,
+        creado_por: usuarioId,
+      });
 
   if (errAprob) {
     const msg = errAprob.message.toLowerCase().includes("segregac")
