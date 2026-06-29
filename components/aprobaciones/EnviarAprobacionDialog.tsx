@@ -58,9 +58,12 @@ export function EnviarAprobacionDialog({
   const accion = enviarAAprobacion.bind(null, documentoId);
   const [estado, formAction] = useFormState<EstadoEnvio, FormData>(accion, null);
 
+  // ¿El tipo documental requiere segundo nivel de aprobación?
+  const requiereN2 = sugerencia?.requiereN2 ?? true;
+
   // Precarga: si hay un único candidato del nivel sugerido, lo elige por defecto.
   const [n1, setN1] = useState(() => unicoDelNivel(usuarios, sugerencia?.nivelN1 ?? null));
-  const [n2, setN2] = useState(() => unicoDelNivel(usuarios, sugerencia?.nivelN2 ?? null));
+  const [n2, setN2] = useState(() => requiereN2 ? unicoDelNivel(usuarios, sugerencia?.nivelN2 ?? null) : "");
   const [motivo, setMotivo] = useState("");
 
   useEffect(() => {
@@ -83,7 +86,7 @@ export function EnviarAprobacionDialog({
 
   // Desvío: el aprobador elegido no cumple el nivel sugerido para ese puesto.
   const n1Desvia = Boolean(sugerencia?.nivelN1 && n1 && nivelDe.get(n1) !== sugerencia.nivelN1);
-  const n2Desvia = Boolean(sugerencia?.nivelN2 && n2 && nivelDe.get(n2) !== sugerencia.nivelN2);
+  const n2Desvia = Boolean(requiereN2 && sugerencia?.nivelN2 && n2 && nivelDe.get(n2) !== sugerencia.nivelN2);
   const hayDesvio = n1Desvia || n2Desvia;
 
   if (!abierto) return null;
@@ -103,7 +106,10 @@ export function EnviarAprobacionDialog({
         <div className="max-h-[85vh] overflow-y-auto p-6">
           <h2 id="envio-title" className="font-serif text-2xl font-semibold tracking-tight">Enviar a aprobación</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Versión {numeroVersion}. Elegí los dos aprobadores. Deben ser personas distintas y ninguno puede ser el elaborador del documento.
+            Versión {numeroVersion}.{" "}
+            {requiereN2
+              ? "Elegí los dos aprobadores. Deben ser personas distintas y ninguno puede ser el elaborador del documento."
+              : "Este tipo de documento se aprueba con un solo nivel. Elegí el aprobador; no puede ser el elaborador del documento."}
           </p>
 
           {/* Sugerencia por tipo documental */}
@@ -140,6 +146,7 @@ export function EnviarAprobacionDialog({
               )}
             </div>
 
+            {requiereN2 && (
             <div className="space-y-2">
               <label htmlFor="n2" className="text-sm font-medium">Aprobador de nivel 2</label>
               <select
@@ -158,6 +165,7 @@ export function EnviarAprobacionDialog({
                 <p className="text-xs text-muted-foreground">El nivel 2 decide después de que el nivel 1 apruebe.</p>
               )}
             </div>
+            )}
 
             {/* Motivo de override: obligatorio si hay desvío */}
             {hayDesvio && (
@@ -191,7 +199,7 @@ export function EnviarAprobacionDialog({
 
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
-              <SubmitButton disabled={!n1 || !n2 || (hayDesvio && motivo.trim().length < 5)} />
+              <SubmitButton disabled={!n1 || (requiereN2 && !n2) || (hayDesvio && motivo.trim().length < 5)} />
             </div>
           </form>
         </div>
