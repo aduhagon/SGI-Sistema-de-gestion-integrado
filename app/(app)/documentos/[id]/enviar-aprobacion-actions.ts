@@ -25,7 +25,7 @@ export async function enviarAAprobacion(
   const parsed = enviarAprobacionSchema.safeParse({
     versionId: formData.get("versionId"),
     aprobadorN1Id: formData.get("aprobadorN1Id"),
-    aprobadorN2Id: formData.get("aprobadorN2Id"),
+    aprobadorN2Id: formData.get("aprobadorN2Id") || undefined,
     plazoDias: formData.get("plazoDias") || undefined,
     motivoOverride: formData.get("motivoOverride") || undefined,
   });
