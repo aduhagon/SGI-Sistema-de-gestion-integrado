@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import {
   TEMA_DEFAULT,
   TOKENS_META,
@@ -286,15 +286,9 @@ export default function GestionApariencia({ temas: temasIniciales, activoIdInici
                             <div className="text-[13px] font-semibold text-foreground">{m.nombre}</div>
                             <div className="text-[11.5px] text-muted-foreground">{m.uso}</div>
                           </div>
-                          <input
-                            key={`${m.key}-${draft[m.key]}`}
-                            defaultValue={draft[m.key] as string}
-                            onBlur={(e) => {
-                              const v = e.target.value.trim();
-                              if (/^\d{1,3}(\.\d+)?\s+\d{1,3}(\.\d+)?%\s+\d{1,3}(\.\d+)?%$/.test(v)) setToken(m.key, v);
-                            }}
-                            className="font-mono text-[12px] w-28 px-2 py-1.5 border border-input rounded-md bg-muted text-foreground focus:outline-2 focus:outline-ring"
-                            title="Formato HSL: H S% L%"
+                          <HslInput
+                            value={draft[m.key] as string}
+                            onCommit={(v) => setToken(m.key, v)}
                           />
                         </>
                       ) : (
@@ -401,5 +395,45 @@ export default function GestionApariencia({ temas: temasIniciales, activoIdInici
         </div>
       )}
     </div>
+  );
+}
+
+
+const HSL_RE = /^\d{1,3}(\.\d+)?\s+\d{1,3}(\.\d+)?%\s+\d{1,3}(\.\d+)?%$/;
+
+/**
+ * Campo de texto HSL controlado. Mantiene su propio texto mientras se edita
+ * (permite valores intermedios inválidos como "108 30%"), y solo propaga al
+ * draft del tema cuando el valor está completo y es válido. Se re-sincroniza
+ * cuando el value externo cambia (al restablecer o cambiar de tema).
+ */
+function HslInput({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+  const [texto, setTexto] = useState(value);
+  const [focuseado, setFocuseado] = useState(false);
+
+  // Si el valor externo cambia (restablecer, cambiar de tema) y no estamos
+  // editando este campo, reflejarlo.
+  useEffect(() => {
+    if (!focuseado) setTexto(value);
+  }, [value, focuseado]);
+
+  return (
+    <input
+      value={texto}
+      onChange={(e) => {
+        const v = e.target.value;
+        setTexto(v);
+        if (HSL_RE.test(v.trim())) onCommit(v.trim());
+      }}
+      onFocus={() => setFocuseado(true)}
+      onBlur={() => {
+        setFocuseado(false);
+        if (HSL_RE.test(texto.trim())) onCommit(texto.trim());
+        else setTexto(value); // valor inválido al salir: revertir al último válido
+      }}
+      className="font-mono text-[12px] w-28 px-2 py-1.5 border border-input rounded-md bg-muted text-foreground focus:outline-2 focus:outline-ring"
+      title="Formato HSL: H S% L%"
+      spellCheck={false}
+    />
   );
 }
