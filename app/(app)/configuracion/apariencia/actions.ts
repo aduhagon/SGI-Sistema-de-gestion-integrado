@@ -208,8 +208,12 @@ export async function eliminarTema(id: string): Promise<EstadoApariencia> {
   if (error) return { ok: false, error: traducir(error.message) };
 
   if (eraActivo) {
-    // Resetear a Default vía el RPC existente (valida admin en DB).
-    await supabase.rpc("fn_set_configuracion", { p_clave: "tema_activo_id", p_valor: null });
+    // El tema activo se borró: resetear el puntero a Default (null) con UPDATE
+    // directo, protegido por la RLS de admin de configuracion_sistema.
+    await supabase
+      .from("configuracion_sistema")
+      .update({ valor: null, actualizado_en: new Date().toISOString(), actualizado_por: usuarioId })
+      .eq("clave", "tema_activo_id");
   }
 
   revalidar();
@@ -218,8 +222,13 @@ export async function eliminarTema(id: string): Promise<EstadoApariencia> {
 
 /**
  * Aplica un tema a todo el SGI (selector global). Pasar "default" para volver
- * al tema de fábrica. Usa el RPC existente fn_set_configuracion, que valida
- * superadmin en la base.
+ * al tema de fábrica.
+ *
+ * Escribe el puntero directamente en configuracion_sistema. La RLS de esa tabla
+ * (configuracion_sistema_update_admin) ya valida fn_usuario_es_admin() AND
+ * editable=true, así que el admin del SGI puede aplicar temas — coherente con
+ * que también puede crearlos y editarlos. No usamos fn_set_configuracion porque
+ * ese RPC exige superadmin, un rol más alto del que necesita esta acción.
  */
 export async function aplicarTema(id: string): Promise<EstadoApariencia> {
   const supabase = createClient();
@@ -229,15 +238,15 @@ export async function aplicarTema(id: string): Promise<EstadoApariencia> {
   // null en el puntero = Default de fábrica.
   const valor = id === "default" ? null : id;
 
-  const { data, error } = await supabase.rpc("fn_set_configuracion", {
-    p_clave: "tema_activo_id",
-    p_valor: valor,
-  });
+  const { error } = await supabase
+    .from("configuracion_sistema")
+    .update({
+      valor,
+      actualizado_en: new Date().toISOString(),
+      actualizado_por: usuarioId,
+    })
+    .eq("clave", "tema_activo_id");
   if (error) return { ok: false, error: traducir(error.message) };
-  const fila = Array.isArray(data) ? data[0] : data;
-  if (fila && fila.ok === false) {
-    return { ok: false, error: fila.mensaje ?? "No se pudo aplicar el tema." };
-  }
 
   revalidar();
   return { ok: true, id };
