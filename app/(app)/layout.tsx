@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { SidebarMobileProvider } from "@/components/layout/SidebarMobileContext";
+import TemaProvider from "@/components/tema/TemaProvider";
 
 export default async function AppLayout({
   children,
@@ -49,6 +50,10 @@ export default async function AppLayout({
   return (
     <SidebarMobileProvider>
       <div className="flex h-screen flex-col bg-background">
+        {/* Inyecta las variables CSS del tema visual activo (paleta, barra, forma).
+            Va primero para que todo lo que renderiza el layout herede el tema. */}
+        <TemaProvider />
+
         {/* Header navy de ancho completo (incluye la marca y la hamburguesa) */}
         <TopBar userEmail={user.email ?? "—"} usuarioId={usuarioId} />
 
