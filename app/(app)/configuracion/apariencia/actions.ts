@@ -212,7 +212,7 @@ export async function eliminarTema(id: string): Promise<EstadoApariencia> {
     // directo, protegido por la RLS de admin de configuracion_sistema.
     await supabase
       .from("configuracion_sistema")
-      .update({ valor: null, actualizado_en: new Date().toISOString(), actualizado_por: usuarioId })
+      .update({ valor: "default", actualizado_en: new Date().toISOString(), actualizado_por: usuarioId })
       .eq("clave", "tema_activo_id");
   }
 
@@ -235,8 +235,11 @@ export async function aplicarTema(id: string): Promise<EstadoApariencia> {
   const usuarioId = await obtenerUsuarioActualId();
   if (!usuarioId) return { ok: false, error: "Sesión no válida." };
 
-  // null en el puntero = Default de fábrica.
-  const valor = id === "default" ? null : id;
+  // El puntero guarda siempre un string (jsonb): un uuid de tema, o el
+  // literal "default" para el tema de fábrica. Nunca null: la columna valor
+  // es NOT NULL. resolverTemaActivo() no encuentra un tema con id "default"
+  // y cae correctamente al tema de fábrica en código.
+  const valor = id;
 
   const { error } = await supabase
     .from("configuracion_sistema")
