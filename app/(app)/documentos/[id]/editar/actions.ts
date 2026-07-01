@@ -26,6 +26,7 @@ export async function editarMetadata(
 
   const rawNormas = formData.getAll("normas_ids");
   const parsed = editarMetadataSchema.safeParse({
+    codigo: formData.get("codigo") ?? undefined,
     titulo: formData.get("titulo"),
     descripcion_corta: formData.get("descripcion_corta") ?? undefined,
     criticidad: formData.get("criticidad"),
@@ -51,7 +52,7 @@ export async function editarMetadata(
 
   const { data: docExiste } = await supabase
     .from("documentos")
-    .select("id, codigo")
+    .select("id, codigo, estado_actual")
     .eq("id", documentoId)
     .is("eliminado_en", null)
     .maybeSingle();
@@ -60,9 +61,38 @@ export async function editarMetadata(
     return { ok: false, error: "El documento no existe o fue eliminado." };
   }
 
+  // El código solo puede cambiarse mientras el documento está en borrador o
+  // confeccionado (todavía no es información documentada controlada). En otros
+  // estados se ignora cualquier código enviado y se conserva el existente.
+  const codigoEditable = ["borrador", "confeccionado"].includes(
+    docExiste.estado_actual as string,
+  );
+
+  let codigoFinal = docExiste.codigo as string;
+
+  if (codigoEditable && input.codigo && input.codigo !== docExiste.codigo) {
+    // Validar que no exista otro documento con ese código (UNIQUE global).
+    const { data: colision } = await supabase
+      .from("documentos")
+      .select("id")
+      .ilike("codigo", input.codigo)
+      .neq("id", documentoId)
+      .maybeSingle();
+
+    if (colision) {
+      return {
+        ok: false,
+        error: `Ya existe otro documento con el código ${input.codigo}. Elegí uno distinto.`,
+        campo: "codigo",
+      };
+    }
+    codigoFinal = input.codigo;
+  }
+
   const { error: errUpd } = await supabase
     .from("documentos")
     .update({
+      codigo: codigoFinal,
       titulo: input.titulo,
       descripcion_corta: input.descripcion_corta ?? null,
       criticidad: input.criticidad,
@@ -74,6 +104,14 @@ export async function editarMetadata(
     .eq("id", documentoId);
 
   if (errUpd) {
+    // Captura defensiva del choque de unicidad por si hubo una carrera.
+    if (errUpd.code === "23505" || /codigo/i.test(errUpd.message)) {
+      return {
+        ok: false,
+        error: `El código ${codigoFinal} ya está en uso por otro documento.`,
+        campo: "codigo",
+      };
+    }
     return {
       ok: false,
       error: `Error actualizando el documento: ${errUpd.message}`,

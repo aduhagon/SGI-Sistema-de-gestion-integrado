@@ -19,6 +19,7 @@ import { StatusDot } from "@/components/documentos/StatusDot";
 import { buttonVariants } from "@/components/ui/button";
 import { BotonEnviarAprobacion } from "@/components/aprobaciones/BotonEnviarAprobacion";
 import { BotonAprobarAdmin } from "@/components/documentos/BotonAprobarAdmin";
+import { BotonObsoletar } from "@/components/documentos/BotonObsoletar";
 import { BotonAdjuntarArchivo } from "@/components/documentos/BotonAdjuntarArchivo";
 import { BotonReabrirRechazado } from "@/components/documentos/BotonReabrirRechazado";
 import { obtenerUsuariosElegibles, obtenerSugerenciaAprobacion } from "@/lib/api/envio";
@@ -301,6 +302,14 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
                 <FilePlus className="h-4 w-4" aria-hidden="true" />
                 Nueva versión
               </Link>
+              {perfil.esGestor && (
+                <BotonObsoletar
+                  documentoId={doc.id}
+                  esBorrador={["borrador", "confeccionado"].includes(
+                    doc.estado_actual,
+                  )}
+                />
+              )}
             </div>
           )}
         </div>

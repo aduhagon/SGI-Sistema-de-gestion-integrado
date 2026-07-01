@@ -1,6 +1,21 @@
 import { z } from "zod";
 
 export const editarMetadataSchema = z.object({
+  // Código: solo se valida/actualiza cuando el documento está en borrador
+  // (la action decide si aplicarlo). Formato PAÍS-TIPO-PROCESO-NÚMERO,
+  // admitiendo documentos hijos (…-NNN-NNN). Opcional: si no viene, no se toca.
+  codigo: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .min(3, "El código es demasiado corto")
+    .max(60, "El código no puede tener más de 60 caracteres")
+    .regex(
+      /^[A-Z]+(-[A-Z0-9]+)+$/,
+      "Formato de código inválido. Usá la nomenclatura PAÍS-TIPO-PROCESO-NÚMERO (ej: A-MAN-05-001).",
+    )
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   titulo: z
     .string()
     .trim()

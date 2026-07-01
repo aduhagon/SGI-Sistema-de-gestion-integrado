@@ -152,10 +152,31 @@ export function EditarMetadataForm({ documento, normas }: Props) {
 
       <Section
         titulo="Identidad del documento"
-        descripcion="Estos campos no se pueden modificar para preservar la trazabilidad. Si necesitás cambiar el código o el tipo, cargá un documento nuevo."
+        descripcion={
+          archivoEditable
+            ? "El documento está en borrador: podés ajustar el código si hace falta. El tipo y el proceso no se modifican; si necesitás cambiarlos, cargá un documento nuevo."
+            : "Estos campos no se pueden modificar para preservar la trazabilidad. Si necesitás cambiar el código o el tipo, cargá un documento nuevo."
+        }
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <ReadonlyField label="Código" value={documento.codigo} mono />
+          {archivoEditable ? (
+            <Field
+              label="Código"
+              required
+              help="Nomenclatura PAÍS-TIPO-PROCESO-NÚMERO."
+              error={errorEsCampo("codigo")}
+            >
+              <Input
+                name="codigo"
+                defaultValue={documento.codigo}
+                disabled={pending}
+                required
+                className="font-mono uppercase"
+              />
+            </Field>
+          ) : (
+            <ReadonlyField label="Código" value={documento.codigo} mono />
+          )}
           <ReadonlyField
             label="Tipo"
             value={documento.tipo ? `${documento.tipo.codigo} — ${documento.tipo.nombre}` : "—"}
