@@ -14,6 +14,7 @@ import {
   adjuntarArchivo,
   type EstadoAdjuntar,
 } from "@/app/(app)/documentos/[id]/adjuntar-archivo-actions";
+import { generarCodigoSugerido } from "@/app/(app)/documentos/nuevo/actions";
 import type { DocumentoParaEditar } from "@/lib/api/documentos";
 
 type Norma = {
@@ -23,9 +24,14 @@ type Norma = {
   nombre_completo: string;
 };
 
+type TipoOpcion = { id: string; codigo: string; nombre: string };
+type ProcesoOpcion = { id: string; codigo: string; nombre: string };
+
 type Props = {
   documento: DocumentoParaEditar;
   normas: Norma[];
+  tipos: TipoOpcion[];
+  procesos: ProcesoOpcion[];
 };
 
 const CRITICIDAD_OPCIONES = [
@@ -56,7 +62,7 @@ function formatearTamano(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function EditarMetadataForm({ documento, normas }: Props) {
+export function EditarMetadataForm({ documento, normas, tipos, procesos }: Props) {
   const [pending, startTransition] = useTransition();
   const [estado, setEstado] = useState<EstadoEditar>(null);
   const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
@@ -67,6 +73,48 @@ export function EditarMetadataForm({ documento, normas }: Props) {
   const [archivoNuevo, setArchivoNuevo] = useState<File | null>(null);
 
   const archivoEditable = documento.archivoEditable;
+
+  // Clasificación editable en borrador: tipo, proceso y código. Al cambiar tipo
+  // o proceso, se le pide a la base un código sugerido (misma función que el alta)
+  // y se propone en el campo, que el usuario todavía puede ajustar a mano.
+  const [tipoId, setTipoId] = useState(documento.tipo_documental_id);
+  const [procesoId, setProcesoId] = useState(documento.proceso_principal_id);
+  const [codigo, setCodigo] = useState(documento.codigo);
+  const [regenerando, setRegenerando] = useState(false);
+  const [procesoCambiado, setProcesoCambiado] = useState(false);
+
+  // País: primer segmento del código actual (ej. "A" en "A-FOR-07-001").
+  const paisCodigo = documento.codigo.split("-")[0] || "A";
+
+  async function regenerarCodigo(nuevoTipo: string, nuevoProceso: string) {
+    setRegenerando(true);
+    try {
+      const r = await generarCodigoSugerido({
+        tipoId: nuevoTipo,
+        procesoId: nuevoProceso,
+        paisCodigo,
+        padreId: documento.documento_padre_id,
+      });
+      if (r.ok) {
+        setCodigo(r.codigo);
+      }
+      // Si falla, dejamos el código actual; el usuario puede ajustarlo a mano.
+    } finally {
+      setRegenerando(false);
+    }
+  }
+
+  function handleTipoChange(nuevo: string) {
+    setTipoId(nuevo);
+    void regenerarCodigo(nuevo, procesoId);
+  }
+
+  function handleProcesoChange(nuevo: string) {
+    setProcesoId(nuevo);
+    if (nuevo !== documento.proceso_principal_id) setProcesoCambiado(true);
+    else setProcesoCambiado(false);
+    void regenerarCodigo(tipoId, nuevo);
+  }
 
   function toggleNorma(normaId: string) {
     setNormasSeleccionadas((prev) => {
@@ -81,6 +129,12 @@ export function EditarMetadataForm({ documento, normas }: Props) {
     formData.delete("normas_ids");
     normasSeleccionadas.forEach((id) => formData.append("normas_ids", id));
     formData.set("requiere_acuse_lectura", requiereAcuse ? "true" : "false");
+
+    // Campos controlados de clasificación (solo relevantes en borrador; la action
+    // los ignora si el documento no es editable).
+    formData.set("codigo", codigo);
+    formData.set("tipo_documental_id", tipoId);
+    formData.set("proceso_principal_id", procesoId);
 
     // El archivo nuevo se procesa con su propia action; lo sacamos del FormData
     // de metadata para no mezclarlos.
@@ -154,38 +208,99 @@ export function EditarMetadataForm({ documento, normas }: Props) {
         titulo="Identidad del documento"
         descripcion={
           archivoEditable
-            ? "El documento está en borrador: podés ajustar el código si hace falta. El tipo y el proceso no se modifican; si necesitás cambiarlos, cargá un documento nuevo."
-            : "Estos campos no se pueden modificar para preservar la trazabilidad. Si necesitás cambiar el código o el tipo, cargá un documento nuevo."
+            ? "El documento está en borrador: podés ajustar el tipo, el proceso y el código. Al cambiar el tipo o el proceso, el código se recalcula automáticamente (podés editarlo después)."
+            : "Estos campos no se pueden modificar para preservar la trazabilidad. Si necesitás cambiar el código, el tipo o el proceso, cargá un documento nuevo."
         }
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {archivoEditable ? (
+        {archivoEditable ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field label="Tipo documental" required>
+                <select
+                  value={tipoId}
+                  onChange={(e) => handleTipoChange(e.target.value)}
+                  disabled={pending || regenerando}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {tipos.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.codigo} — {t.nombre}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Proceso principal" required>
+                <select
+                  value={procesoId}
+                  onChange={(e) => handleProcesoChange(e.target.value)}
+                  disabled={pending || regenerando}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {procesos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.codigo} — {p.nombre}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
             <Field
               label="Código"
               required
-              help="Nomenclatura PAÍS-TIPO-PROCESO-NÚMERO."
+              help={
+                regenerando
+                  ? "Recalculando código sugerido…"
+                  : "Nomenclatura PAÍS-TIPO-PROCESO-NÚMERO. Recalculado al cambiar tipo o proceso; podés ajustarlo."
+              }
               error={errorEsCampo("codigo")}
             >
-              <Input
-                name="codigo"
-                defaultValue={documento.codigo}
-                disabled={pending}
-                required
-                className="font-mono uppercase"
-              />
+              <div className="relative">
+                <Input
+                  name="codigo"
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+                  disabled={pending || regenerando}
+                  required
+                  className="font-mono uppercase pr-9"
+                />
+                {regenerando && (
+                  <Loader2
+                    className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                )}
+              </div>
             </Field>
-          ) : (
+
+            {procesoCambiado && (
+              <div className="flex items-start gap-2.5 rounded-md border border-amber-500/30 bg-amber-50 px-3 py-2.5">
+                <AlertCircle
+                  className="h-4 w-4 text-amber-600 shrink-0 mt-0.5"
+                  aria-hidden="true"
+                />
+                <p className="text-xs text-amber-900 leading-relaxed">
+                  Cambiar el proceso redefine quién ve el documento y quién lo
+                  aprueba (se resuelve por la cadena de puestos del proceso). En
+                  borrador es seguro, pero asegurate de que sea el proceso correcto.
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <ReadonlyField label="Código" value={documento.codigo} mono />
-          )}
-          <ReadonlyField
-            label="Tipo"
-            value={documento.tipo ? `${documento.tipo.codigo} — ${documento.tipo.nombre}` : "—"}
-          />
-          <ReadonlyField
-            label="Proceso"
-            value={documento.proceso ? `${documento.proceso.codigo} — ${documento.proceso.nombre}` : "—"}
-          />
-        </div>
+            <ReadonlyField
+              label="Tipo"
+              value={documento.tipo ? `${documento.tipo.codigo} — ${documento.tipo.nombre}` : "—"}
+            />
+            <ReadonlyField
+              label="Proceso"
+              value={documento.proceso ? `${documento.proceso.codigo} — ${documento.proceso.nombre}` : "—"}
+            />
+          </div>
+        )}
       </Section>
 
       <Section

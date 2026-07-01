@@ -286,6 +286,9 @@ export type DocumentoParaEditar = {
   estado_actual: string;
   tipo: { codigo: string; nombre: string } | null;
   proceso: { codigo: string; nombre: string } | null;
+  tipo_documental_id: string;
+  proceso_principal_id: string;
+  documento_padre_id: string | null;
   normas_ids: string[];
   // Cuando la versión más reciente está en borrador o confeccionado, se puede
   // reemplazar el archivo principal desde la misma pantalla de edición (sin
@@ -315,6 +318,9 @@ export async function obtenerDocumentoParaEditar(id: string): Promise<DocumentoP
       frecuencia_revision,
       requiere_acuse_lectura,
       estado_actual,
+      tipo_documental_id,
+      proceso_principal_id,
+      documento_padre_id,
       tipo:tipos_documentales (codigo, nombre),
       proceso:procesos!documentos_proceso_principal_id_fkey (codigo, nombre),
       documento_norma (
@@ -341,6 +347,9 @@ export async function obtenerDocumentoParaEditar(id: string): Promise<DocumentoP
     frecuencia_revision: string;
     requiere_acuse_lectura: boolean;
     estado_actual: string;
+    tipo_documental_id: string;
+    proceso_principal_id: string;
+    documento_padre_id: string | null;
     tipo: { codigo: string; nombre: string } | null;
     proceso: { codigo: string; nombre: string } | null;
     documento_norma: Array<{ version_norma: { norma_id: string } | null }>;
@@ -409,6 +418,9 @@ export async function obtenerDocumentoParaEditar(id: string): Promise<DocumentoP
     estado_actual: raw.estado_actual,
     tipo: raw.tipo,
     proceso: raw.proceso,
+    tipo_documental_id: raw.tipo_documental_id,
+    proceso_principal_id: raw.proceso_principal_id,
+    documento_padre_id: raw.documento_padre_id,
     normas_ids,
     archivoEditable,
     archivoActual,

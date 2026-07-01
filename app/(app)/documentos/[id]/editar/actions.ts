@@ -28,6 +28,8 @@ export async function editarMetadata(
   const parsed = editarMetadataSchema.safeParse({
     codigo: formData.get("codigo") ?? undefined,
     titulo: formData.get("titulo"),
+    tipo_documental_id: formData.get("tipo_documental_id") ?? undefined,
+    proceso_principal_id: formData.get("proceso_principal_id") ?? undefined,
     descripcion_corta: formData.get("descripcion_corta") ?? undefined,
     criticidad: formData.get("criticidad"),
     confidencialidad: formData.get("confidencialidad"),
@@ -61,16 +63,16 @@ export async function editarMetadata(
     return { ok: false, error: "El documento no existe o fue eliminado." };
   }
 
-  // El código solo puede cambiarse mientras el documento está en borrador o
-  // confeccionado (todavía no es información documentada controlada). En otros
-  // estados se ignora cualquier código enviado y se conserva el existente.
-  const codigoEditable = ["borrador", "confeccionado"].includes(
+  // El código, el tipo y el proceso solo pueden cambiarse mientras el documento
+  // está en borrador o confeccionado (todavía no es información documentada
+  // controlada). En otros estados se ignora cualquier cambio de clasificación.
+  const clasificacionEditable = ["borrador", "confeccionado"].includes(
     docExiste.estado_actual as string,
   );
 
   let codigoFinal = docExiste.codigo as string;
 
-  if (codigoEditable && input.codigo && input.codigo !== docExiste.codigo) {
+  if (clasificacionEditable && input.codigo && input.codigo !== docExiste.codigo) {
     // Validar que no exista otro documento con ese código (UNIQUE global).
     const { data: colision } = await supabase
       .from("documentos")
@@ -89,10 +91,27 @@ export async function editarMetadata(
     codigoFinal = input.codigo;
   }
 
+  // Campos de clasificación a persistir solo si el documento es editable.
+  const camposClasificacion: {
+    codigo?: string;
+    tipo_documental_id?: string;
+    proceso_principal_id?: string;
+  } = {};
+
+  if (clasificacionEditable) {
+    camposClasificacion.codigo = codigoFinal;
+    if (input.tipo_documental_id) {
+      camposClasificacion.tipo_documental_id = input.tipo_documental_id;
+    }
+    if (input.proceso_principal_id) {
+      camposClasificacion.proceso_principal_id = input.proceso_principal_id;
+    }
+  }
+
   const { error: errUpd } = await supabase
     .from("documentos")
     .update({
-      codigo: codigoFinal,
+      ...camposClasificacion,
       titulo: input.titulo,
       descripcion_corta: input.descripcion_corta ?? null,
       criticidad: input.criticidad,

@@ -9,7 +9,7 @@ type Props = {
 };
 
 export default async function EditarDocumentoPage({ params }: Props) {
-  const [documento, { normas }] = await Promise.all([
+  const [documento, { normas, tipos, procesos }] = await Promise.all([
     obtenerDocumentoParaEditar(params.id),
     obtenerDatosForm(),
   ]);
@@ -40,9 +40,10 @@ export default async function EditarDocumentoPage({ params }: Props) {
         <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
           {documento.archivoEditable ? (
             <>
-              El documento está en borrador: podés modificar todos sus datos y
-              también <strong>reemplazar el archivo</strong> sin crear una versión
-              nueva. El código no es editable.
+              El documento está en borrador: podés modificar todos sus datos —
+              incluidos <strong>tipo, proceso, código y archivo</strong>— sin crear
+              una versión nueva. Al cambiar el tipo o el proceso, el código se
+              recalcula automáticamente.
             </>
           ) : (
             <>
@@ -72,7 +73,12 @@ export default async function EditarDocumentoPage({ params }: Props) {
         </div>
       )}
 
-      <EditarMetadataForm documento={documento} normas={normas} />
+      <EditarMetadataForm
+        documento={documento}
+        normas={normas}
+        tipos={tipos}
+        procesos={procesos}
+      />
     </div>
   );
 }

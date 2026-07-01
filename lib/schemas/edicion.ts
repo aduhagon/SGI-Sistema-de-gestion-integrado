@@ -21,6 +21,9 @@ export const editarMetadataSchema = z.object({
     .trim()
     .min(5, "El título debe tener al menos 5 caracteres")
     .max(300, "El título no puede tener más de 300 caracteres"),
+  // Tipo y proceso: solo se aplican en borrador (la action decide). Opcionales.
+  tipo_documental_id: z.string().uuid().optional().or(z.literal("").transform(() => undefined)),
+  proceso_principal_id: z.string().uuid().optional().or(z.literal("").transform(() => undefined)),
   descripcion_corta: z
     .string()
     .trim()
