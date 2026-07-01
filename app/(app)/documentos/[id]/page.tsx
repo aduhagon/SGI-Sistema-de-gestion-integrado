@@ -10,6 +10,7 @@ import {
   User,
   CheckCircle2,
   FilePlus,
+  Pencil,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
@@ -285,13 +286,22 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
           </div>
 
           {doc.estado_actual !== "obsoleto" && (
-            <Link
-              href={`/documentos/${doc.id}/nueva-version`}
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
-            >
-              <FilePlus className="h-4 w-4" aria-hidden="true" />
-              Nueva versión
-            </Link>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                href={`/documentos/${doc.id}/editar`}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+                Editar
+              </Link>
+              <Link
+                href={`/documentos/${doc.id}/nueva-version`}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                <FilePlus className="h-4 w-4" aria-hidden="true" />
+                Nueva versión
+              </Link>
+            </div>
           )}
         </div>
 
