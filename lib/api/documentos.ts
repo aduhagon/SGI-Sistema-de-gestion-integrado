@@ -287,6 +287,15 @@ export type DocumentoParaEditar = {
   tipo: { codigo: string; nombre: string } | null;
   proceso: { codigo: string; nombre: string } | null;
   normas_ids: string[];
+  // Cuando la versión más reciente está en borrador o confeccionado, se puede
+  // reemplazar el archivo principal desde la misma pantalla de edición (sin
+  // crear una versión nueva). Si está aprobada/obsoleta, el archivo no es editable.
+  archivoEditable: boolean;
+  archivoActual: {
+    nombre_original: string;
+    extension: string;
+    "tamaño_bytes": number;
+  } | null;
 };
 
 export async function obtenerDocumentoParaEditar(id: string): Promise<DocumentoParaEditar | null> {
@@ -341,6 +350,52 @@ export async function obtenerDocumentoParaEditar(id: string): Promise<DocumentoP
     .map((dn) => dn.version_norma?.norma_id)
     .filter((id): id is string => id !== null && id !== undefined);
 
+  // Versión más reciente del documento + su archivo principal. El archivo solo
+  // es editable in-situ cuando esa versión está en borrador o confeccionado;
+  // si ya fue enviada/aprobada, el cambio de contenido exige nueva versión.
+  let archivoEditable = false;
+  let archivoActual: DocumentoParaEditar["archivoActual"] = null;
+
+  const { data: versionReciente } = await supabase
+    .from("versiones")
+    .select(
+      `
+      estado,
+      archivos (
+        tipo_archivo,
+        nombre_original,
+        extension,
+        "tamaño_bytes"
+      )
+      `,
+    )
+    .eq("documento_id", raw.id)
+    .eq("activo", true)
+    .order("numero_orden", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (versionReciente) {
+    const estadoVersion = versionReciente.estado as string;
+    archivoEditable = ["borrador", "confeccionado"].includes(estadoVersion);
+
+    const archivos =
+      (versionReciente.archivos as Array<{
+        tipo_archivo: string;
+        nombre_original: string;
+        extension: string;
+        "tamaño_bytes": number;
+      }>) ?? [];
+    const principal = archivos.find((a) => a.tipo_archivo === "principal");
+    if (principal) {
+      archivoActual = {
+        nombre_original: principal.nombre_original,
+        extension: principal.extension,
+        "tamaño_bytes": principal["tamaño_bytes"],
+      };
+    }
+  }
+
   return {
     id: raw.id,
     codigo: raw.codigo,
@@ -355,6 +410,8 @@ export async function obtenerDocumentoParaEditar(id: string): Promise<DocumentoP
     tipo: raw.tipo,
     proceso: raw.proceso,
     normas_ids,
+    archivoEditable,
+    archivoActual,
   };
 }
 

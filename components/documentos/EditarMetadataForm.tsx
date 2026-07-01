@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, AlertCircle, Lock } from "lucide-react";
+import { Loader2, AlertCircle, Lock, FileText, Upload, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,10 @@ import {
   editarMetadata,
   type EstadoEditar,
 } from "@/app/(app)/documentos/[id]/editar/actions";
+import {
+  adjuntarArchivo,
+  type EstadoAdjuntar,
+} from "@/app/(app)/documentos/[id]/adjuntar-archivo-actions";
 import type { DocumentoParaEditar } from "@/lib/api/documentos";
 
 type Norma = {
@@ -46,13 +50,23 @@ const FRECUENCIA_OPCIONES = [
   { value: "quinquenal", label: "Quinquenal (cada 5 años)" },
 ] as const;
 
+function formatearTamano(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function EditarMetadataForm({ documento, normas }: Props) {
   const [pending, startTransition] = useTransition();
   const [estado, setEstado] = useState<EstadoEditar>(null);
+  const [errorArchivo, setErrorArchivo] = useState<string | null>(null);
   const [normasSeleccionadas, setNormasSeleccionadas] = useState<Set<string>>(
     new Set(documento.normas_ids),
   );
   const [requiereAcuse, setRequiereAcuse] = useState(documento.requiere_acuse_lectura);
+  const [archivoNuevo, setArchivoNuevo] = useState<File | null>(null);
+
+  const archivoEditable = documento.archivoEditable;
 
   function toggleNorma(normaId: string) {
     setNormasSeleccionadas((prev) => {
@@ -68,7 +82,31 @@ export function EditarMetadataForm({ documento, normas }: Props) {
     normasSeleccionadas.forEach((id) => formData.append("normas_ids", id));
     formData.set("requiere_acuse_lectura", requiereAcuse ? "true" : "false");
 
+    // El archivo nuevo se procesa con su propia action; lo sacamos del FormData
+    // de metadata para no mezclarlos.
+    formData.delete("archivo");
+
     startTransition(async () => {
+      setErrorArchivo(null);
+
+      // 1) Si se eligió un archivo nuevo, reemplazarlo primero. Si falla, abortar
+      //    sin tocar la metadata (así no queda un cambio a medias).
+      if (archivoEditable && archivoNuevo) {
+        const fdArchivo = new FormData();
+        fdArchivo.set("archivo", archivoNuevo);
+        const resArchivo: EstadoAdjuntar = await adjuntarArchivo(
+          documento.id,
+          null,
+          fdArchivo,
+        );
+        if (resArchivo && !resArchivo.ok) {
+          setErrorArchivo(resArchivo.error);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
+      }
+
+      // 2) Guardar la metadata. editarMetadata hace el redirect al detalle si OK.
       const resultado = await editarMetadata(documento.id, estado, formData);
       setEstado(resultado);
       if (resultado && !resultado.ok) {
@@ -93,6 +131,21 @@ export function EditarMetadataForm({ documento, normas }: Props) {
               No se pudo guardar la edición
             </div>
             <div className="text-sm text-destructive/80 mt-0.5">{estado.error}</div>
+          </div>
+        </div>
+      )}
+
+      {errorArchivo && (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-4"
+        >
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="flex-1">
+            <div className="text-sm font-medium text-destructive">
+              No se pudo reemplazar el archivo
+            </div>
+            <div className="text-sm text-destructive/80 mt-0.5">{errorArchivo}</div>
           </div>
         </div>
       )}
@@ -140,6 +193,92 @@ export function EditarMetadataForm({ documento, normas }: Props) {
           />
         </Field>
       </Section>
+
+      {archivoEditable && (
+        <Section
+          titulo="Archivo principal"
+          descripcion="Mientras el documento esté en borrador podés reemplazar el archivo sin crear una versión nueva. El archivo anterior se descarta."
+        >
+          <div className="rounded-md border border-border bg-card p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted shrink-0">
+                <FileText className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Archivo actual
+                </div>
+                {documento.archivoActual ? (
+                  <div className="text-sm text-foreground truncate">
+                    {documento.archivoActual.nombre_original}
+                    <span className="text-muted-foreground ml-2">
+                      ({formatearTamano(documento.archivoActual["tamaño_bytes"])})
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-sm text-amber-700">
+                    Esta versión todavía no tiene archivo cargado.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Field
+              label={documento.archivoActual ? "Reemplazar archivo" : "Cargar archivo"}
+              help="Dejá este campo vacío para conservar el archivo actual."
+            >
+              <label
+                className={`flex items-center gap-3 rounded-md border border-dashed px-4 py-3 cursor-pointer transition-colors ${
+                  archivoNuevo
+                    ? "border-primary bg-primary/5"
+                    : "border-input hover:bg-muted/50"
+                } ${pending ? "pointer-events-none opacity-50" : ""}`}
+              >
+                {archivoNuevo ? (
+                  <RefreshCw className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
+                ) : (
+                  <Upload className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                )}
+                <span className="text-sm truncate">
+                  {archivoNuevo ? (
+                    <span className="text-primary font-medium">
+                      {archivoNuevo.name}{" "}
+                      <span className="text-muted-foreground font-normal">
+                        ({formatearTamano(archivoNuevo.size)})
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      Elegí un archivo para subir…
+                    </span>
+                  )}
+                </span>
+                <input
+                  type="file"
+                  name="archivo"
+                  className="sr-only"
+                  disabled={pending}
+                  onChange={(e) => {
+                    setArchivoNuevo(e.target.files?.[0] ?? null);
+                    setErrorArchivo(null);
+                  }}
+                />
+              </label>
+            </Field>
+
+            {archivoNuevo && (
+              <button
+                type="button"
+                onClick={() => setArchivoNuevo(null)}
+                disabled={pending}
+                className="mt-2 text-xs text-muted-foreground underline hover:text-foreground"
+              >
+                Descartar archivo elegido y conservar el actual
+              </button>
+            )}
+          </div>
+        </Section>
+      )}
 
       <Section
         titulo="Clasificación y manejo"
@@ -254,13 +393,13 @@ export function EditarMetadataForm({ documento, normas }: Props) {
 
       <Section
         titulo="Motivo de la edición"
-        descripcion="Indicá por qué hacés esta edición de metadata. Queda registrado para trazabilidad."
+        descripcion="Indicá por qué hacés esta edición. Queda registrado para trazabilidad."
       >
         <Field label="Motivo" required error={errorEsCampo("motivo_edicion")}>
           <textarea
             name="motivo_edicion"
             className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            placeholder="Ej: Corrección de typo en el título / Actualización de criticidad por revisión semestral / Agregado de cobertura ISO 14001."
+            placeholder="Ej: Corrección de typo en el título / Reemplazo del archivo por la versión corregida / Agregado de cobertura ISO 14001."
             disabled={pending}
             maxLength={500}
             required
@@ -272,9 +411,11 @@ export function EditarMetadataForm({ documento, normas }: Props) {
         <p className="text-xs text-muted-foreground flex items-center gap-2">
           <Badge variant="muted" size="sm">
             <Lock className="h-3 w-3 mr-1" aria-hidden="true" />
-            Edición de metadata
+            Edición en borrador
           </Badge>
-          No genera nueva versión.
+          {archivoEditable
+            ? "Cambios de metadata y archivo, sin generar nueva versión."
+            : "No genera nueva versión."}
         </p>
         <Button type="submit" disabled={pending}>
           {pending ? (

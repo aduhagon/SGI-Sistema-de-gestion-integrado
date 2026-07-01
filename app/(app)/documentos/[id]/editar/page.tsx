@@ -32,14 +32,25 @@ export default async function EditarDocumentoPage({ params }: Props) {
 
       <header className="mb-10">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
-          Editar metadata
+          Editar documento
         </p>
         <h1 className="font-serif text-4xl font-semibold tracking-tight mb-3">
           {documento.titulo}
         </h1>
         <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
-          Editás los campos de catalogación del documento. Para cambiar el contenido
-          (archivo), creá una <strong>nueva versión</strong> en lugar de editar acá.
+          {documento.archivoEditable ? (
+            <>
+              El documento está en borrador: podés modificar todos sus datos y
+              también <strong>reemplazar el archivo</strong> sin crear una versión
+              nueva. El código no es editable.
+            </>
+          ) : (
+            <>
+              Editás los campos de catalogación del documento. Para cambiar el
+              contenido (archivo), creá una <strong>nueva versión</strong> en lugar
+              de editar acá.
+            </>
+          )}
         </p>
       </header>
 
