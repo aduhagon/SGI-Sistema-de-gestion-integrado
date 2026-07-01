@@ -19,6 +19,9 @@
     --border: 20 6% 90%;
     --input: 20 6% 90%;
     --ring: 224 71% 31%;
+    --sidebar: 219 61% 15%;
+    --sidebar-foreground: 214 32% 91%;
+    --sidebar-accent: 215 100% 75%;
     --radius: 0.5rem;
   }
 }

@@ -79,7 +79,7 @@ export function Sidebar({ esSuperadmin = false, esAdminSgi = false, modulosHabil
   return (
     <>
       {/* Desktop: barra lateral fija */}
-      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border bg-[#f7f5ef]">
+      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border bg-background">
         <MenuContenido esSuperadmin={esSuperadmin} esAdminSgi={esAdminSgi} modulosHabilitados={modulosHabilitados} />
       </aside>
 
@@ -105,7 +105,7 @@ export function Sidebar({ esSuperadmin = false, esAdminSgi = false, modulosHabil
           aria-modal="true"
           aria-label="Menú de navegación"
           className={cn(
-            "absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-[#f7f5ef] shadow-2xl transition-transform duration-300 ease-out",
+            "absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-background shadow-2xl transition-transform duration-300 ease-out",
             abierto ? "translate-x-0" : "-translate-x-full",
           )}
         >
