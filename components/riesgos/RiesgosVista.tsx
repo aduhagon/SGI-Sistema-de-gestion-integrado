@@ -55,7 +55,7 @@ export function RiesgosVista({
       </div>
 
       {vista === "tabla" && <GestionRiesgos riesgos={riesgos} procesos={procesos} puestos={puestos} mitigantesPorRiesgo={mitigantesPorRiesgo} documentosOpc={documentosOpc} indicadoresOpc={indicadoresOpc} />}
-      {vista === "proceso" && <ArbolRiesgos raices={arbol} />}
+      {vista === "proceso" && <ArbolRiesgos raices={arbol} mitigantesPorRiesgo={mitigantesPorRiesgo} />}
       {vista === "calor" && <MapaCalorRiesgos riesgos={riesgos} />}
     </div>
   );
