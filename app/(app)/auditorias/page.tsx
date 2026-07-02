@@ -18,6 +18,7 @@ const TIPO_LABEL: Record<string, string> = {
 const ESTADO_LABEL: Record<string, string> = {
   planificada: "Planificada",
   en_curso: "En curso",
+  informe_emitido: "Informe emitido",
   cerrada: "Cerrada",
   cancelada: "Cancelada",
 };
@@ -25,6 +26,7 @@ const ESTADO_LABEL: Record<string, string> = {
 const ESTADO_COLOR: Record<string, string> = {
   planificada: "#0284c7",
   en_curso: "#d97706",
+  informe_emitido: "#7c3aed",
   cerrada: "#059669",
   cancelada: "#6b7280",
 };

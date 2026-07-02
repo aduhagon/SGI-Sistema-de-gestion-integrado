@@ -31,13 +31,23 @@ export async function crearNCDesdeHallazgo(
     .from("hallazgos")
     .select(
       `id, tipo, titulo, descripcion, severidad, requisito_id, proceso_id, no_conformidad_id,
-       auditorias:auditorias!hallazgos_auditoria_id_fkey ( tipo )`,
+       auditorias:auditorias!hallazgos_auditoria_id_fkey ( tipo, estado )`,
     )
     .eq("id", hallazgoId)
     .maybeSingle();
 
   if (errH || !h) {
     return { ok: false, error: "No se encontró el hallazgo." };
+  }
+
+  // El tratamiento (crear la NC) recién se habilita con la auditoría cerrada.
+  const estadoAud = (h as any).auditorias?.estado as string | undefined;
+  if (estadoAud !== "cerrada") {
+    return {
+      ok: false,
+      error:
+        "El tratamiento de hallazgos se habilita cuando el auditor líder aprueba y cierra la auditoría.",
+    };
   }
 
   // 2. Validaciones de negocio.

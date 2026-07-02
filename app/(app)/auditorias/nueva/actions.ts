@@ -100,6 +100,15 @@ export async function crearAuditoria(
     }
   }
 
+  // 3. Sumar al creador como auditor líder del equipo (bootstrap del flujo).
+  //    Si falla, no abortamos: puede asignarse manualmente desde el detalle.
+  await supabase.from("auditoria_equipo").insert({
+    auditoria_id: auditoria.id,
+    usuario_id: usuarioId,
+    rol_auditoria: "lider",
+    creado_por: usuarioId,
+  });
+
   revalidatePath("/auditorias");
   revalidatePath("/dashboard");
   redirect(`/auditorias/${auditoria.id}?creada=1`);

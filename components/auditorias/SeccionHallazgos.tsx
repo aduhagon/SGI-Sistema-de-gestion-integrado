@@ -6,6 +6,8 @@ import type { Hallazgo } from "@/lib/api/hallazgos";
 import { Button } from "@/components/ui/button";
 import { AgregarHallazgoDialog } from "./AgregarHallazgoDialog";
 import { BotonCrearNC } from "./BotonCrearNC";
+import { AdjuntosHallazgo } from "./AdjuntosHallazgo";
+import type { AdjuntoHallazgo } from "@/lib/api/adjuntos-hallazgo";
 
 type ReqOpcion = { id: string; clausula: string; titulo: string; norma: string };
 type ProcOpcion = { id: string; codigo: string; nombre: string };
@@ -15,6 +17,11 @@ type Props = {
   hallazgos: Hallazgo[];
   requisitos: ReqOpcion[];
   procesos: ProcOpcion[];
+  // Estado del flujo en dos instancias.
+  puedeRegistrar: boolean;        // equipo con auditoría en curso (o SGI/admin)
+  tratamientoHabilitado: boolean; // solo con la auditoría cerrada
+  adjuntosPorHallazgo: Record<string, AdjuntoHallazgo[]>;
+  puedeAdjuntar: boolean;         // equipo con auditoría en curso
 };
 
 const TIPO_META: Record<string, { label: string; color: string; icon: typeof Eye }> = {
@@ -48,7 +55,10 @@ function fechaCorta(iso: string | null): string | null {
 const TIPOS_SIN_TRATAMIENTO = ["fortaleza"];
 const TIPOS_NC = ["no_conformidad_mayor", "no_conformidad_menor"];
 
-export function SeccionHallazgos({ auditoriaId, hallazgos, requisitos, procesos }: Props) {
+export function SeccionHallazgos({
+  auditoriaId, hallazgos, requisitos, procesos,
+  puedeRegistrar, tratamientoHabilitado, adjuntosPorHallazgo, puedeAdjuntar,
+}: Props) {
   const [abierto, setAbierto] = useState(false);
 
   return (
@@ -57,10 +67,12 @@ export function SeccionHallazgos({ auditoriaId, hallazgos, requisitos, procesos 
         <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Hallazgos {hallazgos.length > 0 && `(${hallazgos.length})`}
         </h2>
-        <Button size="sm" variant="outline" onClick={() => setAbierto(true)}>
-          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-          Registrar hallazgo
-        </Button>
+        {puedeRegistrar && (
+          <Button size="sm" variant="outline" onClick={() => setAbierto(true)}>
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            Registrar hallazgo
+          </Button>
+        )}
       </div>
 
       {hallazgos.length > 0 ? (
@@ -140,7 +152,7 @@ export function SeccionHallazgos({ auditoriaId, hallazgos, requisitos, procesos 
                       )}
                     </div>
                     {(h.tipo === "no_conformidad_mayor" || h.tipo === "no_conformidad_menor") &&
-                      !h.noConformidadId && (
+                      !h.noConformidadId && tratamientoHabilitado && (
                         <BotonCrearNC hallazgoId={h.id} />
                       )}
                     {h.noConformidadId && (
@@ -152,7 +164,8 @@ export function SeccionHallazgos({ auditoriaId, hallazgos, requisitos, procesos 
                       </a>
                     )}
                     {/* Observaciones y oportunidades: link a su propio tratamiento. */}
-                    {(h.tipo === "observacion" || h.tipo === "oportunidad_mejora") && (
+                    {(h.tipo === "observacion" || h.tipo === "oportunidad_mejora") &&
+                      (tratamientoHabilitado || h.tratamientoEstado === "cerrado") && (
                       <a
                         href={`/ncs/observacion/${h.id}`}
                         className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -161,6 +174,20 @@ export function SeccionHallazgos({ auditoriaId, hallazgos, requisitos, procesos 
                         {h.tratamientoEstado === "cerrado" ? "Ver tratamiento" : "Dar tratamiento"}
                       </a>
                     )}
+                    {/* Documentación adjunta del hallazgo. */}
+                    <AdjuntosHallazgo
+                      auditoriaId={auditoriaId}
+                      hallazgoId={h.id}
+                      adjuntos={adjuntosPorHallazgo[h.id] ?? []}
+                      puedeAdjuntar={puedeAdjuntar}
+                    />
+                    {!tratamientoHabilitado &&
+                      (h.tipo === "no_conformidad_mayor" || h.tipo === "no_conformidad_menor") &&
+                      !h.noConformidadId && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          El tratamiento (crear la NC) se habilita cuando el auditor líder cierra la auditoría.
+                        </p>
+                      )}
                   </div>
                 </div>
               </div>
@@ -172,8 +199,9 @@ export function SeccionHallazgos({ auditoriaId, hallazgos, requisitos, procesos 
           <AlertOctagon className="mb-3 h-6 w-6 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm font-medium">Sin hallazgos registrados</p>
           <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            Registrá los hallazgos detectados durante la auditoría: no conformidades,
-            observaciones, oportunidades de mejora o fortalezas.
+            {puedeRegistrar
+              ? "Registrá los hallazgos detectados durante la auditoría: no conformidades, observaciones, oportunidades de mejora o fortalezas."
+              : "Los hallazgos se registran con la auditoría en curso, por el equipo auditor asignado."}
           </p>
         </div>
       )}
