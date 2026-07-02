@@ -182,3 +182,88 @@ export async function obtenerArbolRiesgos(): Promise<NodoProcesoRiesgo[]> {
 
   return raices;
 }
+
+// ── Mitigantes de riesgo (migración 051) ─────────────────────────────────────
+// Vínculo estructurado riesgo ↔ documento del SGI / indicador / otro control.
+// El documento se referencia por su padre (no por versión): el link siempre
+// resuelve a la versión vigente.
+
+export type TipoMitigante = "documento" | "indicador" | "otro";
+
+export type MitiganteRiesgo = {
+  id: string;
+  tipo: TipoMitigante;
+  documentoId: string | null;
+  documentoCodigo: string | null;
+  documentoTitulo: string | null;
+  indicadorId: string | null;
+  indicadorCodigo: string | null;
+  indicadorNombre: string | null;
+  descripcion: string | null;
+};
+
+// Todos los mitigantes activos, agrupados por riesgo (una sola consulta:
+// a volumen actual es más barato que N consultas por riesgo).
+export async function listarMitigantesPorRiesgo(): Promise<Record<string, MitiganteRiesgo[]>> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("riesgo_mitigante")
+    .select(
+      `id, riesgo_id, tipo_mitigante, descripcion,
+       documento:documentos!riesgo_mitigante_documento_id_fkey (id, codigo, titulo),
+       indicador:indicadores!riesgo_mitigante_indicador_id_fkey (id, codigo, nombre)`,
+    )
+    .eq("activo", true)
+    .is("eliminado_en", null)
+    .order("creado_en", { ascending: true });
+  if (error || !data) return {};
+
+  const mapa: Record<string, MitiganteRiesgo[]> = {};
+  for (const m of data as any[]) {
+    const item: MitiganteRiesgo = {
+      id: m.id,
+      tipo: m.tipo_mitigante,
+      documentoId: m.documento?.id ?? null,
+      documentoCodigo: m.documento?.codigo ?? null,
+      documentoTitulo: m.documento?.titulo ?? null,
+      indicadorId: m.indicador?.id ?? null,
+      indicadorCodigo: m.indicador?.codigo ?? null,
+      indicadorNombre: m.indicador?.nombre ?? null,
+      descripcion: m.descripcion,
+    };
+    if (!mapa[m.riesgo_id]) mapa[m.riesgo_id] = [];
+    mapa[m.riesgo_id].push(item);
+  }
+  return mapa;
+}
+
+export type DocumentoOpcion = { id: string; codigo: string; titulo: string };
+export type IndicadorOpcion = { id: string; codigo: string; nombre: string };
+
+// Opciones para el selector: solo documentos aprobados (vigentes) e
+// indicadores activos. Un borrador no es evidencia de control.
+export async function obtenerOpcionesMitigantes(): Promise<{
+  documentos: DocumentoOpcion[];
+  indicadores: IndicadorOpcion[];
+}> {
+  const supabase = createClient();
+  const [docRes, indRes] = await Promise.all([
+    supabase
+      .from("documentos")
+      .select("id, codigo, titulo")
+      .eq("activo", true)
+      .is("eliminado_en", null)
+      .eq("estado_actual", "aprobado")
+      .order("codigo"),
+    supabase
+      .from("indicadores")
+      .select("id, codigo, nombre")
+      .eq("activo", true)
+      .is("eliminado_en", null)
+      .order("codigo"),
+  ]);
+  return {
+    documentos: ((docRes.data ?? []) as any[]).map((d) => ({ id: d.id, codigo: d.codigo, titulo: d.titulo })),
+    indicadores: ((indRes.data ?? []) as any[]).map((i) => ({ id: i.id, codigo: i.codigo, nombre: i.nombre })),
+  };
+}

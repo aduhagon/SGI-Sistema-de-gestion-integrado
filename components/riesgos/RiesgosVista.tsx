@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { Table2, Network, Grid3x3 } from "lucide-react";
-import type { Riesgo, ProcesoOpcion, PuestoOpcion, NodoProcesoRiesgo } from "@/lib/api/riesgos";
+import type {
+  Riesgo, ProcesoOpcion, PuestoOpcion, NodoProcesoRiesgo,
+  MitiganteRiesgo, DocumentoOpcion, IndicadorOpcion,
+} from "@/lib/api/riesgos";
 import { GestionRiesgos } from "@/components/riesgos/GestionRiesgos";
 import ArbolRiesgos from "@/components/riesgos/ArbolRiesgos";
 import MapaCalorRiesgos from "@/components/riesgos/MapaCalorRiesgos";
@@ -14,11 +17,17 @@ export function RiesgosVista({
   procesos,
   puestos,
   arbol,
+  mitigantesPorRiesgo,
+  documentosOpc,
+  indicadoresOpc,
 }: {
   riesgos: Riesgo[];
   procesos: ProcesoOpcion[];
   puestos: PuestoOpcion[];
   arbol: NodoProcesoRiesgo[];
+  mitigantesPorRiesgo: Record<string, MitiganteRiesgo[]>;
+  documentosOpc: DocumentoOpcion[];
+  indicadoresOpc: IndicadorOpcion[];
 }) {
   // El lápiz del mapa/árbol navega a /riesgos?riesgo=<id> con recarga real (<a>),
   // así el wrapper se remonta en "tabla" y GestionRiesgos abre el modal de edición.
@@ -45,7 +54,7 @@ export function RiesgosVista({
         </button>
       </div>
 
-      {vista === "tabla" && <GestionRiesgos riesgos={riesgos} procesos={procesos} puestos={puestos} />}
+      {vista === "tabla" && <GestionRiesgos riesgos={riesgos} procesos={procesos} puestos={puestos} mitigantesPorRiesgo={mitigantesPorRiesgo} documentosOpc={documentosOpc} indicadoresOpc={indicadoresOpc} />}
       {vista === "proceso" && <ArbolRiesgos raices={arbol} />}
       {vista === "calor" && <MapaCalorRiesgos riesgos={riesgos} />}
     </div>
