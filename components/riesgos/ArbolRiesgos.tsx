@@ -90,6 +90,26 @@ function BadgeResidual({ r }: { r: RiesgoArbol }) {
 // Vínculos estructurados de un riesgo (mitigantes de la migración 051):
 // documentos e indicadores del SGI. El texto libre `mitigante` NO cuenta acá
 // —vive en el panel expandido—, solo los vínculos con trazabilidad real.
+// Grado de control en la línea colapsada: cuán controlado está el riesgo
+// (control total / parcial / sin control / desestimado). Solo se muestra si
+// hay grado cargado; sin grado, el badge residual ya dice "Sin evaluar".
+function ChipGradoControl({ r }: { r: RiesgoArbol }) {
+  // Sin grado: el badge residual ya dice "Sin evaluar".
+  // Desestimado por gerencia: ya lo cubre el badge "Aceptado por gerencia".
+  // Este chip solo aporta los tres grados de control efectivo.
+  if (r.gradoControl == null || r.gradoControl === "desestimado_gerencia") return null;
+  const g = r.gradoControl as Exclude<GradoControl, null>;
+  return (
+    <span
+      className="hidden shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
+      style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0", color: "#475569" }}
+      title={`Grado de control: ${GRADO_CONTROL_LABEL[g]}`}
+    >
+      {GRADO_CONTROL_LABEL[g]}
+    </span>
+  );
+}
+
 function ContadorVinculos({ n }: { n: number }) {
   if (n === 0) return null;
   return (
@@ -114,7 +134,7 @@ function ListaVinculos({ items }: { items: MitiganteRiesgo[] }) {
             return (
               <li key={m.id}>
                 <a
-                  href={`/documental?documento=${m.documentoId}`}
+                  href={`/documentos/${m.documentoId}`}
                   onClick={(e) => e.stopPropagation()}
                   className="inline-flex items-center gap-1.5 text-primary hover:underline"
                 >
@@ -129,7 +149,7 @@ function ListaVinculos({ items }: { items: MitiganteRiesgo[] }) {
             return (
               <li key={m.id}>
                 <a
-                  href={`/indicadores?indicador=${m.indicadorId}`}
+                  href={`/indicadores/${m.indicadorId}`}
                   onClick={(e) => e.stopPropagation()}
                   className="inline-flex items-center gap-1.5 text-primary hover:underline"
                 >
@@ -202,6 +222,8 @@ function FilaRiesgo({ r, padLeft, forzarAbierto, vinculos }: { r: RiesgoArbol; p
             Aceptado por gerencia
           </span>
         )}
+
+        <ChipGradoControl r={r} />
 
         <ContadorVinculos n={nVinculos} />
 
