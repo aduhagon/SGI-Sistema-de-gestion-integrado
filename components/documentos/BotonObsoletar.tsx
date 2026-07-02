@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, X, Loader2, AlertTriangle } from "lucide-react";
 import { obsoletarDocumento } from "@/app/(app)/documentos/[id]/obsoletar-actions";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError } from "@/components/ui/modal";
 
 /**
  * Botón "Obsoletar" + diálogo de motivo. Retira un documento de circulación
@@ -59,10 +60,9 @@ export function BotonObsoletar({
         Obsoletar
       </button>
 
-      {abierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-xl">
-            <div className="mb-4 flex items-start gap-3">
+      <ModalShell abierto={abierto} onClose={() => { if (!pending) setAbierto(false); }} maxWidth="max-w-md">
+        <ModalHeader>
+          <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-500/10">
                 <AlertTriangle className="h-5 w-5 text-amber-600" aria-hidden="true" />
               </div>
@@ -86,9 +86,11 @@ export function BotonObsoletar({
                   )}
                 </p>
               </div>
-            </div>
+          </div>
+        </ModalHeader>
 
-            <div className="mb-4">
+        <ModalBody>
+            <div className="pb-1">
               <label htmlFor="motivo-obsoletar" className="mb-1.5 block text-sm font-medium">
                 Motivo
               </label>
@@ -107,16 +109,11 @@ export function BotonObsoletar({
               />
             </div>
 
-            {error && (
-              <div
-                role="alert"
-                className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-              >
-                {error}
-              </div>
-            )}
+        </ModalBody>
 
-            <div className="flex justify-end gap-2">
+        <ModalFooter>
+          <ModalError mensaje={error} />
+          <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setAbierto(false)}
@@ -144,10 +141,9 @@ export function BotonObsoletar({
                   </>
                 )}
               </button>
-            </div>
           </div>
-        </div>
-      )}
+        </ModalFooter>
+      </ModalShell>
     </>
   );
 }

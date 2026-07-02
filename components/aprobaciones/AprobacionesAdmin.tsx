@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { AprobacionAdmin, UsuarioOpcion } from "@/lib/api/aprobacionesAdmin";
 import { reasignarAprobador } from "@/app/(app)/aprobaciones/reasignar-actions";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError } from "@/components/ui/modal";
 
 export function AprobacionesAdmin({
   aprobaciones,
@@ -175,9 +176,9 @@ function DialogoReasignar({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-xl">
-        <div className="mb-4 flex items-start gap-3">
+    <ModalShell abierto onClose={() => { if (!pending) onCerrar(); }} maxWidth="max-w-md">
+      <ModalHeader>
+        <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
             <UserCog className="h-5 w-5 text-primary" aria-hidden="true" />
           </div>
@@ -191,7 +192,9 @@ function DialogoReasignar({
             </p>
           </div>
         </div>
+      </ModalHeader>
 
+      <ModalBody>
         <div className="mb-4">
           <label htmlFor="nuevo-aprobador" className="mb-1.5 block text-sm font-medium">
             Nuevo aprobador
@@ -225,12 +228,11 @@ function DialogoReasignar({
           />
         </div>
 
-        {error && (
-          <div role="alert" className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            {error}
-          </div>
-        )}
+        <div className="pb-1" />
+      </ModalBody>
 
+      <ModalFooter>
+        <ModalError mensaje={error} />
         <div className="flex justify-end gap-2">
           <button
             type="button"
@@ -260,7 +262,7 @@ function DialogoReasignar({
             )}
           </button>
         </div>
-      </div>
-    </div>
+      </ModalFooter>
+    </ModalShell>
   );
 }

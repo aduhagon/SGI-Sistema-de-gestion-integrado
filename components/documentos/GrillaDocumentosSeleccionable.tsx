@@ -17,6 +17,7 @@ import ExcelJS from "exceljs";
 import type { DocumentSummary } from "@/lib/api/documentos";
 import { StatusDot } from "@/components/documentos/StatusDot";
 import { obsoletarDocumentosEnLote } from "@/app/(app)/documentos/obsoletar-lote-actions";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError } from "@/components/ui/modal";
 
 /**
  * Grilla de documentos con selección múltiple para acciones en lote.
@@ -340,10 +341,9 @@ export function GrillaDocumentosSeleccionable({
       )}
 
       {/* Diálogo de confirmación con motivo */}
-      {dialogoAbierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-xl">
-            <div className="mb-4 flex items-start gap-3">
+      <ModalShell abierto={dialogoAbierto} onClose={() => { if (!pending) setDialogoAbierto(false); }} maxWidth="max-w-md">
+        <ModalHeader>
+          <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
                 <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden="true" />
               </div>
@@ -357,9 +357,11 @@ export function GrillaDocumentosSeleccionable({
                   Esta acción registra el motivo y queda en la auditoría.
                 </p>
               </div>
-            </div>
+          </div>
+        </ModalHeader>
 
-            <div className="mb-4">
+        <ModalBody>
+            <div className="pb-1">
               <label htmlFor="motivo-obsoletar" className="mb-1.5 block text-sm font-medium">
                 Motivo (común a todos)
               </label>
@@ -374,16 +376,11 @@ export function GrillaDocumentosSeleccionable({
               />
             </div>
 
-            {error && (
-              <div
-                role="alert"
-                className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-              >
-                {error}
-              </div>
-            )}
+        </ModalBody>
 
-            <div className="flex justify-end gap-2">
+        <ModalFooter>
+          <ModalError mensaje={error} />
+          <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setDialogoAbierto(false)}
@@ -411,10 +408,9 @@ export function GrillaDocumentosSeleccionable({
                   </>
                 )}
               </button>
-            </div>
           </div>
-        </div>
-      )}
+        </ModalFooter>
+      </ModalShell>
     </div>
   );
 }

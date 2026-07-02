@@ -7,6 +7,7 @@ import { Loader2, Send, TriangleAlert, Info } from "lucide-react";
 import type { UsuarioElegible, SugerenciaAprobacion, NivelJerarquico } from "@/lib/api/envio";
 import { enviarAAprobacion, type EstadoEnvio } from "@/app/(app)/documentos/[id]/enviar-aprobacion-actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 type Props = {
   documentoId: string;
@@ -70,14 +71,6 @@ export function EnviarAprobacionDialog({
     if (estado?.ok) { onClose(); router.refresh(); }
   }, [estado, onClose, router]);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
-    if (abierto) {
-      document.addEventListener("keydown", onKey);
-      return () => document.removeEventListener("keydown", onKey);
-    }
-  }, [abierto, onClose]);
-
   const nivelDe = useMemo(() => {
     const m = new Map<string, NivelJerarquico | null>();
     for (const u of usuarios) m.set(u.id, u.nivel);
@@ -89,8 +82,6 @@ export function EnviarAprobacionDialog({
   const n2Desvia = Boolean(requiereN2 && sugerencia?.nivelN2 && n2 && nivelDe.get(n2) !== sugerencia.nivelN2);
   const hayDesvio = n1Desvia || n2Desvia;
 
-  if (!abierto) return null;
-
   const opcionesN2 = usuarios.filter((u) => u.id !== n1);
   const opcionesN1 = usuarios.filter((u) => u.id !== n2);
 
@@ -99,18 +90,20 @@ export function EnviarAprobacionDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="envio-title">
-      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+    <ModalShell abierto={abierto} onClose={onClose} maxWidth="max-w-lg">
+      <ModalHeader>
+        <h2 id="envio-title" className="font-serif text-2xl font-semibold tracking-tight">Enviar a aprobación</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Versión {numeroVersion}.{" "}
+          {requiereN2
+            ? "Elegí los dos aprobadores. Deben ser personas distintas y ninguno puede ser el elaborador del documento."
+            : "Este tipo de documento se aprueba con un solo nivel. Elegí el aprobador; no puede ser el elaborador del documento."}
+        </p>
+      </ModalHeader>
 
-      <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl">
-        <div className="max-h-[85vh] overflow-y-auto p-6">
-          <h2 id="envio-title" className="font-serif text-2xl font-semibold tracking-tight">Enviar a aprobación</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Versión {numeroVersion}.{" "}
-            {requiereN2
-              ? "Elegí los dos aprobadores. Deben ser personas distintas y ninguno puede ser el elaborador del documento."
-              : "Este tipo de documento se aprueba con un solo nivel. Elegí el aprobador; no puede ser el elaborador del documento."}
-          </p>
+      <form action={formAction} className={MODAL_FORM_CLASS}>
+        <ModalBody className="space-y-5">
+          <input type="hidden" name="versionId" value={versionId} />
 
           {/* Sugerencia por tipo documental */}
           {sugerencia && (sugerencia.nivelN1 || sugerencia.nivelN2) && (
@@ -126,10 +119,7 @@ export function EnviarAprobacionDialog({
             </div>
           )}
 
-          <form action={formAction} className="mt-5 space-y-5">
-            <input type="hidden" name="versionId" value={versionId} />
-
-            <div className="space-y-2">
+          <div className="space-y-2">
               <label htmlFor="n1" className="text-sm font-medium">Aprobador de nivel 1</label>
               <select
                 id="n1" name="aprobadorN1Id" value={n1} onChange={(e) => setN1(e.target.value)} required
@@ -193,17 +183,16 @@ export function EnviarAprobacionDialog({
               </div>
             </div>
 
-            {estado && !estado.ok && (
-              <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>
-            )}
-
-            <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
-              <SubmitButton disabled={!n1 || (requiereN2 && !n2) || (hayDesvio && motivo.trim().length < 5)} />
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+            <div className="pb-1" />
+        </ModalBody>
+        <ModalFooter>
+          <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
+            <SubmitButton disabled={!n1 || (requiereN2 && !n2) || (hayDesvio && motivo.trim().length < 5)} />
+          </div>
+        </ModalFooter>
+      </form>
+    </ModalShell>
   );
 }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, PenLine, ShieldCheck } from "lucide-react";
 import { firmarAcuse, type EstadoFirma } from "@/app/(app)/acuses/actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 type Props = {
   acuseId: string;
@@ -57,49 +58,27 @@ export function FirmaDialog({
   }, [estado, onClose, router]);
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    if (abierto) {
-      document.addEventListener("keydown", onKey);
-      return () => document.removeEventListener("keydown", onKey);
-    }
-  }, [abierto, onClose]);
-
-  useEffect(() => {
     if (!abierto) setConfirmado(false);
   }, [abierto]);
 
-  if (!abierto) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="firma-title"
-    >
-      <div
-        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+    <ModalShell abierto={abierto} onClose={onClose} maxWidth="max-w-lg">
+      <ModalHeader>
+        <div className="mb-1 flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+          <span className="font-mono text-xs text-muted-foreground">{codigo}</span>
+        </div>
+        <h2 id="firma-title" className="font-serif text-2xl font-semibold tracking-tight">
+          Firmar acuse de lectura
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {titulo} · versión {numeroVersion}
+        </p>
+      </ModalHeader>
 
-      <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl">
-        <div className="p-6">
-          <div className="mb-1 flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
-            <span className="font-mono text-xs text-muted-foreground">{codigo}</span>
-          </div>
-          <h2 id="firma-title" className="font-serif text-2xl font-semibold tracking-tight">
-            Firmar acuse de lectura
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {titulo} · versión {numeroVersion}
-          </p>
-
-          <form action={formAction} className="mt-6 space-y-5">
-            <input type="hidden" name="acuseId" value={acuseId} />
+      <form action={formAction} className={MODAL_FORM_CLASS}>
+        <ModalBody className="space-y-5">
+          <input type="hidden" name="acuseId" value={acuseId} />
 
             <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
               Al firmar, dejás constancia formal de que leíste y tomaste conocimiento de
@@ -128,24 +107,18 @@ export function FirmaDialog({
               </span>
             </label>
 
-            {estado && !estado.ok && (
-              <div
-                role="alert"
-                className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-              >
-                {estado.error}
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                Cancelar
-              </Button>
-              <SubmitButton disabled={!confirmado} />
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+            <div className="pb-1" />
+        </ModalBody>
+        <ModalFooter>
+          <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              Cancelar
+            </Button>
+            <SubmitButton disabled={!confirmado} />
+          </div>
+        </ModalFooter>
+      </form>
+    </ModalShell>
   );
 }

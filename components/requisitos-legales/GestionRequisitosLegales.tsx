@@ -10,9 +10,9 @@ import {
   Scale,
   ClipboardCheck,
   ExternalLink,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 import {
   guardarRequisitoLegal,
   eliminarRequisitoLegal,
@@ -249,22 +249,14 @@ export function GestionRequisitosLegales({
       )}
 
       {/* Diálogo alta/edición */}
-      {abierto && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
-            onClick={() => setAbierto(false)}
-          />
-          <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">
-                {editando ? "Editar requisito legal" : "Nuevo requisito legal"}
-              </h2>
-              <form action={accionForm} className="mt-6 space-y-4">
+      <ModalShell abierto={abierto} onClose={() => setAbierto(false)} maxWidth="max-w-lg">
+        <ModalHeader>
+          <h2 className="font-serif text-2xl font-semibold tracking-tight">
+            {editando ? "Editar requisito legal" : "Nuevo requisito legal"}
+          </h2>
+        </ModalHeader>
+        <form action={accionForm} className={MODAL_FORM_CLASS}>
+          <ModalBody className="space-y-4">
                 {editando && <input type="hidden" name="id" value={editando.id} />}
                 {procesosSel.map((p) => (
                   <input key={p} type="hidden" name="procesosIds" value={p} />
@@ -470,53 +462,39 @@ export function GestionRequisitosLegales({
                   </div>
                 </div>
 
-                {estadoForm && !estadoForm.ok && (
-                  <div
-                    role="alert"
-                    className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-                  >
-                    {estadoForm.error}
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setAbierto(false)}
-                    className="flex-1"
-                  >
-                    Cancelar
-                  </Button>
-                  <SubmitButton label={editando ? "Guardar cambios" : "Crear requisito"} />
-                </div>
-              </form>
+                <div className="pb-1" />
+          </ModalBody>
+          <ModalFooter>
+            <ModalError mensaje={estadoForm && !estadoForm.ok ? estadoForm.error : null} />
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAbierto(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <SubmitButton label={editando ? "Guardar cambios" : "Crear requisito"} />
             </div>
-          </div>
-        </div>
-      )}
+          </ModalFooter>
+        </form>
+      </ModalShell>
 
       {/* Diálogo evaluación de cumplimiento */}
       {evaluando && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
-            onClick={() => setEvaluando(null)}
-          />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">
-                Evaluar cumplimiento
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                <span className="font-mono text-xs">{evaluando.codigo}</span>{" "}
-                {evaluando.titulo}
-              </p>
-              <form action={accionEval} className="mt-6 space-y-4">
+        <ModalShell abierto onClose={() => setEvaluando(null)} maxWidth="max-w-md">
+          <ModalHeader>
+            <h2 className="font-serif text-2xl font-semibold tracking-tight">
+              Evaluar cumplimiento
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="font-mono text-xs">{evaluando.codigo}</span>{" "}
+              {evaluando.titulo}
+            </p>
+          </ModalHeader>
+          <form action={accionEval} className={MODAL_FORM_CLASS}>
+            <ModalBody className="space-y-4">
                 <input type="hidden" name="requisitoLegalId" value={evaluando.id} />
 
                 <div className="space-y-2">
@@ -610,103 +588,95 @@ export function GestionRequisitosLegales({
                   />
                 </div>
 
-                {estadoEval && !estadoEval.ok && (
-                  <div
-                    role="alert"
-                    className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-                  >
-                    {estadoEval.error}
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setEvaluando(null)}
-                    className="flex-1"
-                  >
-                    Cancelar
-                  </Button>
-                  <SubmitButton label="Registrar evaluación" />
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Diálogo confirmación de borrado (con motivo obligatorio) */}
-      {borrarDe && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
-            onClick={() => {
-              setBorrarDe(null);
-              setMotivo("");
-            }}
-          />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl">
-            <div className="p-6">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">
-                Eliminar requisito legal
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Vas a eliminar{" "}
-                <span className="font-medium text-foreground">{borrarDe.titulo}</span>. Queda
-                registrado como histórico (no se borra de la base). Indicá el motivo.
-              </p>
-              <div className="mt-4 space-y-2">
-                <label htmlFor="motivoBorrado" className="text-sm font-medium">
-                  Motivo
-                </label>
-                <input
-                  id="motivoBorrado"
-                  value={motivo}
-                  onChange={(e) => setMotivo(e.target.value)}
-                  placeholder="Ej: Derogado por nueva normativa"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-              <div className="mt-6 flex gap-3">
+                <div className="pb-1" />
+            </ModalBody>
+            <ModalFooter>
+              <ModalError mensaje={estadoEval && !estadoEval.ok ? estadoEval.error : null} />
+              <div className="flex gap-3">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    setBorrarDe(null);
-                    setMotivo("");
-                  }}
+                  onClick={() => setEvaluando(null)}
                   className="flex-1"
                 >
                   Cancelar
                 </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={confirmarBorrado}
-                  disabled={eliminando === borrarDe.id || motivo.trim().length < 3}
-                  className="flex-1"
-                >
-                  {eliminando === borrarDe.id ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Eliminando…
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-4 w-4" />
-                      Eliminar
-                    </>
-                  )}
-                </Button>
+                <SubmitButton label="Registrar evaluación" />
               </div>
+            </ModalFooter>
+          </form>
+        </ModalShell>
+      )}
+
+      {/* Diálogo confirmación de borrado (con motivo obligatorio) */}
+      {borrarDe && (
+        <ModalShell
+          abierto
+          onClose={() => {
+            setBorrarDe(null);
+            setMotivo("");
+          }}
+          maxWidth="max-w-md"
+        >
+          <ModalHeader>
+            <h2 className="font-serif text-2xl font-semibold tracking-tight">
+              Eliminar requisito legal
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Vas a eliminar{" "}
+              <span className="font-medium text-foreground">{borrarDe.titulo}</span>. Queda
+              registrado como histórico (no se borra de la base). Indicá el motivo.
+            </p>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-2 pb-1">
+              <label htmlFor="motivoBorrado" className="text-sm font-medium">
+                Motivo
+              </label>
+              <input
+                id="motivoBorrado"
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+                placeholder="Ej: Derogado por nueva normativa"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
             </div>
-          </div>
-        </div>
+          </ModalBody>
+          <ModalFooter>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setBorrarDe(null);
+                  setMotivo("");
+                }}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={confirmarBorrado}
+                disabled={eliminando === borrarDe.id || motivo.trim().length < 3}
+                className="flex-1"
+              >
+                {eliminando === borrarDe.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Eliminando…
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Eliminar
+                  </>
+                )}
+              </Button>
+            </div>
+          </ModalFooter>
+        </ModalShell>
       )}
     </div>
   );

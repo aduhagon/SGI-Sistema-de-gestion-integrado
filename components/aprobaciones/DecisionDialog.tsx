@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Loader2, Check, X, AlertTriangle, FileSearch } from "lucide-react";
 import { decidirAprobacion, type EstadoDecision } from "@/app/(app)/aprobaciones/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 type Props = {
   aprobacionId: string;
@@ -69,8 +70,6 @@ export function DecisionDialog({
   const [decision, setDecision] = useState<"aprobado" | "rechazado">(
     decisionInicial ?? "aprobado",
   );
-  const dialogRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     if (decisionInicial) setDecision(decisionInicial);
   }, [decisionInicial]);
@@ -82,53 +81,33 @@ export function DecisionDialog({
     }
   }, [estado, onClose, router]);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    if (abierto) {
-      document.addEventListener("keydown", onKey);
-      return () => document.removeEventListener("keydown", onKey);
-    }
-  }, [abierto, onClose]);
-
-  if (!abierto) return null;
-
   const esRechazo = decision === "rechazado";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="decision-title"
-    >
-      <div
-        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+    <ModalShell abierto={abierto} onClose={onClose} maxWidth="max-w-lg">
+      <ModalHeader>
+        <div className="mb-1 flex items-center gap-2">
+          <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Nivel {nivel}
+          </span>
+          <span className="font-mono text-xs text-muted-foreground">{codigo}</span>
+        </div>
+        <h2 id="decision-title" className="font-serif text-2xl font-semibold tracking-tight">
+          Decidir aprobación
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {titulo} · versión {numeroVersion}
+        </p>
+      </ModalHeader>
 
-      <div
-        ref={dialogRef}
-        className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl"
-      >
-        <div className="p-6">
-          <div className="mb-1 flex items-center gap-2">
-            <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Nivel {nivel}
-            </span>
-            <span className="font-mono text-xs text-muted-foreground">{codigo}</span>
-          </div>
-          <h2 id="decision-title" className="font-serif text-2xl font-semibold tracking-tight">
-            Decidir aprobación
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {titulo} · versión {numeroVersion}
-          </p>
+      <form action={formAction} className={MODAL_FORM_CLASS}>
+        <ModalBody className="space-y-5">
+          <input type="hidden" name="aprobacionId" value={aprobacionId} />
+          <input type="hidden" name="nivel" value={nivel} />
+          <input type="hidden" name="decision" value={decision} />
 
           {/* Revisión del documento antes de decidir */}
-          <div className="mt-5 rounded-lg border border-border bg-muted/40 p-4">
+          <div className="rounded-lg border border-border bg-muted/40 p-4">
             <p className="mb-2 text-sm font-medium text-foreground">
               Antes de decidir, revisá el documento
             </p>
@@ -152,12 +131,7 @@ export function DecisionDialog({
             )}
           </div>
 
-          <form action={formAction} className="mt-6 space-y-5">
-            <input type="hidden" name="aprobacionId" value={aprobacionId} />
-            <input type="hidden" name="nivel" value={nivel} />
-            <input type="hidden" name="decision" value={decision} />
-
-            <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setDecision("aprobado")}
@@ -234,24 +208,18 @@ export function DecisionDialog({
               </div>
             )}
 
-            {estado && !estado.ok && (
-              <div
-                role="alert"
-                className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-              >
-                {estado.error}
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                Cancelar
-              </Button>
-              <SubmitButton decision={decision} />
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+          <div className="pb-1" />
+        </ModalBody>
+        <ModalFooter>
+          <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              Cancelar
+            </Button>
+            <SubmitButton decision={decision} />
+          </div>
+        </ModalFooter>
+      </form>
+    </ModalShell>
   );
 }

@@ -8,6 +8,7 @@ import type { NormaOpcion } from "@/lib/api/matriz";
 import type { RequisitoOpcion } from "@/lib/api/coberturas";
 import { agregarCobertura, type EstadoCobertura } from "@/app/(app)/documentos/[id]/cobertura-actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 type Props = {
   documentoId: string;
@@ -59,44 +60,22 @@ export function AgregarCoberturaDialog({
     }
   }, [estado, onClose, router]);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    if (abierto) {
-      document.addEventListener("keydown", onKey);
-      return () => document.removeEventListener("keydown", onKey);
-    }
-  }, [abierto, onClose]);
-
-  if (!abierto) return null;
-
   const requisitos = requisitosPorNorma[normaSel] ?? [];
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="cob-title"
-    >
-      <div
-        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+    <ModalShell abierto={abierto} onClose={onClose} maxWidth="max-w-lg">
+      <ModalHeader>
+        <h2 id="cob-title" className="font-serif text-2xl font-semibold tracking-tight">
+          Vincular requisito
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Indicá qué requisito de norma cubre este documento y con qué alcance.
+        </p>
+      </ModalHeader>
 
-      <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl">
-        <div className="p-6">
-          <h2 id="cob-title" className="font-serif text-2xl font-semibold tracking-tight">
-            Vincular requisito
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Indicá qué requisito de norma cubre este documento y con qué alcance.
-          </p>
-
-          <form action={formAction} className="mt-6 space-y-5">
-            <input type="hidden" name="documentoId" value={documentoId} />
+      <form action={formAction} className={MODAL_FORM_CLASS}>
+        <ModalBody className="space-y-5">
+          <input type="hidden" name="documentoId" value={documentoId} />
 
             <div className="space-y-2">
               <label htmlFor="norma" className="text-sm font-medium">Norma</label>
@@ -173,24 +152,18 @@ export function AgregarCoberturaDialog({
               />
             </div>
 
-            {estado && !estado.ok && (
-              <div
-                role="alert"
-                className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-              >
-                {estado.error}
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-2">
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                Cancelar
-              </Button>
-              <SubmitButton disabled={!requisitoSel} />
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+            <div className="pb-1" />
+        </ModalBody>
+        <ModalFooter>
+          <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              Cancelar
+            </Button>
+            <SubmitButton disabled={!requisitoSel} />
+          </div>
+        </ModalFooter>
+      </form>
+    </ModalShell>
   );
 }
