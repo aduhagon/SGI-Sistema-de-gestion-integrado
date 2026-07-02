@@ -20,6 +20,7 @@ export const riesgoSchema = z.object({
     .enum(["control_total", "control_parcial", "sin_control", "desestimado_gerencia"])
     .optional()
     .or(z.literal("")),
+  justificacionControl: z.string().trim().max(2000, "La justificación no puede superar 2000 caracteres.").optional().or(z.literal("")),
   responsableId: z.string().uuid().optional().or(z.literal("")),
   fechaRevision: z.string().trim().optional().or(z.literal("")),
   estado: z.enum(["identificado", "en_tratamiento", "controlado", "materializado", "cerrado"]),

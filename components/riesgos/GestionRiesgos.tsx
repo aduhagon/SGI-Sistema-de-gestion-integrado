@@ -277,7 +277,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo
 
                 {/* Paso 1 — Identificación */}
                 <div hidden={paso !== 0} className="space-y-4">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-2">
                       <label htmlFor="codigo" className="text-sm font-medium">Código</label>
                       <input id="codigo" name="codigo" required value={codigo} placeholder="R-COM-01"
@@ -289,12 +289,6 @@ export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo
                       <select id="categoria" name="categoria" defaultValue={editando?.categoria ?? "riesgo"} className={INPUT}>
                         <option value="riesgo">Riesgo</option>
                         <option value="oportunidad">Oportunidad</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="estado" className="text-sm font-medium">Estado</label>
-                      <select id="estado" name="estado" defaultValue={editando?.estado ?? "identificado"} className={INPUT}>
-                        {ESTADOS.map((s) => <option key={s} value={s}>{cap(s)}</option>)}
                       </select>
                     </div>
                   </div>
@@ -376,6 +370,24 @@ export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo
                       <select id="gradoControl" name="gradoControl" value={gradoControl} onChange={(e) => setGradoControl(e.target.value)} className={INPUT}>
                         <option value="">Sin evaluar</option>
                         {GRADOS_CONTROL.map((g) => <option key={g} value={g}>{GRADO_CONTROL_LABEL[g]}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Justificación del grado de control */}
+                    <div className="mt-4 space-y-2">
+                      <label htmlFor="justificacionControl" className="text-sm font-medium">Justificación del control <span className="text-muted-foreground">(opc.)</span></label>
+                      <textarea id="justificacionControl" name="justificacionControl" rows={3} maxLength={2000}
+                        defaultValue={editando?.justificacionControl ?? ""}
+                        placeholder="Explicá por qué se asignó este grado de control: metodología, evidencia, monitoreos existentes…"
+                        className={INPUT} />
+                      <p className="text-[11px] text-muted-foreground">Deja registro de por qué el control se valoró así (útil para auditoría).</p>
+                    </div>
+
+                    {/* Estado del ciclo de vida */}
+                    <div className="mt-4 space-y-2">
+                      <label htmlFor="estado" className="text-sm font-medium">Estado</label>
+                      <select id="estado" name="estado" defaultValue={editando?.estado ?? "identificado"} className={INPUT}>
+                        {ESTADOS.map((s) => <option key={s} value={s}>{cap(s)}</option>)}
                       </select>
                     </div>
 
