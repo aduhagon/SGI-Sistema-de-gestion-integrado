@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, AlertCircle, UserCircle, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError } from "@/components/ui/modal";
 import {
   asignarRolGlobal,
   revocarRolGlobal,
@@ -174,36 +175,29 @@ export default function MatrizRolesGlobales({
       )}
 
       {pendiente && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
-            onClick={cerrar}
-          />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl">
-            <div className="p-6">
-              <h3 className="font-serif text-xl font-semibold tracking-tight">
-                {pendiente.modo === "asignar"
-                  ? "Asignar rol global"
-                  : "Revocar rol global"}
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {pendiente.modo === "asignar" ? "Asignar " : "Revocar "}
-                <span className="font-medium text-foreground">
-                  {pendiente.rolNombre}
-                </span>{" "}
-                {pendiente.modo === "asignar" ? "a " : "de "}
-                <span className="font-medium text-foreground">
-                  {pendiente.usuarioNombre}
-                </span>
-                .{" "}
-                {pendiente.modo === "revocar" &&
-                  "La asignación no se borra: se cierra su vigencia y queda en el historial."}
-              </p>
-              <div className="mt-4 space-y-2">
+        <ModalShell abierto onClose={cerrar} maxWidth="max-w-md">
+          <ModalHeader>
+            <h3 className="font-serif text-xl font-semibold tracking-tight">
+              {pendiente.modo === "asignar"
+                ? "Asignar rol global"
+                : "Revocar rol global"}
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {pendiente.modo === "asignar" ? "Asignar " : "Revocar "}
+              <span className="font-medium text-foreground">
+                {pendiente.rolNombre}
+              </span>{" "}
+              {pendiente.modo === "asignar" ? "a " : "de "}
+              <span className="font-medium text-foreground">
+                {pendiente.usuarioNombre}
+              </span>
+              .{" "}
+              {pendiente.modo === "revocar" &&
+                "La asignación no se borra: se cierra su vigencia y queda en el historial."}
+            </p>
+          </ModalHeader>
+          <ModalBody>
+              <div className="space-y-2 pb-1">
                 <label htmlFor="motivo" className="text-sm font-medium">
                   Motivo
                 </label>
@@ -218,29 +212,24 @@ export default function MatrizRolesGlobales({
                 />
               </div>
 
-              {estado && !estado.ok && (
-                <div className="mt-3 flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  {estado.error}
-                </div>
-              )}
-
-              <div className="mt-5 flex justify-end gap-2">
-                <Button variant="outline" onClick={cerrar}>
-                  Cancelar
-                </Button>
-                <Button
-                  variant={pendiente.modo === "revocar" ? "destructive" : "default"}
-                  onClick={confirmar}
-                  disabled={procesando || motivo.trim().length < 5}
-                >
-                  {procesando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {pendiente.modo === "asignar" ? "Asignar" : "Revocar"}
-                </Button>
-              </div>
+          </ModalBody>
+          <ModalFooter>
+            <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={cerrar}>
+                Cancelar
+              </Button>
+              <Button
+                variant={pendiente.modo === "revocar" ? "destructive" : "default"}
+                onClick={confirmar}
+                disabled={procesando || motivo.trim().length < 5}
+              >
+                {procesando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {pendiente.modo === "asignar" ? "Asignar" : "Revocar"}
+              </Button>
             </div>
-          </div>
-        </div>
+          </ModalFooter>
+        </ModalShell>
       )}
     </section>
   );

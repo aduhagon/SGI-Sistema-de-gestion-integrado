@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { KeyRound, Loader2, UserPlus, Copy, Check, Mail, Link2 } from "lucide-react";
 import { crearCuentaUsuario, type EstadoUsuario } from "@/app/(app)/configuracion/personas/[id]/usuario-actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 type Props = {
   personaId: string;
@@ -47,19 +48,17 @@ export function CrearCuentaUsuario({ personaId, nombreCompleto, emailSugerido, u
         <KeyRound className="h-3.5 w-3.5" />Crear cuenta de usuario
       </Button>
 
-      {abierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAbierto(false)} />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Invitar usuario</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Para <span className="font-medium text-foreground">{nombreCompleto}</span>. Se le enviará un email
-                para que defina su propia contraseña. Vos no manejás su clave.
-              </p>
-
-              {estado?.ok ? (
-                <div className="mt-6 space-y-4">
+      <ModalShell abierto={abierto} onClose={() => setAbierto(false)} maxWidth="max-w-md">
+        <ModalHeader>
+          <h2 className="font-serif text-2xl font-semibold tracking-tight">Invitar usuario</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Para <span className="font-medium text-foreground">{nombreCompleto}</span>. Se le enviará un email
+            para que defina su propia contraseña. Vos no manejás su clave.
+          </p>
+        </ModalHeader>
+        {estado?.ok ? (
+          <ModalBody>
+              <div className="space-y-4 pb-3">
                   <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
                     <Mail className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>{estado.mensaje} Se envió a <span className="font-mono">{estado.email}</span>.</span>
@@ -84,9 +83,11 @@ export function CrearCuentaUsuario({ personaId, nombreCompleto, emailSugerido, u
                   )}
 
                   <Button type="button" onClick={() => setAbierto(false)} className="w-full">Listo</Button>
-                </div>
-              ) : (
-                <form action={formAction} className="mt-6 space-y-4">
+              </div>
+          </ModalBody>
+        ) : (
+          <form action={formAction} className={MODAL_FORM_CLASS}>
+            <ModalBody className="space-y-4 pb-3">
                   <input type="hidden" name="personaId" value={personaId} />
                   <div className="space-y-2">
                     <label htmlFor="username" className="text-sm font-medium">Nombre de usuario</label>
@@ -101,19 +102,17 @@ export function CrearCuentaUsuario({ personaId, nombreCompleto, emailSugerido, u
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
                     <p className="text-xs text-muted-foreground">A esta dirección le llega la invitación para definir su contraseña.</p>
                   </div>
-                  {estado && !estado.ok && (
-                    <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>
-                  )}
-                  <div className="flex gap-3 pt-2">
-                    <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
-                    <SubmitButton />
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+            </ModalBody>
+            <ModalFooter>
+              <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+              <div className="flex gap-3">
+                <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
+                <SubmitButton />
+              </div>
+            </ModalFooter>
+          </form>
+        )}
+      </ModalShell>
     </>
   );
 }

@@ -8,6 +8,7 @@ import { Plus, Pencil, Loader2, Save, UserCircle, UserX, UserCheck, Building } f
 import type { PersonaResumen } from "@/lib/api/personas";
 import { guardarPersona, darDeBajaPersona, reactivarPersona, type EstadoPersonaABM } from "@/app/(app)/configuracion/personas/actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 type AreaOpcion = { id: string; codigo: string; nombre: string };
 
@@ -129,12 +130,12 @@ export function GestionPersonas({ personas, areas, incluyeInactivas }: {
 
       {/* Diálogo alta/edición */}
       {abierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAbierto(false)} />
-          <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+        <ModalShell abierto onClose={() => setAbierto(false)} maxWidth="max-w-lg">
+          <ModalHeader>
               <h2 className="font-serif text-2xl font-semibold tracking-tight">{editando ? "Editar persona" : "Nueva persona"}</h2>
-              <form action={formAction} className="mt-6 space-y-4">
+          </ModalHeader>
+          <form action={formAction} className={MODAL_FORM_CLASS}>
+            <ModalBody className="space-y-4 pb-3">
                 {editando && <input type="hidden" name="id" value={editando.id} />}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
@@ -174,43 +175,43 @@ export function GestionPersonas({ personas, areas, incluyeInactivas }: {
                     <input id="organizacionExterna" name="organizacionExterna" defaultValue={editando ? "" : ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
                   </div>
                 )}
-                {estado && !estado.ok && (
-                  <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>
-                )}
-                <div className="flex gap-3 pt-2">
+            </ModalBody>
+            <ModalFooter>
+              <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+              <div className="flex gap-3">
                   <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
                   <SubmitButton edicion={!!editando} />
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+              </div>
+            </ModalFooter>
+          </form>
+        </ModalShell>
       )}
 
       {/* Diálogo baja */}
       {bajaDe && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setBajaDe(null)} />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl">
-            <div className="p-6">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Dar de baja</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Vas a dar de baja a <span className="font-medium text-foreground">{bajaDe.nombreCompleto}</span>. Queda
-                registrada como histórica (no se borra), con la fecha de hoy. Sus puestos vigentes deberían cerrarse aparte.
-              </p>
-              <div className="mt-4 space-y-2">
-                <label htmlFor="motivo" className="text-sm font-medium">Motivo de la baja</label>
-                <input id="motivo" value={motivoBaja} onChange={(e) => setMotivoBaja(e.target.value)} placeholder="Ej: Fin de relación laboral" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-              </div>
-              <div className="mt-6 flex gap-3">
-                <Button type="button" variant="outline" onClick={() => setBajaDe(null)} className="flex-1">Cancelar</Button>
-                <Button type="button" variant="destructive" onClick={confirmarBaja} disabled={procesando === bajaDe.id} className="flex-1">
-                  {procesando === bajaDe.id ? <><Loader2 className="h-4 w-4 animate-spin" />Procesando…</> : <><UserX className="h-4 w-4" />Dar de baja</>}
-                </Button>
-              </div>
+        <ModalShell abierto onClose={() => setBajaDe(null)} maxWidth="max-w-md">
+          <ModalHeader>
+            <h2 className="font-serif text-2xl font-semibold tracking-tight">Dar de baja</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Vas a dar de baja a <span className="font-medium text-foreground">{bajaDe.nombreCompleto}</span>. Queda
+              registrada como histórica (no se borra), con la fecha de hoy. Sus puestos vigentes deberían cerrarse aparte.
+            </p>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-2 pb-1">
+              <label htmlFor="motivo" className="text-sm font-medium">Motivo de la baja</label>
+              <input id="motivo" value={motivoBaja} onChange={(e) => setMotivoBaja(e.target.value)} placeholder="Ej: Fin de relación laboral" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
             </div>
-          </div>
-        </div>
+          </ModalBody>
+          <ModalFooter>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={() => setBajaDe(null)} className="flex-1">Cancelar</Button>
+              <Button type="button" variant="destructive" onClick={confirmarBaja} disabled={procesando === bajaDe.id} className="flex-1">
+                {procesando === bajaDe.id ? <><Loader2 className="h-4 w-4 animate-spin" />Procesando…</> : <><UserX className="h-4 w-4" />Dar de baja</>}
+              </Button>
+            </div>
+          </ModalFooter>
+        </ModalShell>
       )}
     </div>
   );

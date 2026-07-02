@@ -7,6 +7,7 @@ import { Plus, Pencil, Trash2, Loader2, Save, MapPin, Star } from "lucide-react"
 import type { Sede } from "@/lib/api/configuracion";
 import { guardarSede, eliminarSede, type EstadoConfig } from "@/app/(app)/configuracion/sedes/actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 function SubmitButton({ edicion }: { edicion: boolean }) {
   const { pending } = useFormStatus();
@@ -89,12 +90,12 @@ export function GestionSedes({ sedes }: { sedes: Sede[] }) {
       )}
 
       {abierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAbierto(false)} />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
+        <ModalShell abierto onClose={() => setAbierto(false)} maxWidth="max-w-md">
+          <ModalHeader>
               <h2 className="font-serif text-2xl font-semibold tracking-tight">{editando ? "Editar sede" : "Nueva sede"}</h2>
-              <form action={formAction} className="mt-6 space-y-4">
+          </ModalHeader>
+          <form action={formAction} className={MODAL_FORM_CLASS}>
+            <ModalBody className="space-y-4 pb-3">
                 {editando && <input type="hidden" name="id" value={editando.id} />}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-2">
@@ -142,17 +143,16 @@ export function GestionSedes({ sedes }: { sedes: Sede[] }) {
                   <input type="checkbox" name="esSedePrincipal" defaultChecked={editando?.esSedePrincipal ?? false} className="h-4 w-4" />
                   Es la sede principal
                 </label>
-                {estado && !estado.ok && (
-                  <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>
-                )}
-                <div className="flex gap-3 pt-2">
+            </ModalBody>
+            <ModalFooter>
+              <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+              <div className="flex gap-3">
                   <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
                   <SubmitButton edicion={!!editando} />
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
+              </div>
+            </ModalFooter>
+          </form>
+        </ModalShell>
       )}
     </div>
   );

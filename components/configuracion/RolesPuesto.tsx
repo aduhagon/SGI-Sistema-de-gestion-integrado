@@ -6,6 +6,7 @@ import { Plus, X, Loader2, Crown, PenTool, CheckCircle2, CheckCheck, Eye, Networ
 import type { RolEnProceso } from "@/lib/api/puestos";
 import { agregarRolEnProcesosMultiple, quitarRolEnProceso } from "@/app/(app)/configuracion/puestos/[id]/rol-actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError } from "@/components/ui/modal";
 
 type ProcOpcion = { id: string; codigo: string; nombre: string; tipo: string };
 
@@ -186,18 +187,15 @@ export function RolesPuesto({ puestoId, roles, procesos }: Props) {
       )}
 
       {/* Diálogo: asignar rol a varios procesos */}
-      {abierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={cerrar} />
-          <div className="relative z-10 flex max-h-[85vh] w-full max-w-lg flex-col rounded-xl border border-border bg-card shadow-2xl">
-            <div className="border-b border-border p-6 pb-4">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Asignar rol en procesos</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Elegí un rol y marcá todos los procesos donde el puesto lo cumple. Se asignan todos juntos.
-              </p>
-            </div>
+      <ModalShell abierto={abierto} onClose={cerrar} maxWidth="max-w-lg">
+        <ModalHeader>
+          <h2 className="font-serif text-2xl font-semibold tracking-tight">Asignar rol en procesos</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Elegí un rol y marcá todos los procesos donde el puesto lo cumple. Se asignan todos juntos.
+          </p>
+        </ModalHeader>
 
-            <div className="space-y-4 overflow-y-auto p-6">
+        <ModalBody className="space-y-4 pb-3">
               <div className="space-y-2">
                 <label htmlFor="rol" className="text-sm font-medium">Rol</label>
                 <select id="rol" value={rol} onChange={(e) => setRol(e.target.value)}
@@ -255,58 +253,51 @@ export function RolesPuesto({ puestoId, roles, procesos }: Props) {
                 <p className="text-xs text-muted-foreground">Se registra el mismo motivo para todos los procesos seleccionados.</p>
               </div>
 
-              {errorForm && (
-                <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{errorForm}
-                </div>
-              )}
-            </div>
+        </ModalBody>
 
-            <div className="flex gap-3 border-t border-border p-6 pt-4">
-              <Button type="button" variant="outline" onClick={cerrar} className="flex-1">Cancelar</Button>
-              <Button type="button" onClick={confirmarAsignar} disabled={guardando || seleccion.size === 0 || motivo.trim().length < 5} className="flex-1">
-                {guardando ? <><Loader2 className="h-4 w-4 animate-spin" />Asignando…</>
-                  : <><Plus className="h-4 w-4" />Asignar {seleccion.size > 0 ? `(${seleccion.size})` : ""}</>}
-              </Button>
-            </div>
+        <ModalFooter>
+          <ModalError mensaje={errorForm} />
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" onClick={cerrar} className="flex-1">Cancelar</Button>
+            <Button type="button" onClick={confirmarAsignar} disabled={guardando || seleccion.size === 0 || motivo.trim().length < 5} className="flex-1">
+              {guardando ? <><Loader2 className="h-4 w-4 animate-spin" />Asignando…</>
+                : <><Plus className="h-4 w-4" />Asignar {seleccion.size > 0 ? `(${seleccion.size})` : ""}</>}
+            </Button>
           </div>
-        </div>
-      )}
+        </ModalFooter>
+      </ModalShell>
 
       {/* Diálogo: quitar rol con motivo */}
       {aQuitar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => { setAQuitar(null); setMotivoBaja(""); setErrorBaja(null); }} />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl">
-            <div className="p-6">
-              <h3 className="font-serif text-xl font-semibold tracking-tight">Quitar rol en proceso</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Vas a quitar el rol{" "}
-                <span className="font-medium text-foreground">{ROL_META[aQuitar.rol]?.label ?? aQuitar.rol}</span>{" "}
-                en{" "}
-                <span className="font-medium text-foreground">{aQuitar.procesoNombre}</span>.
-                El registro no se borra: se cierra su vigencia y queda en el historial.
-              </p>
-              <div className="mt-4 space-y-2">
-                <label htmlFor="motivoBaja" className="text-sm font-medium">Motivo de la baja</label>
-                <textarea id="motivoBaja" value={motivoBaja} onChange={(e) => setMotivoBaja(e.target.value)} rows={3}
-                  placeholder="Por qué se quita este rol (queda en la auditoría)."
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" autoFocus />
-              </div>
-              {errorBaja && (
-                <div className="mt-3 flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{errorBaja}
-                </div>
-              )}
-              <div className="mt-5 flex justify-end gap-2">
-                <Button variant="outline" onClick={() => { setAQuitar(null); setMotivoBaja(""); setErrorBaja(null); }}>Cancelar</Button>
-                <Button variant="destructive" onClick={confirmarQuitar} disabled={quitando || motivoBaja.trim().length < 5}>
-                  {quitando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Quitar
-                </Button>
-              </div>
+        <ModalShell abierto onClose={() => { setAQuitar(null); setMotivoBaja(""); setErrorBaja(null); }} maxWidth="max-w-md">
+          <ModalHeader>
+            <h3 className="font-serif text-xl font-semibold tracking-tight">Quitar rol en proceso</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Vas a quitar el rol{" "}
+              <span className="font-medium text-foreground">{ROL_META[aQuitar.rol]?.label ?? aQuitar.rol}</span>{" "}
+              en{" "}
+              <span className="font-medium text-foreground">{aQuitar.procesoNombre}</span>.
+              El registro no se borra: se cierra su vigencia y queda en el historial.
+            </p>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-2 pb-1">
+              <label htmlFor="motivoBaja" className="text-sm font-medium">Motivo de la baja</label>
+              <textarea id="motivoBaja" value={motivoBaja} onChange={(e) => setMotivoBaja(e.target.value)} rows={3}
+                placeholder="Por qué se quita este rol (queda en la auditoría)."
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" autoFocus />
             </div>
-          </div>
-        </div>
+          </ModalBody>
+          <ModalFooter>
+            <ModalError mensaje={errorBaja} />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setAQuitar(null); setMotivoBaja(""); setErrorBaja(null); }}>Cancelar</Button>
+              <Button variant="destructive" onClick={confirmarQuitar} disabled={quitando || motivoBaja.trim().length < 5}>
+                {quitando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Quitar
+              </Button>
+            </div>
+          </ModalFooter>
+        </ModalShell>
       )}
     </section>
   );

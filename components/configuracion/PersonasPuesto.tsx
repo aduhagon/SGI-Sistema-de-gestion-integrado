@@ -6,6 +6,7 @@ import { Plus, X, Loader2, UserCircle, Search, AlertCircle, CheckCircle2 } from 
 import type { PersonaDePuesto, PersonaCandidata } from "@/lib/api/puestos";
 import { asignarPersonaAPuesto, quitarPersonaDePuesto, type EstadoPersona } from "@/app/(app)/configuracion/puestos/[id]/persona-actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError } from "@/components/ui/modal";
 
 type Gerencia = { id: string; nombre: string };
 type AreaF = { id: string; nombre: string; gerenciaId: string | null };
@@ -125,16 +126,14 @@ export function PersonasPuesto({ puestoId, personas, candidatas, gerencias, area
         </div>
       )}
 
-      {abierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={cerrar} />
-          <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Asignar persona</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Filtrá por gerencia y área para encontrar a la persona más rápido.</p>
-
-              {resultado?.ok && resultado.aviso ? (
-                <div className="mt-6 space-y-4">
+      <ModalShell abierto={abierto} onClose={cerrar} maxWidth="max-w-lg">
+        <ModalHeader>
+          <h2 className="font-serif text-2xl font-semibold tracking-tight">Asignar persona</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Filtrá por gerencia y área para encontrar a la persona más rápido.</p>
+        </ModalHeader>
+        {resultado?.ok && resultado.aviso ? (
+          <ModalBody>
+              <div className="space-y-4 pb-3">
                   <div className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-800">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>{resultado.aviso}</span>
@@ -143,9 +142,12 @@ export function PersonasPuesto({ puestoId, personas, candidatas, gerencias, area
                     <Button type="button" variant="outline" onClick={() => setResultado(null)} className="flex-1">Asignar otra</Button>
                     <Button type="button" onClick={cerrar} className="flex-1">Listo</Button>
                   </div>
-                </div>
-              ) : (
-                <div className="mt-6 space-y-4">
+              </div>
+          </ModalBody>
+        ) : (
+          <>
+            <ModalBody>
+              <div className="space-y-4 pb-1">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-muted-foreground">Gerencia</label>
@@ -186,22 +188,20 @@ export function PersonasPuesto({ puestoId, personas, candidatas, gerencias, area
                     )}
                   </div>
 
-                  {resultado && !resultado.ok && (
-                    <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{resultado.error}</div>
-                  )}
-
-                  <div className="flex gap-3 pt-1">
-                    <Button type="button" variant="outline" onClick={cerrar} className="flex-1">Cancelar</Button>
-                    <Button type="button" onClick={asignar} disabled={!seleccionada || asignando} className="flex-1">
-                      {asignando ? <><Loader2 className="h-4 w-4 animate-spin" />Asignando…</> : <><Plus className="h-4 w-4" />Asignar</>}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <ModalError mensaje={resultado && !resultado.ok ? resultado.error : null} />
+              <div className="flex gap-3">
+                <Button type="button" variant="outline" onClick={cerrar} className="flex-1">Cancelar</Button>
+                <Button type="button" onClick={asignar} disabled={!seleccionada || asignando} className="flex-1">
+                  {asignando ? <><Loader2 className="h-4 w-4 animate-spin" />Asignando…</> : <><Plus className="h-4 w-4" />Asignar</>}
+                </Button>
+              </div>
+            </ModalFooter>
+          </>
+        )}
+      </ModalShell>
     </section>
   );
 }
