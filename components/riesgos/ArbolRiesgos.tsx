@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, Pencil, ShieldAlert, TrendingUp, AlertTriangle, Paperclip, FileText, Activity } from "lucide-react";
+import { ChevronRight, Pencil, AlertTriangle, Paperclip, FileText, Activity, Lightbulb, Shield, ShieldCheck, ShieldHalf, Link2, Minus } from "lucide-react";
 import type { NodoProcesoRiesgo, RiesgoArbol, MitiganteRiesgo } from "@/lib/api/riesgos";
 import {
   clasificarNumerico,
   GRADO_CONTROL_LABEL,
+  MADUREZ_CONTROL_LABEL,
   type NivelRiesgo,
   type GradoControl,
+  type MadurezControl,
 } from "@/lib/riesgos-utils";
 
 // Semáforo de 4 niveles, coherente con clasificarNivel (mismos cortes que el
@@ -62,6 +64,61 @@ function SemaforoProc({ nodo }: { nodo: NodoProcesoRiesgo }) {
   );
 }
 
+// Color del semáforo de madurez del control: de rojo (no existe metodología)
+// a verde (control total / no requiere). Independiente del residual.
+const MADUREZ_COLOR: Record<Exclude<MadurezControl, null>, string> = {
+  no_existe: "#e11d48",
+  no_escritas: "#ea580c",
+  parcial_procedimientos: "#d97706",
+  parcial_monitoreos: "#f59e0b",
+  total: "#059669",
+  no_requiere: "#10b981",
+};
+
+// Ícono/círculo de color para la madurez del control, con el texto completo en
+// el tooltip. Si no hay madurez cargada, círculo gris neutro.
+function IconoMadurez({ m }: { m: MadurezControl }) {
+  if (m == null) {
+    return (
+      <span
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+        style={{ backgroundColor: "#f1efe8" }}
+        title="Madurez del control: sin evaluar"
+      >
+        <Shield className="h-3 w-3" style={{ color: "#888780" }} aria-hidden="true" />
+      </span>
+    );
+  }
+  const color = MADUREZ_COLOR[m];
+  const Icono = m === "total" || m === "no_requiere" ? ShieldCheck : ShieldHalf;
+  return (
+    <span
+      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+      style={{ backgroundColor: `${color}22` }}
+      title={`Madurez del control: ${MADUREZ_CONTROL_LABEL[m]}`}
+    >
+      <Icono className="h-3 w-3" style={{ color }} aria-hidden="true" />
+    </span>
+  );
+}
+
+// Indicador simple de si el riesgo tiene mitigante (texto de tratamiento o
+// vínculo estructurado): clip encendido (verde) vs. guion apagado (gris).
+function IndicadorMitigante({ tiene }: { tiene: boolean }) {
+  return (
+    <span
+      className="flex w-4 shrink-0 items-center justify-center"
+      title={tiene ? "Tiene mitigante" : "Sin mitigante"}
+    >
+      {tiene ? (
+        <Link2 className="h-4 w-4" style={{ color: "#0f766e" }} aria-hidden="true" />
+      ) : (
+        <Minus className="h-4 w-4 text-muted-foreground/40" aria-hidden="true" />
+      )}
+    </span>
+  );
+}
+
 function BadgeResidual({ r }: { r: RiesgoArbol }) {
   if (sinEvaluar(r)) {
     return (
@@ -83,42 +140,6 @@ function BadgeResidual({ r }: { r: RiesgoArbol }) {
       title={`Residual ${c.label} (inherente ${r.inherente} → residual ${r.residualNum})`}
     >
       {c.label} ({r.residualNum})
-    </span>
-  );
-}
-
-// Vínculos estructurados de un riesgo (mitigantes de la migración 051):
-// documentos e indicadores del SGI. El texto libre `mitigante` NO cuenta acá
-// —vive en el panel expandido—, solo los vínculos con trazabilidad real.
-// Grado de control en la línea colapsada: cuán controlado está el riesgo
-// (control total / parcial / sin control / desestimado). Solo se muestra si
-// hay grado cargado; sin grado, el badge residual ya dice "Sin evaluar".
-function ChipGradoControl({ r }: { r: RiesgoArbol }) {
-  // Sin grado: el badge residual ya dice "Sin evaluar".
-  // Desestimado por gerencia: ya lo cubre el badge "Aceptado por gerencia".
-  // Este chip solo aporta los tres grados de control efectivo.
-  if (r.gradoControl == null || r.gradoControl === "desestimado_gerencia") return null;
-  const g = r.gradoControl as Exclude<GradoControl, null>;
-  return (
-    <span
-      className="hidden shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
-      style={{ backgroundColor: "#f8fafc", borderColor: "#e2e8f0", color: "#475569" }}
-      title={`Grado de control: ${GRADO_CONTROL_LABEL[g]}`}
-    >
-      {GRADO_CONTROL_LABEL[g]}
-    </span>
-  );
-}
-
-function ContadorVinculos({ n }: { n: number }) {
-  if (n === 0) return null;
-  return (
-    <span
-      className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground"
-      title={`${n} ${n === 1 ? "vínculo documental" : "vínculos documentales"} (documentos / indicadores)`}
-    >
-      <Paperclip className="h-3.5 w-3.5" aria-hidden="true" />
-      {n}
     </span>
   );
 }
@@ -200,34 +221,45 @@ function FilaRiesgo({ r, padLeft, forzarAbierto, vinculos }: { r: RiesgoArbol; p
         </span>
 
         {r.categoria === "oportunidad" ? (
-          <TrendingUp className="h-3.5 w-3.5 shrink-0 text-emerald-600" aria-hidden="true" />
+          <span title="Tipo: Oportunidad" className="flex shrink-0">
+            <Lightbulb className="h-4 w-4 shrink-0" style={{ color: "#0f766e" }} aria-hidden="true" />
+          </span>
         ) : (
-          <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span title="Tipo: Riesgo" className="flex shrink-0">
+            <AlertTriangle className="h-4 w-4 shrink-0" style={{ color: "#b91c1c" }} aria-hidden="true" />
+          </span>
         )}
-
-        <span className="w-24 shrink-0 truncate font-mono text-xs text-muted-foreground" title={r.codigo}>
-          {r.codigo}
-        </span>
 
         <span className="flex-1 truncate text-foreground/90" title={r.titulo}>
           {r.titulo}
         </span>
 
-        {desestimado && (
-          <span
-            className="hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
-            style={{ backgroundColor: "#ecfdf5", color: "#047857" }}
-            title="La gerencia aceptó este riesgo conscientemente"
-          >
-            Aceptado por gerencia
-          </span>
-        )}
+        {/* Grado de control como texto en columna (o "Aceptado" si desestimado). */}
+        <span
+          className="hidden w-28 shrink-0 truncate text-right text-xs text-muted-foreground sm:inline-block"
+          title={
+            r.gradoControl
+              ? `Grado de control: ${GRADO_CONTROL_LABEL[r.gradoControl]}`
+              : "Grado de control: sin evaluar"
+          }
+        >
+          {desestimado
+            ? "Aceptado gerencia"
+            : r.gradoControl
+              ? GRADO_CONTROL_LABEL[r.gradoControl]
+              : "—"}
+        </span>
 
-        <ChipGradoControl r={r} />
+        {/* Madurez del control: ícono de color con tooltip. */}
+        <IconoMadurez m={r.madurezControl} />
 
-        <ContadorVinculos n={nVinculos} />
+        {/* Mitigante sí/no (texto de tratamiento o vínculo estructurado). */}
+        <IndicadorMitigante tiene={r.tieneMitigante} />
 
-        <BadgeResidual r={r} />
+        {/* Riesgo residual. */}
+        <span className="flex w-[92px] shrink-0 justify-end">
+          <BadgeResidual r={r} />
+        </span>
 
         {/* Navega a /riesgos?riesgo=<id> con recarga real (<a>): el wrapper se
             remonta en "tabla" y GestionRiesgos abre el modal de edición.

@@ -115,7 +115,9 @@ export type RiesgoArbol = {
   inherente: number;
   residualNum: number;
   gradoControl: GradoControl;
+  madurezControl: MadurezControl;
   mitigante: string | null;
+  tieneMitigante: boolean;
   estado: string;
 };
 
