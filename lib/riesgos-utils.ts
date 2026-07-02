@@ -75,3 +75,35 @@ export const GRADOS_CONTROL: Array<Exclude<GradoControl, null>> = [
   "sin_control",
   "desestimado_gerencia",
 ];
+
+// Madurez del control: escala cualitativa de 6 niveles, independiente del
+// grado_control (que alimenta el residual) y del ciclo de vida (estado).
+export type MadurezControl =
+  | "no_existe"
+  | "no_escritas"
+  | "parcial_procedimientos"
+  | "parcial_monitoreos"
+  | "total"
+  | "no_requiere"
+  | null;
+
+export const MADUREZ_CONTROL_LABEL: Record<
+  Exclude<MadurezControl, null>,
+  string
+> = {
+  no_existe: "No existe metodología de control",
+  no_escritas: "Existen metodologías no escritas",
+  parcial_procedimientos: "Control parcial mediante procedimientos",
+  parcial_monitoreos: "Control parcial mediante monitoreos",
+  total: "Control total mediante procedimientos y monitoreos",
+  no_requiere: "No requiere control",
+};
+
+export const MADUREZ_CONTROL: Array<Exclude<MadurezControl, null>> = [
+  "no_existe",
+  "no_escritas",
+  "parcial_procedimientos",
+  "parcial_monitoreos",
+  "total",
+  "no_requiere",
+];

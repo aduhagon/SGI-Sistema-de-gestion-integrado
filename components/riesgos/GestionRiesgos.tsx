@@ -14,7 +14,7 @@ import type {
 import { MitigantesEditor } from "@/components/riesgos/MitigantesEditor";
 import {
   clasificarNivel, residual, type NivelRiesgo,
-  GRADOS_CONTROL, GRADO_CONTROL_LABEL, factorControl, type GradoControl,
+  GRADOS_CONTROL, GRADO_CONTROL_LABEL, MADUREZ_CONTROL, MADUREZ_CONTROL_LABEL, factorControl, type GradoControl,
 } from "@/lib/riesgos-utils";
 import { guardarRiesgo, eliminarRiesgo, type EstadoRiesgo } from "@/app/(app)/riesgos/actions";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,6 @@ const NIVEL_COLOR: Record<NivelRiesgo, string> = {
 const NIVEL_LABEL: Record<NivelRiesgo, string> = {
   bajo: "Bajo", medio: "Medio", alto: "Alto", extremo: "Extremo",
 };
-const ESTADOS = ["identificado", "en_tratamiento", "controlado", "materializado", "cerrado"];
 const TRATAMIENTOS = ["evitar", "mitigar", "transferir", "aceptar", "explotar"];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 
@@ -383,11 +382,12 @@ export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo
                       <p className="text-[11px] text-muted-foreground">Deja registro de por qué el control se valoró así (útil para auditoría).</p>
                     </div>
 
-                    {/* Estado del ciclo de vida */}
+                    {/* Madurez del control */}
                     <div className="mt-4 space-y-2">
-                      <label htmlFor="estado" className="text-sm font-medium">Estado</label>
-                      <select id="estado" name="estado" defaultValue={editando?.estado ?? "identificado"} className={INPUT}>
-                        {ESTADOS.map((s) => <option key={s} value={s}>{cap(s)}</option>)}
+                      <label htmlFor="madurezControl" className="text-sm font-medium">Madurez del control <span className="text-muted-foreground">(opc.)</span></label>
+                      <select id="madurezControl" name="madurezControl" defaultValue={editando?.madurezControl ?? ""} className={INPUT}>
+                        <option value="">Sin evaluar</option>
+                        {MADUREZ_CONTROL.map((m) => <option key={m} value={m}>{MADUREZ_CONTROL_LABEL[m]}</option>)}
                       </select>
                     </div>
 

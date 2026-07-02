@@ -47,10 +47,10 @@ export async function guardarRiesgo(
     tipoTratamiento: formData.get("tipoTratamiento") || undefined,
     tratamientoPlanificado: formData.get("tratamientoPlanificado") || undefined,
     gradoControl: formData.get("gradoControl") || undefined,
+    madurezControl: formData.get("madurezControl") || undefined,
     justificacionControl: formData.get("justificacionControl") || undefined,
     responsableId: formData.get("responsableId") || undefined,
     fechaRevision: formData.get("fechaRevision") || undefined,
-    estado: formData.get("estado"),
   });
   if (!parsed.success) {
     const p = parsed.error.issues[0];
@@ -92,10 +92,10 @@ export async function guardarRiesgo(
     tipo_tratamiento: limpio(i.tipoTratamiento),
     tratamiento_planificado: limpio(i.tratamientoPlanificado),
     grado_control: limpio(i.gradoControl),
+    madurez_control: limpio(i.madurezControl),
     justificacion_control: limpio(i.justificacionControl),
     responsable_id: limpio(i.responsableId),
     fecha_revision: limpio(i.fechaRevision),
-    estado: i.estado,
   };
 
   let riesgoId: string;

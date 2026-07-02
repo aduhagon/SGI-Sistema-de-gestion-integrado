@@ -3,6 +3,7 @@ import {
   clasificarNivel,
   type NivelRiesgo,
   type GradoControl,
+  type MadurezControl,
 } from "@/lib/riesgos-utils";
 
 export type { NivelRiesgo };
@@ -25,6 +26,7 @@ export type Riesgo = {
   tipoTratamiento: string | null;
   tratamientoPlanificado: string | null;
   gradoControl: GradoControl;
+  madurezControl: MadurezControl;
   justificacionControl: string | null;
   responsableId: string | null;
   responsableNombre: string | null;
@@ -40,7 +42,7 @@ export async function listarRiesgos(procesoId?: string): Promise<Riesgo[]> {
     .from("riesgos")
     .select(
       `id, codigo, proceso_id, categoria, titulo, descripcion, causa, consecuencia,
-       probabilidad, impacto, tipo_tratamiento, tratamiento_planificado, grado_control, justificacion_control,
+       probabilidad, impacto, tipo_tratamiento, tratamiento_planificado, grado_control, madurez_control, justificacion_control,
        responsable_id, fecha_revision, estado,
        proceso:procesos!riesgos_proceso_id_fkey (nombre),
        responsable:puestos!riesgos_responsable_id_fkey (codigo, nombre)`,
@@ -72,6 +74,7 @@ export async function listarRiesgos(procesoId?: string): Promise<Riesgo[]> {
         tipoTratamiento: r.tipo_tratamiento,
         tratamientoPlanificado: r.tratamiento_planificado,
         gradoControl: r.grado_control ?? null,
+        madurezControl: r.madurez_control ?? null,
         justificacionControl: r.justificacion_control ?? null,
         responsableId: r.responsable_id,
         responsableNombre: r.responsable?.nombre ?? null,
