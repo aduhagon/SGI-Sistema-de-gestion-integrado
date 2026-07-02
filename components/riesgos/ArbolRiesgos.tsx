@@ -7,6 +7,7 @@ import {
   clasificarNumerico,
   GRADO_CONTROL_LABEL,
   MADUREZ_CONTROL_LABEL,
+  MADUREZ_CONTROL_LABEL_CORTO,
   type NivelRiesgo,
   type GradoControl,
   type MadurezControl,
@@ -81,11 +82,12 @@ function IconoMadurez({ m }: { m: MadurezControl }) {
   if (m == null) {
     return (
       <span
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-        style={{ backgroundColor: "#f1efe8" }}
+        className="hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
+        style={{ backgroundColor: "#f1efe8", color: "#5f5e5a" }}
         title="Madurez del control: sin evaluar"
       >
-        <Shield className="h-3 w-3" style={{ color: "#888780" }} aria-hidden="true" />
+        <Shield className="h-3 w-3 shrink-0" aria-hidden="true" />
+        Sin evaluar
       </span>
     );
   }
@@ -93,28 +95,36 @@ function IconoMadurez({ m }: { m: MadurezControl }) {
   const Icono = m === "total" || m === "no_requiere" ? ShieldCheck : ShieldHalf;
   return (
     <span
-      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
-      style={{ backgroundColor: `${color}22` }}
+      className="hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
+      style={{ backgroundColor: `${color}1a`, color }}
       title={`Madurez del control: ${MADUREZ_CONTROL_LABEL[m]}`}
     >
-      <Icono className="h-3 w-3" style={{ color }} aria-hidden="true" />
+      <Icono className="h-3 w-3 shrink-0" aria-hidden="true" />
+      {MADUREZ_CONTROL_LABEL_CORTO[m]}
     </span>
   );
 }
 
-// Indicador simple de si el riesgo tiene mitigante (texto de tratamiento o
-// vínculo estructurado): clip encendido (verde) vs. guion apagado (gris).
+// Indicador de si el riesgo tiene mitigante (texto de tratamiento o vínculo
+// estructurado): chip con la palabra, para que se lea sin interpretar un ícono.
 function IndicadorMitigante({ tiene }: { tiene: boolean }) {
-  return (
+  return tiene ? (
     <span
-      className="flex w-4 shrink-0 items-center justify-center"
-      title={tiene ? "Tiene mitigante" : "Sin mitigante"}
+      className="hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
+      style={{ backgroundColor: "#e1f5ee", color: "#0f6e56" }}
+      title="Tiene mitigante (tratamiento planificado o vínculo)"
     >
-      {tiene ? (
-        <Link2 className="h-4 w-4" style={{ color: "#0f766e" }} aria-hidden="true" />
-      ) : (
-        <Minus className="h-4 w-4 text-muted-foreground/40" aria-hidden="true" />
-      )}
+      <Link2 className="h-3 w-3 shrink-0" aria-hidden="true" />
+      Con mitigante
+    </span>
+  ) : (
+    <span
+      className="hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
+      style={{ backgroundColor: "#f1efe8", color: "#888780" }}
+      title="Sin mitigante"
+    >
+      <Minus className="h-3 w-3 shrink-0" aria-hidden="true" />
+      Sin mitigante
     </span>
   );
 }
@@ -250,10 +260,10 @@ function FilaRiesgo({ r, padLeft, forzarAbierto, vinculos }: { r: RiesgoArbol; p
               : "—"}
         </span>
 
-        {/* Madurez del control: ícono de color con tooltip. */}
+        {/* Madurez del control: chip con texto abreviado + color (tooltip completo). */}
         <IconoMadurez m={r.madurezControl} />
 
-        {/* Mitigante sí/no (texto de tratamiento o vínculo estructurado). */}
+        {/* Mitigante: chip "Con mitigante" / "Sin mitigante". */}
         <IndicadorMitigante tiene={r.tieneMitigante} />
 
         {/* Riesgo residual. */}

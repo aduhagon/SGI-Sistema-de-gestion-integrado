@@ -107,3 +107,17 @@ export const MADUREZ_CONTROL: Array<Exclude<MadurezControl, null>> = [
   "total",
   "no_requiere",
 ];
+
+// Etiquetas breves para mostrar en filas/columnas estrechas (el label completo
+// va en el tooltip).
+export const MADUREZ_CONTROL_LABEL_CORTO: Record<
+  Exclude<MadurezControl, null>,
+  string
+> = {
+  no_existe: "Sin metodología",
+  no_escritas: "No escritas",
+  parcial_procedimientos: "Parcial proc.",
+  parcial_monitoreos: "Parcial monit.",
+  total: "Total",
+  no_requiere: "No requiere",
+};
