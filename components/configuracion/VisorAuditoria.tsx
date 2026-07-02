@@ -19,9 +19,11 @@ const ACCIONES = [
 ] as const;
 
 const ENTIDADES = [
-  "acciones", "acuses_lectura", "aprobaciones", "archivos", "asignacion_rol_global",
-  "auditorias", "coberturas", "documentos", "hallazgos", "no_conformidades",
-  "participacion_usuario_proceso", "puesto_proceso_rol", "versiones",
+  "acciones", "acuses_lectura", "aprobaciones", "archivos", "areas",
+  "asignacion_rol_global", "auditoria_checklist_items", "auditorias", "coberturas",
+  "documentos", "hallazgos", "no_conformidades", "normas",
+  "participacion_usuario_proceso", "politicas_retencion", "procesos",
+  "puesto_proceso_rol", "puestos", "tipos_documentales", "usuarios", "versiones",
 ];
 
 const PAGE = 50;
