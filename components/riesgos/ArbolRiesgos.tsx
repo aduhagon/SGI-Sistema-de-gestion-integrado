@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, ShieldAlert, TrendingUp, AlertTriangle } from "lucide-react";
+import { ChevronRight, Pencil, ShieldAlert, TrendingUp, AlertTriangle } from "lucide-react";
 import type { NodoProcesoRiesgo, RiesgoArbol } from "@/lib/api/riesgos";
 import {
   clasificarNumerico,
@@ -137,6 +137,19 @@ function FilaRiesgo({ r, padLeft, forzarAbierto }: { r: RiesgoArbol; padLeft: nu
         )}
 
         <BadgeResidual r={r} />
+
+        {/* Navega a /riesgos?riesgo=<id> con recarga real (<a>): el wrapper se
+            remonta en "tabla" y GestionRiesgos abre el modal de edición.
+            stopPropagation evita que el clic también expanda/colapse la fila. */}
+        <a
+          href={`/riesgos?riesgo=${r.id}`}
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0 rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          title="Abrir riesgo"
+          aria-label={`Abrir ${r.codigo}`}
+        >
+          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+        </a>
       </div>
 
       {tieneDetalle && abierto && (
