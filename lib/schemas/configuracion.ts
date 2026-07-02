@@ -142,6 +142,12 @@ export const normaSchema = z.object({
     .optional()
     .or(z.literal("")),
   ambito: z.string().trim().max(120).optional().or(z.literal("")),
+  estadoGestion: z
+    .enum(["no_gestionada", "en_preparacion", "activa", "suspendida"])
+    .default("no_gestionada"),
+  estadoCertificacion: z
+    .enum(["no_aplica", "en_vias", "certificada", "vencida"])
+    .default("no_aplica"),
   certificadaPorMsu: z.boolean().default(true),
   ordenVisualizacion: z.coerce.number().int().min(0).default(0),
 });

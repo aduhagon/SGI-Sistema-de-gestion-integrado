@@ -1,5 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
 
+/**
+ * ¿El usuario actual puede ver normas que todavía no están en gestión plena?
+ * Solo los roles que administran/auditan el SGI ven normas con
+ * estado_gestion <> 'activa'. El lector común ve únicamente las activas.
+ * Centralizado en la función SQL fn_usuario_ve_normas_no_publicadas().
+ */
+async function verNoPublicadas(): Promise<boolean> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_usuario_ve_normas_no_publicadas");
+  if (error) return false; // ante la duda, criterio restrictivo (solo activas)
+  return data === true;
+}
+
 export type CoberturaDeRequisito = {
   documentoId: string;
   codigo: string;
@@ -36,25 +49,30 @@ export type MatrizCumplimiento = {
 export async function obtenerNormasConRequisitos(): Promise<NormaOpcion[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from("versiones_norma")
-    .select(
-      `id, version,
-       normas:normas!versiones_norma_norma_id_fkey (codigo, nombre_corto),
-       requisitos ( id )`,
-    );
+  const [{ data, error }, puedeVerNoPub] = await Promise.all([
+    supabase
+      .from("versiones_norma")
+      .select(
+        `id, version,
+         normas:normas!versiones_norma_norma_id_fkey (codigo, nombre_corto, estado_gestion),
+         requisitos ( id )`,
+      ),
+    verNoPublicadas(),
+  ]);
 
   if (error) throw new Error(`No se pudieron cargar las normas: ${error.message}`);
 
   type Fila = {
     id: string;
     version: string;
-    normas: { codigo: string; nombre_corto: string } | null;
+    normas: { codigo: string; nombre_corto: string; estado_gestion: string } | null;
     requisitos: Array<{ id: string }> | null;
   };
 
   return ((data ?? []) as unknown as Fila[])
     .filter((vn) => (vn.requisitos?.length ?? 0) > 0)
+    // Lectores comunes solo ven normas en gestión plena ('activa').
+    .filter((vn) => puedeVerNoPub || vn.normas?.estado_gestion === "activa")
     .map((vn) => ({
       versionNormaId: vn.id,
       codigo: vn.normas?.codigo ?? "—",
@@ -73,12 +91,16 @@ export async function obtenerMatriz(
   const { data: vn, error: errVn } = await supabase
     .from("versiones_norma")
     .select(
-      `id, version, normas:normas!versiones_norma_norma_id_fkey (codigo, nombre_corto)`,
+      `id, version, normas:normas!versiones_norma_norma_id_fkey (codigo, nombre_corto, estado_gestion)`,
     )
     .eq("id", versionNormaId)
     .maybeSingle();
 
   if (errVn || !vn) return null;
+
+  // Lector común no puede abrir por URL una norma que no está en gestión plena.
+  const estadoGestion = (vn as any).normas?.estado_gestion as string | undefined;
+  if (estadoGestion !== "activa" && !(await verNoPublicadas())) return null;
 
   const { data: reqs, error: errReq } = await supabase
     .from("requisitos")
@@ -195,20 +217,23 @@ export type PanoramaNorma = {
 export async function obtenerPanoramaNormas(): Promise<PanoramaNorma[]> {
   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from("requisitos")
-    .select(
-      `id, es_critico, version_norma_id,
-       versiones_norma:versiones_norma!requisitos_version_norma_id_fkey (
-         id, version,
-         normas:normas!versiones_norma_norma_id_fkey (codigo, nombre_corto)
-       ),
-       coberturas (
-         activo, eliminado_en,
-         documentos:documentos!coberturas_documento_id_fkey ( id, eliminado_en )
-       )`,
-    )
-    .eq("activo", true);
+  const [{ data, error }, puedeVerNoPub] = await Promise.all([
+    supabase
+      .from("requisitos")
+      .select(
+        `id, es_critico, version_norma_id,
+         versiones_norma:versiones_norma!requisitos_version_norma_id_fkey (
+           id, version,
+           normas:normas!versiones_norma_norma_id_fkey (codigo, nombre_corto, estado_gestion)
+         ),
+         coberturas (
+           activo, eliminado_en,
+           documentos:documentos!coberturas_documento_id_fkey ( id, eliminado_en )
+         )`,
+      )
+      .eq("activo", true),
+    verNoPublicadas(),
+  ]);
 
   if (error) {
     throw new Error(`No se pudo cargar el panorama: ${error.message}`);
@@ -221,7 +246,7 @@ export async function obtenerPanoramaNormas(): Promise<PanoramaNorma[]> {
     versiones_norma: {
       id: string;
       version: string;
-      normas: { codigo: string; nombre_corto: string } | null;
+      normas: { codigo: string; nombre_corto: string; estado_gestion: string } | null;
     } | null;
     coberturas: Array<{
       activo: boolean;
@@ -247,6 +272,8 @@ export async function obtenerPanoramaNormas(): Promise<PanoramaNorma[]> {
   for (const r of filas) {
     const vn = r.versiones_norma;
     if (!vn) continue;
+    // Lectores comunes: excluir normas que no están en gestión plena.
+    if (!puedeVerNoPub && vn.normas?.estado_gestion !== "activa") continue;
 
     const cubierto = (r.coberturas ?? []).some(
       (c) => c.activo && !c.eliminado_en && c.documentos && !c.documentos.eliminado_en,
@@ -326,12 +353,16 @@ export async function obtenerArbolCumplimiento(
   const { data: vn, error: errVn } = await supabase
     .from("versiones_norma")
     .select(
-      `id, version, normas:normas!versiones_norma_norma_id_fkey (codigo, nombre_corto)`,
+      `id, version, normas:normas!versiones_norma_norma_id_fkey (codigo, nombre_corto, estado_gestion)`,
     )
     .eq("id", versionNormaId)
     .maybeSingle();
 
   if (errVn || !vn) return null;
+
+  // Lector común no puede abrir por URL una norma que no está en gestión plena.
+  const estadoGestion = (vn as any).normas?.estado_gestion as string | undefined;
+  if (estadoGestion !== "activa" && !(await verNoPublicadas())) return null;
 
   // 1) Árbol con scores y % desde la función SQL.
   const { data: filas, error: errArbol } = await supabase.rpc(

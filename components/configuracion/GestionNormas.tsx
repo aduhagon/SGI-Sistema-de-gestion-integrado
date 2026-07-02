@@ -9,6 +9,28 @@ import type { NormaCatalogo } from "@/lib/api/configuracion";
 import { guardarNorma, eliminarNorma, type EstadoConfig } from "@/app/(app)/configuracion/normas/actions";
 import { Button } from "@/components/ui/button";
 
+// Etiquetas y estilos de los dos ejes de clasificación de una norma.
+const GESTION_META: Record<string, { label: string; cls: string }> = {
+  activa: { label: "Activa", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  en_preparacion: { label: "En preparación", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  suspendida: { label: "Suspendida", cls: "bg-zinc-100 text-zinc-600 border-zinc-200" },
+  no_gestionada: { label: "No gestionada", cls: "bg-zinc-50 text-zinc-500 border-zinc-200" },
+};
+const CERT_META: Record<string, { label: string; cls: string }> = {
+  certificada: { label: "Certificada", cls: "bg-sky-50 text-sky-700 border-sky-200" },
+  en_vias: { label: "En vías", cls: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  vencida: { label: "Vencida", cls: "bg-red-50 text-red-700 border-red-200" },
+  no_aplica: { label: "No aplica", cls: "bg-zinc-50 text-zinc-500 border-zinc-200" },
+};
+
+function BadgeEstado({ meta }: { meta: { label: string; cls: string } }) {
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${meta.cls}`}>
+      {meta.label}
+    </span>
+  );
+}
+
 function SubmitButton({ edicion }: { edicion: boolean }) {
   const { pending } = useFormStatus();
   return (
@@ -50,6 +72,7 @@ export function GestionNormas({ normas }: { normas: NormaCatalogo[] }) {
                 <th className="px-4 py-2.5 font-medium text-muted-foreground">Código</th>
                 <th className="px-4 py-2.5 font-medium text-muted-foreground">Norma</th>
                 <th className="px-4 py-2.5 font-medium text-muted-foreground hidden md:table-cell">Ámbito</th>
+                <th className="px-4 py-2.5 font-medium text-muted-foreground">Estado</th>
                 <th className="px-4 py-2.5 w-20"></th>
               </tr>
             </thead>
@@ -65,6 +88,12 @@ export function GestionNormas({ normas }: { normas: NormaCatalogo[] }) {
                     <div className="text-xs text-muted-foreground line-clamp-1">{n.nombreCompleto}</div>
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground hidden md:table-cell">{n.ambito ?? "—"}</td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex flex-wrap gap-1">
+                      <BadgeEstado meta={GESTION_META[n.estadoGestion] ?? GESTION_META.no_gestionada} />
+                      <BadgeEstado meta={CERT_META[n.estadoCertificacion] ?? CERT_META.no_aplica} />
+                    </div>
+                  </td>
                   <td className="px-4 py-2.5">
                     <div className="flex justify-end gap-1">
                       <button onClick={() => { setEditando(n); setAbierto(true); }} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Editar" aria-label="Editar">
@@ -135,6 +164,30 @@ export function GestionNormas({ normas }: { normas: NormaCatalogo[] }) {
                   <label htmlFor="descripcion" className="text-sm font-medium">Descripción <span className="text-muted-foreground">(opcional)</span></label>
                   <textarea id="descripcion" name="descripcion" rows={2} defaultValue={editando?.descripcion ?? ""} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <label htmlFor="estadoGestion" className="text-sm font-medium">Estado de gestión</label>
+                    <select id="estadoGestion" name="estadoGestion" defaultValue={editando?.estadoGestion ?? "no_gestionada"} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <option value="no_gestionada">No gestionada</option>
+                      <option value="en_preparacion">En preparación</option>
+                      <option value="activa">Activa (visible a lectores)</option>
+                      <option value="suspendida">Suspendida</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="estadoCertificacion" className="text-sm font-medium">Estado de certificación</label>
+                    <select id="estadoCertificacion" name="estadoCertificacion" defaultValue={editando?.estadoCertificacion ?? "no_aplica"} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <option value="no_aplica">No aplica</option>
+                      <option value="en_vias">En vías de certificación</option>
+                      <option value="certificada">Certificada</option>
+                      <option value="vencida">Vencida</option>
+                    </select>
+                  </div>
+                </div>
+                <p className="-mt-2 text-xs text-muted-foreground">
+                  Solo las normas <strong>Activas</strong> se muestran a los lectores en Cumplimiento y Requisitos. Admin, SGI, auditores y gerencia ven todas.
+                </p>
 
                 <div className="grid grid-cols-2 gap-3 items-end">
                   <label className="flex cursor-pointer items-center gap-2 text-sm">

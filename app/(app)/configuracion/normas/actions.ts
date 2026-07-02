@@ -27,6 +27,8 @@ export async function guardarNorma(
     organismoEmisor: formData.get("organismoEmisor") || undefined,
     sitioWeb: formData.get("sitioWeb") || undefined,
     ambito: formData.get("ambito") || undefined,
+    estadoGestion: formData.get("estadoGestion") || undefined,
+    estadoCertificacion: formData.get("estadoCertificacion") || undefined,
     certificadaPorMsu: formData.get("certificadaPorMsu") === "on",
     ordenVisualizacion: formData.get("ordenVisualizacion") || 0,
   });
@@ -47,6 +49,8 @@ export async function guardarNorma(
     organismo_emisor: limpio(i.organismoEmisor),
     sitio_web: limpio(i.sitioWeb),
     ambito: limpio(i.ambito),
+    estado_gestion: i.estadoGestion,
+    estado_certificacion: i.estadoCertificacion,
     certificada_por_msu: i.certificadaPorMsu,
     orden_visualizacion: i.ordenVisualizacion,
   };

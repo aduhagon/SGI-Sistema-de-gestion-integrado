@@ -125,6 +125,18 @@ export async function listarSedes(): Promise<Sede[]> {
 }
 
 // ---- Normas ----
+export type NormaEstadoGestion =
+  | "no_gestionada"
+  | "en_preparacion"
+  | "activa"
+  | "suspendida";
+
+export type NormaEstadoCertificacion =
+  | "no_aplica"
+  | "en_vias"
+  | "certificada"
+  | "vencida";
+
 export type NormaCatalogo = {
   id: string;
   codigo: string;
@@ -134,6 +146,8 @@ export type NormaCatalogo = {
   organismoEmisor: string | null;
   sitioWeb: string | null;
   ambito: string | null;
+  estadoGestion: NormaEstadoGestion;
+  estadoCertificacion: NormaEstadoCertificacion;
   certificadaPorMsu: boolean;
   ordenVisualizacion: number;
 };
@@ -142,7 +156,7 @@ export async function listarNormasCatalogo(): Promise<NormaCatalogo[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("normas")
-    .select("id, codigo, nombre_corto, nombre_completo, descripcion, organismo_emisor, sitio_web, ambito, certificada_por_msu, orden_visualizacion")
+    .select("id, codigo, nombre_corto, nombre_completo, descripcion, organismo_emisor, sitio_web, ambito, estado_gestion, estado_certificacion, certificada_por_msu, orden_visualizacion")
     .eq("activo", true)
     .is("eliminado_en", null)
     .order("orden_visualizacion", { ascending: true })
@@ -157,6 +171,8 @@ export async function listarNormasCatalogo(): Promise<NormaCatalogo[]> {
     organismoEmisor: n.organismo_emisor,
     sitioWeb: n.sitio_web,
     ambito: n.ambito,
+    estadoGestion: n.estado_gestion,
+    estadoCertificacion: n.estado_certificacion,
     certificadaPorMsu: n.certificada_por_msu,
     ordenVisualizacion: n.orden_visualizacion,
   }));
