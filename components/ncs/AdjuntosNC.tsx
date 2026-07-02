@@ -7,6 +7,7 @@ import { Paperclip, Loader2, Plus, X, Download, FileText, Image as ImageIcon, Tr
 import type { AdjuntoNC } from "@/lib/api/adjuntos-nc";
 import { subirAdjuntoNC, quitarAdjuntoNC, type EstadoAdjunto } from "@/app/(app)/ncs/[id]/adjunto-actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 type Props = {
   ncId: string;
@@ -118,17 +119,16 @@ export function AdjuntosNCSection({ ncId, adjuntos, puedeAdjuntar }: Props) {
         </p>
       )}
 
-      {abierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAbierto(false)} />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl">
-            <div className="p-6">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Adjuntar evidencia</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Subí evidencia del problema: fotos, el reclamo del cliente, un informe, etc. (máx. 20 MB).
-              </p>
-              <form action={formAction} className="mt-6 space-y-4">
-                <input type="hidden" name="noConformidadId" value={ncId} />
+      <ModalShell abierto={abierto} onClose={() => setAbierto(false)} maxWidth="max-w-md">
+        <ModalHeader>
+          <h2 className="font-serif text-2xl font-semibold tracking-tight">Adjuntar evidencia</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Subí evidencia del problema: fotos, el reclamo del cliente, un informe, etc. (máx. 20 MB).
+          </p>
+        </ModalHeader>
+        <form action={formAction} className={MODAL_FORM_CLASS}>
+          <ModalBody className="space-y-4">
+            <input type="hidden" name="noConformidadId" value={ncId} />
 
                 {archivo ? (
                   <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
@@ -157,18 +157,17 @@ export function AdjuntosNCSection({ ncId, adjuntos, puedeAdjuntar }: Props) {
                   onChange={(e) => setArchivo(e.target.files?.[0] ?? null)}
                 />
 
-                {estado && !estado.ok && (
-                  <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>
-                )}
-                <div className="flex gap-3 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
-                  <SubmitButton />
-                </div>
-              </form>
+            <div className="pb-2" />
+          </ModalBody>
+          <ModalFooter>
+            <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
+              <SubmitButton />
             </div>
-          </div>
-        </div>
-      )}
+          </ModalFooter>
+        </form>
+      </ModalShell>
     </section>
   );
 }

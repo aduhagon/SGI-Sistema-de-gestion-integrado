@@ -7,6 +7,7 @@ import { ShieldCheck, Loader2, Plus, Paperclip, X, Download } from "lucide-react
 import type { Accion, VerificacionEficacia } from "@/lib/api/acciones";
 import { registrarVerificacion, type EstadoAccion } from "@/app/(app)/ncs/[id]/accion-actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 type Props = {
   ncId: string;
@@ -94,17 +95,16 @@ export function VerificacionEficaciaSection({ ncId, verificaciones, acciones }: 
         </p>
       )}
 
-      {abierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAbierto(false)} />
-          <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Verificar eficacia</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Comprobá si las acciones eliminaron la causa raíz. No podés verificar acciones de las que sos responsable.
-              </p>
-              <form action={formAction} className="mt-6 space-y-5">
-                <input type="hidden" name="noConformidadId" value={ncId} />
+      <ModalShell abierto={abierto} onClose={() => setAbierto(false)} maxWidth="max-w-lg">
+        <ModalHeader>
+          <h2 className="font-serif text-2xl font-semibold tracking-tight">Verificar eficacia</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Comprobá si las acciones eliminaron la causa raíz. No podés verificar acciones de las que sos responsable.
+          </p>
+        </ModalHeader>
+        <form action={formAction} className={MODAL_FORM_CLASS}>
+          <ModalBody className="space-y-5">
+            <input type="hidden" name="noConformidadId" value={ncId} />
 
                 <div className="space-y-2">
                   <label htmlFor="resultado" className="text-sm font-medium">Resultado</label>
@@ -175,18 +175,17 @@ export function VerificacionEficaciaSection({ ncId, verificaciones, acciones }: 
                   />
                 </div>
 
-                {estado && !estado.ok && (
-                  <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>
-                )}
-                <div className="flex gap-3 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
-                  <SubmitButton />
-                </div>
-              </form>
+            <div className="pb-2" />
+          </ModalBody>
+          <ModalFooter>
+            <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
+              <SubmitButton />
             </div>
-          </div>
-        </div>
-      )}
+          </ModalFooter>
+        </form>
+      </ModalShell>
     </section>
   );
 }

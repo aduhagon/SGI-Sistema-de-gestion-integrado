@@ -14,6 +14,7 @@ import {
 } from "@/lib/riesgos-utils";
 import { guardarRiesgo, eliminarRiesgo, type EstadoRiesgo } from "@/app/(app)/riesgos/actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 const NIVEL_COLOR: Record<NivelRiesgo, string> = {
   bajo: "bg-emerald-100 text-emerald-700",
@@ -224,16 +225,13 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
         </div>
       )}
 
-      {abierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAbierto(false)} aria-hidden="true" />
-          <div className="relative z-10 w-full max-w-2xl rounded-xl border border-border bg-card shadow-2xl">
-            <div className="p-6">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">{editando ? "Editar riesgo" : "Nuevo riesgo"}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">El nivel se calcula con probabilidad × impacto.</p>
+      <ModalShell abierto={abierto} onClose={() => setAbierto(false)} maxWidth="max-w-2xl">
+        <ModalHeader>
+          <h2 className="font-serif text-2xl font-semibold tracking-tight">{editando ? "Editar riesgo" : "Nuevo riesgo"}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">El nivel se calcula con probabilidad × impacto.</p>
 
-              {/* Indicador de pasos */}
-              <div className="mt-5 flex items-center gap-1.5">
+          {/* Indicador de pasos (queda fijo, no scrollea) */}
+          <div className="mt-5 flex items-center gap-1.5">
                 {PASOS.map((nombre, i) => {
                   const activo = i === paso;
                   const completo = i < paso;
@@ -254,12 +252,14 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
                       </button>
                       {i < PASOS.length - 1 && <span className="h-px flex-1 bg-border" aria-hidden="true" />}
                     </div>
-                  );
-                })}
-              </div>
+              );
+            })}
+          </div>
+        </ModalHeader>
 
-              <form action={formAction} onSubmit={onSubmitGuard} className="mt-6">
-                {editando && <input type="hidden" name="id" value={editando.id} />}
+        <form action={formAction} onSubmit={onSubmitGuard} className={MODAL_FORM_CLASS}>
+          <ModalBody className="pb-3">
+            {editando && <input type="hidden" name="id" value={editando.id} />}
 
                 {/* Paso 1 — Identificación */}
                 <div hidden={paso !== 0} className="space-y-4">
@@ -430,31 +430,26 @@ export function GestionRiesgos({ riesgos, procesos, puestos }: {
                   </div>
                 </div>
 
-                {errorPaso && (
-                  <div role="alert" className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{errorPaso}</div>
-                )}
-                {estado && !estado.ok && (
-                  <div role="alert" className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>
-                )}
-
-                <div className="mt-6 flex items-center gap-3 border-t border-border pt-4">
-                  {paso > 0 ? (
-                    <Button type="button" variant="outline" onClick={retroceder}><ArrowLeft className="h-4 w-4" />Atrás</Button>
-                  ) : (
-                    <Button type="button" variant="outline" onClick={() => setAbierto(false)}>Cancelar</Button>
-                  )}
-                  <div className="flex-1" />
-                  {enUltimo ? (
-                    <SubmitButton edicion={!!editando} />
-                  ) : (
-                    <Button type="button" onClick={avanzar}>Siguiente<ArrowRight className="h-4 w-4" /></Button>
-                  )}
-                </div>
-              </form>
+          </ModalBody>
+          <ModalFooter>
+            <ModalError mensaje={errorPaso} />
+            <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+            <div className="flex items-center gap-3">
+              {paso > 0 ? (
+                <Button type="button" variant="outline" onClick={retroceder}><ArrowLeft className="h-4 w-4" />Atrás</Button>
+              ) : (
+                <Button type="button" variant="outline" onClick={() => setAbierto(false)}>Cancelar</Button>
+              )}
+              <div className="flex-1" />
+              {enUltimo ? (
+                <SubmitButton edicion={!!editando} />
+              ) : (
+                <Button type="button" onClick={avanzar}>Siguiente<ArrowRight className="h-4 w-4" /></Button>
+              )}
             </div>
-          </div>
-        </div>
-      )}
+          </ModalFooter>
+        </form>
+      </ModalShell>
     </div>
   );
 }

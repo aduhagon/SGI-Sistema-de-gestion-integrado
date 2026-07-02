@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus, Check, ArrowLeft, ArrowRight } from "lucide-react";
 import { crearHallazgo, type EstadoHallazgo } from "@/app/(app)/auditorias/[id]/hallazgo-actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 type ReqOpcion = { id: string; clausula: string; titulo: string; norma: string };
 type ProcOpcion = { id: string; codigo: string; nombre: string };
@@ -73,16 +74,6 @@ export function AgregarHallazgoDialog({
     }
   }, [estado, onClose, router]);
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    if (abierto) {
-      document.addEventListener("keydown", onKey);
-      return () => document.removeEventListener("keydown", onKey);
-    }
-  }, [abierto, onClose]);
-
   // Reset al abrir, para no arrastrar estado de una carga anterior.
   useEffect(() => {
     if (abierto) {
@@ -90,8 +81,6 @@ export function AgregarHallazgoDialog({
       setErrorPaso(null);
     }
   }, [abierto]);
-
-  if (!abierto) return null;
 
   // Validación del paso actual. Devuelve mensaje de error o null si está OK.
   function validarPaso(n: number): string | null {
@@ -136,17 +125,15 @@ export function AgregarHallazgoDialog({
   const enUltimo = paso === PASOS.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl">
-        <div className="p-6">
-          <h2 className="font-serif text-2xl font-semibold tracking-tight">Registrar hallazgo</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Documentá lo encontrado durante la auditoría. El código se genera automáticamente.
-          </p>
+    <ModalShell abierto={abierto} onClose={onClose} maxWidth="max-w-lg">
+      <ModalHeader>
+        <h2 className="font-serif text-2xl font-semibold tracking-tight">Registrar hallazgo</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Documentá lo encontrado durante la auditoría. El código se genera automáticamente.
+        </p>
 
-          {/* Indicador de pasos */}
-          <div className="mt-5 flex items-center gap-1.5">
+        {/* Indicador de pasos (queda fijo, no scrollea) */}
+        <div className="mt-5 flex items-center gap-1.5">
             {PASOS.map((nombre, i) => {
               const activo = i === paso;
               const completo = i < paso;
@@ -185,10 +172,12 @@ export function AgregarHallazgoDialog({
                 </div>
               );
             })}
-          </div>
+        </div>
+      </ModalHeader>
 
-          <form ref={formRef} action={formAction} onSubmit={onSubmitGuard} className="mt-6">
-            <input type="hidden" name="auditoriaId" value={auditoriaId} />
+      <form ref={formRef} action={formAction} onSubmit={onSubmitGuard} className={MODAL_FORM_CLASS}>
+        <ModalBody className="pb-3">
+          <input type="hidden" name="auditoriaId" value={auditoriaId} />
 
             {/* Los tres pasos quedan montados; se ocultan con `hidden` para no
                 perder lo cargado al navegar. */}
@@ -298,41 +287,29 @@ export function AgregarHallazgoDialog({
               </div>
             </div>
 
-            {/* Error de validación del paso */}
-            {errorPaso && (
-              <div role="alert" className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                {errorPaso}
-              </div>
+        </ModalBody>
+        <ModalFooter>
+          <ModalError mensaje={errorPaso} />
+          <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+          <div className="flex items-center gap-3">
+            {paso > 0 ? (
+              <Button type="button" variant="outline" onClick={retroceder}>
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />Atrás
+              </Button>
+            ) : (
+              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             )}
-
-            {/* Error del servidor */}
-            {estado && !estado.ok && (
-              <div role="alert" className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                {estado.error}
-              </div>
+            <div className="flex-1" />
+            {enUltimo ? (
+              <SubmitButton />
+            ) : (
+              <Button type="button" onClick={avanzar}>
+                Siguiente<ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
             )}
-
-            {/* Navegación */}
-            <div className="mt-6 flex items-center gap-3 border-t border-border pt-4">
-              {paso > 0 ? (
-                <Button type="button" variant="outline" onClick={retroceder}>
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />Atrás
-                </Button>
-              ) : (
-                <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-              )}
-              <div className="flex-1" />
-              {enUltimo ? (
-                <SubmitButton />
-              ) : (
-                <Button type="button" onClick={avanzar}>
-                  Siguiente<ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              )}
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+          </div>
+        </ModalFooter>
+      </form>
+    </ModalShell>
   );
 }

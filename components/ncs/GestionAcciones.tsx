@@ -8,6 +8,7 @@ import type { Accion } from "@/lib/api/acciones";
 import type { UsuarioElegible } from "@/lib/api/envio";
 import { crearAccion, completarAccion, type EstadoAccion } from "@/app/(app)/ncs/[id]/accion-actions";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 type Props = {
   ncId: string;
@@ -126,53 +127,49 @@ export function GestionAcciones({ ncId, acciones, usuarios }: Props) {
       )}
 
       {accionACompletar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAccionACompletar(null)} />
-          <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-card shadow-2xl">
-            <div className="p-6">
-              <h2 className="font-serif text-xl font-semibold tracking-tight">Completar acción</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {accionACompletar.codigo} · {accionACompletar.titulo}
-              </p>
-              <div className="mt-4 space-y-2">
-                <label htmlFor="resultado-obtenido" className="text-sm font-medium">
-                  Resultado obtenido
-                </label>
-                <textarea
-                  id="resultado-obtenido"
-                  rows={4}
-                  value={resultado}
-                  onChange={(e) => setResultado(e.target.value)}
-                  placeholder="Describí qué se hizo y qué resultado se obtuvo con esta acción…"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-              {errorCompletar && (
-                <div role="alert" className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                  {errorCompletar}
-                </div>
-              )}
-              <div className="mt-5 flex gap-3">
-                <Button type="button" variant="outline" onClick={() => setAccionACompletar(null)} className="flex-1">
-                  Cancelar
-                </Button>
-                <Button type="button" onClick={confirmarCompletar} disabled={completando === accionACompletar.id} className="flex-1">
-                  {completando === accionACompletar.id ? <><Loader2 className="h-4 w-4 animate-spin" />Completando…</> : <><CheckCircle2 className="h-4 w-4" />Completar acción</>}
-                </Button>
-              </div>
+        <ModalShell abierto onClose={() => setAccionACompletar(null)} maxWidth="max-w-md">
+          <ModalHeader>
+            <h2 className="font-serif text-xl font-semibold tracking-tight">Completar acción</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {accionACompletar.codigo} · {accionACompletar.titulo}
+            </p>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-2 pb-3">
+              <label htmlFor="resultado-obtenido" className="text-sm font-medium">
+                Resultado obtenido
+              </label>
+              <textarea
+                id="resultado-obtenido"
+                rows={4}
+                value={resultado}
+                onChange={(e) => setResultado(e.target.value)}
+                placeholder="Describí qué se hizo y qué resultado se obtuvo con esta acción…"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
             </div>
-          </div>
-        </div>
+          </ModalBody>
+          <ModalFooter>
+            <ModalError mensaje={errorCompletar} />
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={() => setAccionACompletar(null)} className="flex-1">
+                Cancelar
+              </Button>
+              <Button type="button" onClick={confirmarCompletar} disabled={completando === accionACompletar.id} className="flex-1">
+                {completando === accionACompletar.id ? <><Loader2 className="h-4 w-4 animate-spin" />Completando…</> : <><CheckCircle2 className="h-4 w-4" />Completar acción</>}
+              </Button>
+            </div>
+          </ModalFooter>
+        </ModalShell>
       )}
 
-      {abierto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAbierto(false)} />
-          <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h2 className="font-serif text-2xl font-semibold tracking-tight">Agregar acción</h2>
-              <form action={formAction} className="mt-6 space-y-5">
-                <input type="hidden" name="noConformidadId" value={ncId} />
+      <ModalShell abierto={abierto} onClose={() => setAbierto(false)} maxWidth="max-w-lg">
+        <ModalHeader>
+          <h2 className="font-serif text-2xl font-semibold tracking-tight">Agregar acción</h2>
+        </ModalHeader>
+        <form action={formAction} className={MODAL_FORM_CLASS}>
+          <ModalBody className="space-y-5">
+            <input type="hidden" name="noConformidadId" value={ncId} />
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label htmlFor="tipo" className="text-sm font-medium">Tipo</label>
@@ -213,18 +210,17 @@ export function GestionAcciones({ ncId, acciones, usuarios }: Props) {
                     <input id="fechaLimite" name="fechaLimite" type="date" required className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                   </div>
                 </div>
-                {estado && !estado.ok && (
-                  <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>
-                )}
-                <div className="flex gap-3 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
-                  <SubmitButton />
-                </div>
-              </form>
+            <div className="pb-2" />
+          </ModalBody>
+          <ModalFooter>
+            <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
+              <SubmitButton />
             </div>
-          </div>
-        </div>
-      )}
+          </ModalFooter>
+        </form>
+      </ModalShell>
     </section>
   );
 }

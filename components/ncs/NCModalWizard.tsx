@@ -5,6 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Loader2, Save, Check, ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 import { SelectorRequisitoNC } from "@/components/ncs/SelectorRequisitoNC";
 import type { NormaOpcionNC, RequisitoOpcionNC } from "@/components/ncs/SelectorRequisitoNC";
 import { crearNCDesdeModal, type EstadoCrearNCModal } from "@/app/(app)/ncs/crear-nc-modal-actions";
@@ -81,23 +82,11 @@ export function NCModalWizard({
   }, [estado, onClose, router]);
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    if (abierto) {
-      document.addEventListener("keydown", onKey);
-      return () => document.removeEventListener("keydown", onKey);
-    }
-  }, [abierto, onClose]);
-
-  useEffect(() => {
     if (abierto) {
       setPaso(0);
       setErrorPaso(null);
     }
   }, [abierto]);
-
-  if (!abierto) return null;
 
   // El selector de requisito captura su valor en un <input name="requisitoId">
   // interno; acá mantenemos un espejo para poder validar el paso 2. Para eso
@@ -153,16 +142,14 @@ export function NCModalWizard({
   const enUltimo = paso === PASOS.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div className="relative z-10 w-full max-w-xl rounded-xl border border-border bg-card shadow-2xl">
-        <div className="p-6">
-          <h2 className="font-serif text-2xl font-semibold tracking-tight">Abrir no conformidad</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Registrá el incumplimiento detectado. El código se genera automáticamente.
-          </p>
+    <ModalShell abierto={abierto} onClose={onClose} maxWidth="max-w-xl">
+      <ModalHeader>
+        <h2 className="font-serif text-2xl font-semibold tracking-tight">Abrir no conformidad</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Registrá el incumplimiento detectado. El código se genera automáticamente.
+        </p>
 
-          <div className="mt-5 flex items-center gap-1.5">
+        <div className="mt-5 flex items-center gap-1.5">
             {PASOS.map((nombre, i) => {
               const activo = i === paso;
               const completo = i < paso;
@@ -196,9 +183,11 @@ export function NCModalWizard({
                 </div>
               );
             })}
-          </div>
+        </div>
+      </ModalHeader>
 
-          <form action={formAction} onSubmit={onSubmitGuard} className="mt-6">
+      <form action={formAction} onSubmit={onSubmitGuard} className={MODAL_FORM_CLASS}>
+        <ModalBody className="pb-3">
             {/* Paso 1 — Qué */}
             <div hidden={paso !== 0} className="space-y-5">
               <div className="space-y-2">
@@ -314,37 +303,29 @@ export function NCModalWizard({
               </div>
             </div>
 
-            {errorPaso && (
-              <div role="alert" className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                {errorPaso}
-              </div>
+        </ModalBody>
+        <ModalFooter>
+          <ModalError mensaje={errorPaso} />
+          <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+          <div className="flex items-center gap-3">
+            {paso > 0 ? (
+              <Button type="button" variant="outline" onClick={retroceder}>
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />Atrás
+              </Button>
+            ) : (
+              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             )}
-            {estado && !estado.ok && (
-              <div role="alert" className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                {estado.error}
-              </div>
+            <div className="flex-1" />
+            {enUltimo ? (
+              <SubmitButton />
+            ) : (
+              <Button type="button" onClick={avanzar}>
+                Siguiente<ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Button>
             )}
-
-            <div className="mt-6 flex items-center gap-3 border-t border-border pt-4">
-              {paso > 0 ? (
-                <Button type="button" variant="outline" onClick={retroceder}>
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />Atrás
-                </Button>
-              ) : (
-                <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-              )}
-              <div className="flex-1" />
-              {enUltimo ? (
-                <SubmitButton />
-              ) : (
-                <Button type="button" onClick={avanzar}>
-                  Siguiente<ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              )}
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+          </div>
+        </ModalFooter>
+      </form>
+    </ModalShell>
   );
 }
