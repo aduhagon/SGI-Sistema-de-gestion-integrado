@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type {
   Riesgo, ProcesoOpcion, PuestoOpcion,
-  MitiganteRiesgo, DocumentoOpcion, IndicadorOpcion,
+  MitiganteRiesgo, DocumentoOpcion, IndicadorOpcion, NormaOpcion, NormaRiesgo,
 } from "@/lib/api/riesgos";
 import { MitigantesEditor } from "@/components/riesgos/MitigantesEditor";
 import {
@@ -60,13 +60,15 @@ function celdaColor(nivel: NivelRiesgo): string {
   return "bg-red-300";
 }
 
-export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo, documentosOpc, indicadoresOpc }: {
+export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo, documentosOpc, indicadoresOpc, normasOpc, normasPorRiesgo }: {
   riesgos: Riesgo[];
   procesos: ProcesoOpcion[];
   puestos: PuestoOpcion[];
   mitigantesPorRiesgo: Record<string, MitiganteRiesgo[]>;
   documentosOpc: DocumentoOpcion[];
   indicadoresOpc: IndicadorOpcion[];
+  normasOpc: NormaOpcion[];
+  normasPorRiesgo: Record<string, NormaRiesgo[]>;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -84,6 +86,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo
   const [titulo, setTitulo] = useState("");
   const [codigo, setCodigo] = useState("");
   const [procesoId, setProcesoId] = useState("");
+  const [normasSel, setNormasSel] = useState<string[]>([]);
   const [errorPaso, setErrorPaso] = useState<string | null>(null);
 
   useEffect(() => {
@@ -98,6 +101,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo
     setTitulo(r?.titulo ?? "");
     setCodigo(r?.codigo ?? "");
     setProcesoId(r?.procesoId ?? "");
+    setNormasSel(r ? (normasPorRiesgo[r.id] ?? []).map((n) => n.versionNormaId) : []);
     setPaso(0);
     setErrorPaso(null);
     setAbierto(true);
@@ -312,6 +316,41 @@ export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo
                         {puestos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                       </select>
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Normas asociadas <span className="text-muted-foreground">(opc.)</span></label>
+                    <p className="text-xs text-muted-foreground">Marcá las normas a las que responde este riesgo. Es un calificador: puede quedar sin ninguna.</p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {normasOpc.map((n) => {
+                        const activa = normasSel.includes(n.versionNormaId);
+                        return (
+                          <button
+                            key={n.versionNormaId}
+                            type="button"
+                            onClick={() =>
+                              setNormasSel((prev) =>
+                                prev.includes(n.versionNormaId)
+                                  ? prev.filter((x) => x !== n.versionNormaId)
+                                  : [...prev, n.versionNormaId],
+                              )
+                            }
+                            className={
+                              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
+                              (activa
+                                ? "border-transparent text-white"
+                                : "border-border bg-transparent text-muted-foreground hover:bg-muted")
+                            }
+                            style={activa ? { backgroundColor: n.colorHex ?? "#475569" } : undefined}
+                            aria-pressed={activa}
+                          >
+                            {activa && <Check className="h-3 w-3" aria-hidden="true" />}
+                            {n.nombreCorto}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <input type="hidden" name="normas" value={JSON.stringify(normasSel)} />
                   </div>
                 </div>
 

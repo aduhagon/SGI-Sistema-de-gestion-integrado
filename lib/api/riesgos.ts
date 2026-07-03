@@ -88,17 +88,35 @@ export async function listarRiesgos(procesoId?: string): Promise<Riesgo[]> {
 export type ProcesoOpcion = { id: string; nombre: string };
 export type PuestoOpcion = { id: string; nombre: string };
 
-export async function obtenerDatosFormRiesgo(): Promise<{ procesos: ProcesoOpcion[]; puestos: PuestoOpcion[] }> {
+export type NormaOpcion = { versionNormaId: string; nombreCorto: string; version: string; colorHex: string | null };
+
+export async function obtenerDatosFormRiesgo(): Promise<{ procesos: ProcesoOpcion[]; puestos: PuestoOpcion[]; normas: NormaOpcion[] }> {
   const supabase = createClient();
-  const [procRes, puestoRes] = await Promise.all([
+  const [procRes, puestoRes, normaRes] = await Promise.all([
     supabase.from("procesos").select("id, nombre").eq("activo", true).is("eliminado_en", null).order("nombre"),
     supabase.from("puestos").select("id, codigo, nombre").eq("activo", true).is("eliminado_en", null).order("nombre"),
+    supabase
+      .from("versiones_norma")
+      .select("id, version, es_version_actual, norma:normas!versiones_norma_norma_id_fkey (nombre_corto, color_hex, orden_visualizacion, activo, eliminado_en)")
+      .eq("es_version_actual", true)
+      .is("eliminado_en", null),
   ]);
 
   const procesos = ((procRes.data ?? []) as any[]).map((p) => ({ id: p.id, nombre: p.nombre }));
   const puestos = ((puestoRes.data ?? []) as any[]).map((p) => ({ id: p.id, nombre: p.nombre }));
+  const normas = ((normaRes.data ?? []) as any[])
+    .filter((v) => v.norma && v.norma.activo && v.norma.eliminado_en == null)
+    .map((v) => ({
+      versionNormaId: v.id,
+      nombreCorto: v.norma.nombre_corto,
+      version: v.version,
+      colorHex: v.norma.color_hex ?? null,
+      _orden: v.norma.orden_visualizacion ?? 999,
+    }))
+    .sort((a, b) => a._orden - b._orden || a.nombreCorto.localeCompare(b.nombreCorto))
+    .map(({ _orden, ...n }) => n);
 
-  return { procesos, puestos };
+  return { procesos, puestos, normas };
 }
 
 // ── Árbol de riesgos por proceso ─────────────────────────────────────────────
@@ -240,6 +258,36 @@ export async function listarMitigantesPorRiesgo(): Promise<Record<string, Mitiga
     };
     if (!mapa[m.riesgo_id]) mapa[m.riesgo_id] = [];
     mapa[m.riesgo_id].push(item);
+  }
+  return mapa;
+}
+
+export type NormaRiesgo = { versionNormaId: string; nombreCorto: string; version: string; colorHex: string | null };
+
+// Normas asociadas a cada riesgo (para el detalle expandido de la vista por proceso).
+export async function listarNormasPorRiesgo(): Promise<Record<string, NormaRiesgo[]>> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("riesgo_norma")
+    .select("riesgo_id, version:versiones_norma!riesgo_norma_version_norma_id_fkey (id, version, norma:normas!versiones_norma_norma_id_fkey (nombre_corto, color_hex, orden_visualizacion))")
+    .eq("activo", true)
+    .is("eliminado_en", null);
+  if (error || !data) return {};
+
+  const mapa: Record<string, NormaRiesgo[]> = {};
+  for (const row of data as any[]) {
+    if (!row.version || !row.version.norma) continue;
+    const item: NormaRiesgo = {
+      versionNormaId: row.version.id,
+      nombreCorto: row.version.norma.nombre_corto,
+      version: row.version.version,
+      colorHex: row.version.norma.color_hex ?? null,
+    };
+    if (!mapa[row.riesgo_id]) mapa[row.riesgo_id] = [];
+    mapa[row.riesgo_id].push(item);
+  }
+  for (const k of Object.keys(mapa)) {
+    mapa[k].sort((a, b) => a.nombreCorto.localeCompare(b.nombreCorto));
   }
   return mapa;
 }

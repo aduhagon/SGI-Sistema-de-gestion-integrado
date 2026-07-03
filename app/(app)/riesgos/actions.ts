@@ -25,6 +25,8 @@ const mitigantesSchema = z
 
 type MitiganteDeseado = z.infer<typeof mitigantesSchema>[number];
 
+const normasSchema = z.array(z.string().uuid()).max(20);
+
 export async function guardarRiesgo(
   _prev: EstadoRiesgo,
   formData: FormData,
@@ -75,6 +77,24 @@ export async function guardarRiesgo(
     mitigantes = parsedMit.data;
   }
 
+  // Normas asociadas (calificador opcional, N:M). Mismo criterio que mitigantes:
+  // si el campo no viene, no se toca nada; si viene, se valida y reconcilia.
+  let normas: string[] | null = null;
+  const normasRaw = formData.get("normas");
+  if (typeof normasRaw === "string" && normasRaw !== "") {
+    let json: unknown;
+    try {
+      json = JSON.parse(normasRaw);
+    } catch {
+      return { ok: false, error: "Las normas llegaron en un formato inválido. Recargá la página e intentá de nuevo." };
+    }
+    const parsedNorm = normasSchema.safeParse(json);
+    if (!parsedNorm.success) {
+      return { ok: false, error: parsedNorm.error.issues[0].message, campo: "normas" };
+    }
+    normas = parsedNorm.data;
+  }
+
   const i = parsed.data;
   const esEdicion = i.id && i.id !== "";
   const limpio = (v?: string) => (v && v !== "" ? v : null);
@@ -121,6 +141,13 @@ export async function guardarRiesgo(
     if (errorSync) {
       // El riesgo ya se guardó; se informa el problema puntual de los vínculos.
       return { ok: false, error: `El riesgo se guardó, pero falló el vínculo de mitigantes: ${traducir(errorSync)}` };
+    }
+  }
+
+  if (normas !== null) {
+    const errorNorm = await sincronizarNormas(supabase, riesgoId, normas, usuarioId);
+    if (errorNorm) {
+      return { ok: false, error: `El riesgo se guardó, pero falló la asociación de normas: ${traducir(errorNorm)}` };
     }
   }
 
@@ -184,6 +211,53 @@ async function sincronizarMitigantes(
       creado_por: usuarioId,
     }));
     const { error: eAlta } = await supabase.from("riesgo_mitigante").insert(filas);
+    if (eAlta) return eAlta.message;
+  }
+
+  return null;
+}
+
+// Reconcilia las normas asociadas al riesgo: alta de las nuevas, baja lógica de
+// las quitadas, sin tocar las que siguen. Clave = version_norma_id.
+async function sincronizarNormas(
+  supabase: ReturnType<typeof createClient>,
+  riesgoId: string,
+  deseadas: string[],
+  usuarioId: string,
+): Promise<string | null> {
+  const { data: actuales, error } = await supabase
+    .from("riesgo_norma")
+    .select("id, version_norma_id")
+    .eq("riesgo_id", riesgoId)
+    .eq("activo", true)
+    .is("eliminado_en", null);
+  if (error) return error.message;
+
+  const deseadasSet = new Set(deseadas);
+  const actualesSet = new Set((actuales ?? []).map((a) => a.version_norma_id));
+
+  const aQuitar = (actuales ?? []).filter((a) => !deseadasSet.has(a.version_norma_id));
+  if (aQuitar.length > 0) {
+    const { error: eBaja } = await supabase
+      .from("riesgo_norma")
+      .update({
+        activo: false,
+        eliminado_en: new Date().toISOString(),
+        eliminado_por: usuarioId,
+        eliminado_motivo: "Quitada desde el formulario del riesgo",
+      })
+      .in("id", aQuitar.map((a) => a.id));
+    if (eBaja) return eBaja.message;
+  }
+
+  const nuevas = deseadas.filter((v) => !actualesSet.has(v));
+  if (nuevas.length > 0) {
+    const filas = nuevas.map((v) => ({
+      riesgo_id: riesgoId,
+      version_norma_id: v,
+      creado_por: usuarioId,
+    }));
+    const { error: eAlta } = await supabase.from("riesgo_norma").insert(filas);
     if (eAlta) return eAlta.message;
   }
 

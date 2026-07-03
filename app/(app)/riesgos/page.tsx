@@ -1,19 +1,20 @@
 import { Suspense } from "react";
 import {
   listarRiesgos, obtenerDatosFormRiesgo, obtenerArbolRiesgos,
-  listarMitigantesPorRiesgo, obtenerOpcionesMitigantes,
+  listarMitigantesPorRiesgo, obtenerOpcionesMitigantes, listarNormasPorRiesgo,
 } from "@/lib/api/riesgos";
 import { RiesgosVista } from "@/components/riesgos/RiesgosVista";
 
 export const dynamic = "force-dynamic";
 
 export default async function RiesgosPage() {
-  const [riesgos, { procesos, puestos }, arbol, mitigantesPorRiesgo, opcionesMitigantes] = await Promise.all([
+  const [riesgos, { procesos, puestos, normas }, arbol, mitigantesPorRiesgo, opcionesMitigantes, normasPorRiesgo] = await Promise.all([
     listarRiesgos(),
     obtenerDatosFormRiesgo(),
     obtenerArbolRiesgos(),
     listarMitigantesPorRiesgo(),
     obtenerOpcionesMitigantes(),
+    listarNormasPorRiesgo(),
   ]);
 
   const extremos = riesgos.filter((r) => r.nivel === "extremo").length;
@@ -36,7 +37,7 @@ export default async function RiesgosPage() {
         )}
       </header>
       <Suspense fallback={null}>
-        <RiesgosVista riesgos={riesgos} procesos={procesos} puestos={puestos} arbol={arbol} mitigantesPorRiesgo={mitigantesPorRiesgo} documentosOpc={opcionesMitigantes.documentos} indicadoresOpc={opcionesMitigantes.indicadores} />
+        <RiesgosVista riesgos={riesgos} procesos={procesos} puestos={puestos} arbol={arbol} mitigantesPorRiesgo={mitigantesPorRiesgo} documentosOpc={opcionesMitigantes.documentos} indicadoresOpc={opcionesMitigantes.indicadores} normasOpc={normas} normasPorRiesgo={normasPorRiesgo} />
       </Suspense>
     </div>
   );

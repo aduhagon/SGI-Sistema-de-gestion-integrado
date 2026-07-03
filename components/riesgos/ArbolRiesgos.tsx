@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronRight, Pencil, AlertTriangle, Paperclip, FileText, Activity, Lightbulb, Shield, ShieldCheck, ShieldHalf, Link2, Minus } from "lucide-react";
-import type { NodoProcesoRiesgo, RiesgoArbol, MitiganteRiesgo } from "@/lib/api/riesgos";
+import type { NodoProcesoRiesgo, RiesgoArbol, MitiganteRiesgo, NormaRiesgo } from "@/lib/api/riesgos";
 import {
   clasificarNumerico,
   GRADO_CONTROL_LABEL,
@@ -206,10 +206,31 @@ function ListaVinculos({ items }: { items: MitiganteRiesgo[] }) {
 
 // Fila de un riesgo dentro de un proceso. Expandible: muestra causa /
 // consecuencia / mitigante, que en la tabla de carga no se ven.
-function FilaRiesgo({ r, padLeft, forzarAbierto, vinculos }: { r: RiesgoArbol; padLeft: number; forzarAbierto: boolean; vinculos: MitiganteRiesgo[] }) {
+function ChipsNormas({ normas }: { normas: NormaRiesgo[] }) {
+  if (normas.length === 0) return null;
+  return (
+    <div>
+      <span className="font-semibold uppercase tracking-wider text-muted-foreground/70">Normas asociadas</span>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {normas.map((n) => (
+          <span
+            key={n.versionNormaId}
+            className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium text-white"
+            style={{ backgroundColor: n.colorHex ?? "#475569" }}
+            title={`${n.nombreCorto} · ${n.version}`}
+          >
+            {n.nombreCorto}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FilaRiesgo({ r, padLeft, forzarAbierto, vinculos, normas }: { r: RiesgoArbol; padLeft: number; forzarAbierto: boolean; vinculos: MitiganteRiesgo[]; normas: NormaRiesgo[] }) {
   const [abierto, setAbierto] = useState(forzarAbierto);
   const nVinculos = vinculos.length;
-  const tieneDetalle = !!(r.causa || r.consecuencia || r.mitigante) || nVinculos > 0;
+  const tieneDetalle = !!(r.causa || r.consecuencia || r.mitigante) || nVinculos > 0 || normas.length > 0;
   const desestimado = r.gradoControl === "desestimado_gerencia";
 
   return (
@@ -291,6 +312,7 @@ function FilaRiesgo({ r, padLeft, forzarAbierto, vinculos }: { r: RiesgoArbol; p
           style={{ paddingLeft: padLeft + 38, paddingRight: 16 }}
         >
           <ListaVinculos items={vinculos} />
+          <ChipsNormas normas={normas} />
           {r.causa && (
             <div>
               <span className="font-semibold uppercase tracking-wider text-muted-foreground/70">Causa</span>
@@ -330,7 +352,7 @@ function FilaRiesgo({ r, padLeft, forzarAbierto, vinculos }: { r: RiesgoArbol; p
 }
 
 // Fila de un proceso. Se despliega mostrando subprocesos (si los hay) y riesgos.
-function FilaProceso({ nodo, depth, forzarAbierto, mitigantesPorRiesgo }: { nodo: NodoProcesoRiesgo; depth: number; forzarAbierto: boolean; mitigantesPorRiesgo: Record<string, MitiganteRiesgo[]> }) {
+function FilaProceso({ nodo, depth, forzarAbierto, mitigantesPorRiesgo, normasPorRiesgo }: { nodo: NodoProcesoRiesgo; depth: number; forzarAbierto: boolean; mitigantesPorRiesgo: Record<string, MitiganteRiesgo[]>; normasPorRiesgo: Record<string, NormaRiesgo[]> }) {
   const tieneHijos = nodo.hijos.length > 0;
   const tieneRiesgos = nodo.riesgos.length > 0;
   const expandible = tieneHijos || tieneRiesgos;
@@ -397,7 +419,7 @@ function FilaProceso({ nodo, depth, forzarAbierto, mitigantesPorRiesgo }: { nodo
       {abierto && tieneHijos && (
         <div>
           {nodo.hijos.map((h) => (
-            <FilaProceso key={h.procesoId} nodo={h} depth={depth + 1} forzarAbierto={forzarAbierto} mitigantesPorRiesgo={mitigantesPorRiesgo} />
+            <FilaProceso key={h.procesoId} nodo={h} depth={depth + 1} forzarAbierto={forzarAbierto} mitigantesPorRiesgo={mitigantesPorRiesgo} normasPorRiesgo={normasPorRiesgo} />
           ))}
         </div>
       )}
@@ -405,7 +427,7 @@ function FilaProceso({ nodo, depth, forzarAbierto, mitigantesPorRiesgo }: { nodo
       {abierto && tieneRiesgos && (
         <div>
           {nodo.riesgos.map((r) => (
-            <FilaRiesgo key={r.id} r={r} padLeft={padLeft + 20} forzarAbierto={forzarAbierto} vinculos={mitigantesPorRiesgo[r.id] ?? []} />
+            <FilaRiesgo key={r.id} r={r} padLeft={padLeft + 20} forzarAbierto={forzarAbierto} vinculos={mitigantesPorRiesgo[r.id] ?? []} normas={normasPorRiesgo[r.id] ?? []} />
           ))}
         </div>
       )}
@@ -413,7 +435,7 @@ function FilaProceso({ nodo, depth, forzarAbierto, mitigantesPorRiesgo }: { nodo
   );
 }
 
-export default function ArbolRiesgos({ raices, mitigantesPorRiesgo }: { raices: NodoProcesoRiesgo[]; mitigantesPorRiesgo: Record<string, MitiganteRiesgo[]> }) {
+export default function ArbolRiesgos({ raices, mitigantesPorRiesgo, normasPorRiesgo }: { raices: NodoProcesoRiesgo[]; mitigantesPorRiesgo: Record<string, MitiganteRiesgo[]>; normasPorRiesgo: Record<string, NormaRiesgo[]> }) {
   const [todoAbierto, setTodoAbierto] = useState(false);
 
   return (
@@ -432,7 +454,7 @@ export default function ArbolRiesgos({ raices, mitigantesPorRiesgo }: { raices: 
         {/* key fuerza re-montaje al togglear, para que cada fila relea su estado inicial */}
         <div key={todoAbierto ? "open" : "closed"}>
           {raices.map((n) => (
-            <FilaProceso key={n.procesoId} nodo={n} depth={0} forzarAbierto={todoAbierto} mitigantesPorRiesgo={mitigantesPorRiesgo} />
+            <FilaProceso key={n.procesoId} nodo={n} depth={0} forzarAbierto={todoAbierto} mitigantesPorRiesgo={mitigantesPorRiesgo} normasPorRiesgo={normasPorRiesgo} />
           ))}
         </div>
       </div>
