@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Serif, IBM_Plex_Mono } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import SentryInit from "@/components/monitoring/SentryInit";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
@@ -39,7 +41,12 @@ export default function RootLayout({
       lang="es"
       className={`${plexSans.variable} ${plexSerif.variable} ${plexMono.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Observabilidad: métricas reales de usuario + captura de errores */}
+        <SpeedInsights />
+        <SentryInit />
+      </body>
     </html>
   );
 }

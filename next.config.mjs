@@ -5,6 +5,8 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '52mb',
     },
+    // Habilita instrumentation.ts (init de Sentry en el servidor).
+    instrumentationHook: true,
   },
 };
 
