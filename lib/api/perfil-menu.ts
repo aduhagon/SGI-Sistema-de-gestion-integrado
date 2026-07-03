@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -32,7 +33,9 @@ const PERFIL_VACIO: PerfilMenu = {
   modulosHabilitados: [],
 };
 
-export async function obtenerPerfilMenu(): Promise<PerfilMenu> {
+// Envuelto en React cache(): si varios componentes del mismo request piden el
+// perfil (layout + página), la llamada a la base se ejecuta una sola vez.
+export const obtenerPerfilMenu = cache(async (): Promise<PerfilMenu> => {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("fn_perfil_menu_usuario");
 
@@ -53,4 +56,4 @@ export async function obtenerPerfilMenu(): Promise<PerfilMenu> {
       ? (d.modulos_habilitados as string[])
       : [],
   };
-}
+});
