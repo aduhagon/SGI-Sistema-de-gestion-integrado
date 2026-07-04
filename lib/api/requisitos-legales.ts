@@ -271,6 +271,181 @@ export async function listarNormasParaSelector(): Promise<
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }
 
+// ---- Export a Excel: fila con TODOS los campos del requisito ----
+export type FilaExportRequisito = {
+  codigo: string;
+  titulo: string;
+  tipo: string;
+  categoria: string | null;
+  jurisdiccion: string | null;
+  organismoEmisor: string | null;
+  referencia: string | null;
+  articulosAplicables: string | null;
+  fechaVigenciaDesde: string | null;
+  normas: string;
+  procesos: string;
+  criticidad: string | null;
+  requiereVerificacion: boolean;
+  sanciones: string | null;
+  referenciaSanciones: string | null;
+  ultimoEstado: string | null;
+  ultimaEvaluacion: string | null;
+  proximaEvaluacion: string | null;
+  urlFuente: string | null;
+  descripcion: string | null;
+  observaciones: string | null;
+};
+
+export async function datosParaExportarRequisitos(
+  filtroVersionNormaId?: string,
+): Promise<FilaExportRequisito[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("requisitos_legales")
+    .select(
+      "id, codigo, titulo, descripcion, tipo, categoria, jurisdiccion, organismo_emisor, referencia, articulos_aplicables, fecha_vigencia_desde, url_fuente, criticidad, requiere_verificacion, sanciones, referencia_sanciones, observaciones",
+    )
+    .is("eliminado_en", null)
+    .order("codigo", { ascending: true });
+
+  if (error) return [];
+  const filas = (data ?? []) as any[];
+  if (filas.length === 0) return [];
+
+  const ids = filas.map((r) => r.id);
+
+  // Normas (N:M) resueltas en memoria.
+  const { data: vinculosNorma } = await supabase
+    .from("requisito_legal_norma")
+    .select("requisito_legal_id, version_norma_id")
+    .in("requisito_legal_id", ids)
+    .is("eliminado_en", null);
+
+  const versionIds = [
+    ...new Set(
+      ((vinculosNorma ?? []) as any[]).map((v) => v.version_norma_id).filter(Boolean),
+    ),
+  ];
+  const normaNombrePorVersion = new Map<string, string>();
+  if (versionIds.length > 0) {
+    const { data: versiones } = await supabase
+      .from("versiones_norma")
+      .select("id, norma_id")
+      .in("id", versionIds);
+    const normaIds = [
+      ...new Set(((versiones ?? []) as any[]).map((v) => v.norma_id).filter(Boolean)),
+    ];
+    const nombrePorNorma = new Map<string, string>();
+    if (normaIds.length > 0) {
+      const { data: normas } = await supabase
+        .from("normas")
+        .select("id, nombre_corto")
+        .in("id", normaIds);
+      for (const n of (normas ?? []) as any[]) nombrePorNorma.set(n.id, n.nombre_corto);
+    }
+    for (const v of (versiones ?? []) as any[]) {
+      normaNombrePorVersion.set(v.id, nombrePorNorma.get(v.norma_id) ?? v.id);
+    }
+  }
+  const normasPorReq = new Map<string, Array<{ id: string; nombre: string }>>();
+  for (const v of (vinculosNorma ?? []) as any[]) {
+    const arr = normasPorReq.get(v.requisito_legal_id) ?? [];
+    arr.push({
+      id: v.version_norma_id,
+      nombre: normaNombrePorVersion.get(v.version_norma_id) ?? v.version_norma_id,
+    });
+    normasPorReq.set(v.requisito_legal_id, arr);
+  }
+
+  // Procesos.
+  const { data: vinculosProc } = await supabase
+    .from("requisito_legal_proceso")
+    .select("requisito_legal_id, proceso_id")
+    .in("requisito_legal_id", ids)
+    .is("eliminado_en", null);
+  const procIds = [
+    ...new Set(((vinculosProc ?? []) as any[]).map((v) => v.proceso_id).filter(Boolean)),
+  ];
+  const procCodigo = new Map<string, string>();
+  if (procIds.length > 0) {
+    const { data: procs } = await supabase
+      .from("procesos")
+      .select("id, codigo")
+      .in("id", procIds);
+    for (const p of (procs ?? []) as any[]) procCodigo.set(p.id, p.codigo);
+  }
+  const procesosPorReq = new Map<string, string[]>();
+  for (const v of (vinculosProc ?? []) as any[]) {
+    const cod = procCodigo.get(v.proceso_id);
+    if (!cod) continue;
+    const arr = procesosPorReq.get(v.requisito_legal_id) ?? [];
+    arr.push(cod);
+    procesosPorReq.set(v.requisito_legal_id, arr);
+  }
+
+  // Última evaluación.
+  const { data: evals } = await supabase
+    .from("evaluaciones_cumplimiento")
+    .select("requisito_legal_id, estado, fecha_evaluacion, proxima_evaluacion")
+    .in("requisito_legal_id", ids)
+    .is("eliminado_en", null)
+    .order("fecha_evaluacion", { ascending: false });
+  const ultimaEval = new Map<
+    string,
+    { estado: string; fecha: string; proxima: string | null }
+  >();
+  for (const e of (evals ?? []) as any[]) {
+    if (!ultimaEval.has(e.requisito_legal_id)) {
+      ultimaEval.set(e.requisito_legal_id, {
+        estado: e.estado,
+        fecha: e.fecha_evaluacion,
+        proxima: e.proxima_evaluacion,
+      });
+    }
+  }
+
+  const resultado: Array<FilaExportRequisito & { _normaIds: string[] }> = filas.map(
+    (r) => {
+      const ev = ultimaEval.get(r.id);
+      const normas = normasPorReq.get(r.id) ?? [];
+      return {
+        codigo: r.codigo,
+        titulo: r.titulo,
+        tipo: r.tipo,
+        categoria: r.categoria,
+        jurisdiccion: r.jurisdiccion,
+        organismoEmisor: r.organismo_emisor,
+        referencia: r.referencia,
+        articulosAplicables: r.articulos_aplicables,
+        fechaVigenciaDesde: r.fecha_vigencia_desde,
+        normas: normas.map((n) => n.nombre).join(", "),
+        procesos: (procesosPorReq.get(r.id) ?? []).join(", "),
+        criticidad: r.criticidad,
+        requiereVerificacion: r.requiere_verificacion === true,
+        sanciones: r.sanciones,
+        referenciaSanciones: r.referencia_sanciones,
+        ultimoEstado: ev?.estado ?? null,
+        ultimaEvaluacion: ev?.fecha ?? null,
+        proximaEvaluacion: ev?.proxima ?? null,
+        urlFuente: r.url_fuente,
+        descripcion: r.descripcion,
+        observaciones: r.observaciones,
+        _normaIds: normas.map((n) => n.id),
+      };
+    },
+  );
+
+  // Mismo filtro que el listado.
+  let filtrado = resultado;
+  if (filtroVersionNormaId === "__sin__") {
+    filtrado = resultado.filter((r) => r._normaIds.length === 0);
+  } else if (filtroVersionNormaId) {
+    filtrado = resultado.filter((r) => r._normaIds.includes(filtroVersionNormaId));
+  }
+  return filtrado.map(({ _normaIds, ...fila }) => fila);
+}
+
 export async function sugerirCodigoRequisitoLegal(): Promise<string | null> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc("fn_sugerir_codigo_requisito_legal", {

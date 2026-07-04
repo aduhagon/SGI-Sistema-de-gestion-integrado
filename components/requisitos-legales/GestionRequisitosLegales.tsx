@@ -9,6 +9,9 @@ import {
   Loader2,
   Scale,
   ClipboardCheck,
+  Download,
+  LayoutList,
+  FolderTree,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
@@ -75,6 +78,7 @@ export function GestionRequisitosLegales({
   const [procesosSel, setProcesosSel] = useState<string[]>([]);
   const [normasSel, setNormasSel] = useState<string[]>([]);
   const [filtroNorma, setFiltroNorma] = useState<string>("__todas__");
+  const [vista, setVista] = useState<"lista" | "proceso">("lista");
 
   const [estadoForm, accionForm] = useFormState<EstadoReqLegal, FormData>(
     guardarRequisitoLegal,
@@ -131,6 +135,176 @@ export function GestionRequisitosLegales({
         ? requisitos.filter((r) => r.normas.length === 0)
         : requisitos.filter((r) => r.normas.some((n) => n.id === filtroNorma));
 
+  // URL de descarga del Excel, respetando el filtro de norma activo.
+  const urlExport =
+    filtroNorma === "__todas__"
+      ? "/requisitos-legales/export"
+      : `/requisitos-legales/export?norma=${encodeURIComponent(filtroNorma)}`;
+
+  // Agrupación por proceso (un requisito puede caer en varios procesos).
+  const grupos = procesos
+    .map((p) => ({
+      proceso: p,
+      items: requisitosFiltrados.filter((r) =>
+        r.procesos.some((rp) => rp.id === p.id),
+      ),
+    }))
+    .filter((g) => g.items.length > 0);
+  const sinProceso = requisitosFiltrados.filter((r) => r.procesos.length === 0);
+
+  function filaRequisito(r: RequisitoLegal, mostrarProcesos: boolean) {
+    return (
+      <tr key={r.id} className="border-b border-border last:border-0">
+        <td className="px-4 py-2.5">
+          <div className="flex items-start gap-2">
+            <Scale className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <div className="font-medium">
+                <span className="font-mono text-xs text-muted-foreground">
+                  {r.codigo}
+                </span>{" "}
+                {r.titulo}
+              </div>
+              {r.referencia && (
+                <div className="text-xs text-muted-foreground">{r.referencia}</div>
+              )}
+            </div>
+          </div>
+        </td>
+        <td className="px-4 py-2.5 text-muted-foreground hidden md:table-cell">
+          {ETIQUETA_TIPO[r.tipo as keyof typeof ETIQUETA_TIPO] ?? r.tipo}
+        </td>
+        <td className="px-4 py-2.5 hidden md:table-cell">
+          {r.normas.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {r.normas.map((n) => (
+                <span
+                  key={n.id}
+                  className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700"
+                >
+                  {n.nombre}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-muted-foreground/50">—</span>
+          )}
+        </td>
+        {mostrarProcesos && (
+          <td className="px-4 py-2.5 text-muted-foreground hidden lg:table-cell">
+            {r.procesos.length > 0 ? (
+              <span className="text-xs">
+                {r.procesos.map((p) => p.codigo).join(", ")}
+              </span>
+            ) : (
+              <span className="text-muted-foreground/50">—</span>
+            )}
+          </td>
+        )}
+        <td className="px-4 py-2.5">
+          {r.ultimoEstado ? (
+            <span
+              className={`inline-block rounded-full px-2 py-0.5 text-xs ${COLOR_ESTADO[r.ultimoEstado] ?? "bg-muted"}`}
+            >
+              {ETIQUETA_CUMPLIMIENTO[r.ultimoEstado]}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground/50">Sin evaluar</span>
+          )}
+        </td>
+        <td className="px-4 py-2.5">
+          <div className="flex justify-end gap-1">
+            <button
+              onClick={() => setEvaluando(r)}
+              className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              title="Evaluar cumplimiento"
+              aria-label="Evaluar cumplimiento"
+            >
+              <ClipboardCheck className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => abrirEdicion(r)}
+              className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              title="Editar"
+              aria-label="Editar"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => setBorrarDe(r)}
+              disabled={eliminando === r.id}
+              className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+              title="Eliminar"
+              aria-label="Eliminar"
+            >
+              {eliminando === r.id ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
+  function tablaRequisitos(items: RequisitoLegal[], mostrarProcesos: boolean) {
+    return (
+      <div className="overflow-hidden rounded-lg border border-border">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/40 text-left">
+              <th className="px-4 py-2.5 font-medium text-muted-foreground">Requisito</th>
+              <th className="px-4 py-2.5 font-medium text-muted-foreground hidden md:table-cell">
+                Tipo
+              </th>
+              <th className="px-4 py-2.5 font-medium text-muted-foreground hidden md:table-cell">
+                Normas
+              </th>
+              {mostrarProcesos && (
+                <th className="px-4 py-2.5 font-medium text-muted-foreground hidden lg:table-cell">
+                  Procesos
+                </th>
+              )}
+              <th className="px-4 py-2.5 font-medium text-muted-foreground">Cumplimiento</th>
+              <th className="px-4 py-2.5 w-28"></th>
+            </tr>
+          </thead>
+          <tbody>{items.map((r) => filaRequisito(r, mostrarProcesos))}</tbody>
+        </table>
+      </div>
+    );
+  }
+
+  const vacio = (
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-12 text-center">
+      <Scale className="mb-3 h-6 w-6 text-muted-foreground" />
+      {requisitos.length === 0 ? (
+        <>
+          <p className="text-sm font-medium">No hay requisitos legales cargados</p>
+          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+            Registrá las leyes, decretos, permisos y otros requisitos aplicables, y
+            vinculalos a los procesos que afectan.
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="text-sm font-medium">
+            Ningún requisito coincide con este filtro
+          </p>
+          <button
+            type="button"
+            onClick={() => setFiltroNorma("__todas__")}
+            className="mt-2 text-xs text-primary underline-offset-2 hover:underline"
+          >
+            Ver todos
+          </button>
+        </>
+      )}
+    </div>
+  );
+
   async function confirmarBorrado() {
     if (!borrarDe) return;
     setEliminando(borrarDe.id);
@@ -148,7 +322,7 @@ export function GestionRequisitosLegales({
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           {requisitosFiltrados.length} requisito
           {requisitosFiltrados.length === 1 ? "" : "s"}
@@ -156,10 +330,52 @@ export function GestionRequisitosLegales({
             ? ` (de ${requisitos.length})`
             : " registrado" + (requisitos.length === 1 ? "" : "s")}
         </p>
-        <Button size="sm" onClick={abrirNuevo}>
-          <Plus className="h-4 w-4" />
-          Nuevo requisito
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Toggle de vista */}
+          <div className="flex rounded-md border border-border p-0.5">
+            <button
+              type="button"
+              onClick={() => setVista("lista")}
+              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${
+                vista === "lista"
+                  ? "bg-muted font-medium text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              aria-pressed={vista === "lista"}
+            >
+              <LayoutList className="h-3.5 w-3.5" />
+              Lista
+            </button>
+            <button
+              type="button"
+              onClick={() => setVista("proceso")}
+              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${
+                vista === "proceso"
+                  ? "bg-muted font-medium text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              aria-pressed={vista === "proceso"}
+            >
+              <FolderTree className="h-3.5 w-3.5" />
+              Por proceso
+            </button>
+          </div>
+
+          {/* Exportar a Excel (respeta el filtro de norma activo) */}
+          <a
+            href={urlExport}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            title="Exportar a Excel lo que se ve"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Exportar a Excel
+          </a>
+
+          <Button size="sm" onClick={abrirNuevo}>
+            <Plus className="h-4 w-4" />
+            Nuevo requisito
+          </Button>
+        </div>
       </div>
 
       {/* Filtro por norma */}
@@ -190,145 +406,40 @@ export function GestionRequisitosLegales({
         </div>
       )}
 
-      {requisitosFiltrados.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-left">
-                <th className="px-4 py-2.5 font-medium text-muted-foreground">Requisito</th>
-                <th className="px-4 py-2.5 font-medium text-muted-foreground hidden md:table-cell">
-                  Tipo
-                </th>
-                <th className="px-4 py-2.5 font-medium text-muted-foreground hidden md:table-cell">
-                  Normas
-                </th>
-                <th className="px-4 py-2.5 font-medium text-muted-foreground hidden lg:table-cell">
-                  Procesos
-                </th>
-                <th className="px-4 py-2.5 font-medium text-muted-foreground">Cumplimiento</th>
-                <th className="px-4 py-2.5 w-28"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {requisitosFiltrados.map((r) => (
-                <tr key={r.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-start gap-2">
-                      <Scale className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0">
-                        <div className="font-medium">
-                          <span className="font-mono text-xs text-muted-foreground">
-                            {r.codigo}
-                          </span>{" "}
-                          {r.titulo}
-                        </div>
-                        {r.referencia && (
-                          <div className="text-xs text-muted-foreground">{r.referencia}</div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2.5 text-muted-foreground hidden md:table-cell">
-                    {ETIQUETA_TIPO[r.tipo as keyof typeof ETIQUETA_TIPO] ?? r.tipo}
-                  </td>
-                  <td className="px-4 py-2.5 hidden md:table-cell">
-                    {r.normas.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {r.normas.map((n) => (
-                          <span
-                            key={n.id}
-                            className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700"
-                          >
-                            {n.nombre}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground/50">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5 text-muted-foreground hidden lg:table-cell">
-                    {r.procesos.length > 0 ? (
-                      <span className="text-xs">
-                        {r.procesos.map((p) => p.codigo).join(", ")}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground/50">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {r.ultimoEstado ? (
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs ${COLOR_ESTADO[r.ultimoEstado] ?? "bg-muted"}`}
-                      >
-                        {ETIQUETA_CUMPLIMIENTO[r.ultimoEstado]}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/50">Sin evaluar</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex justify-end gap-1">
-                      <button
-                        onClick={() => setEvaluando(r)}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                        title="Evaluar cumplimiento"
-                        aria-label="Evaluar cumplimiento"
-                      >
-                        <ClipboardCheck className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => abrirEdicion(r)}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                        title="Editar"
-                        aria-label="Editar"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setBorrarDe(r)}
-                        disabled={eliminando === r.id}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-                        title="Eliminar"
-                        aria-label="Eliminar"
-                      >
-                        {eliminando === r.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {requisitosFiltrados.length === 0 ? (
+        vacio
+      ) : vista === "lista" ? (
+        tablaRequisitos(requisitosFiltrados, true)
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-12 text-center">
-          <Scale className="mb-3 h-6 w-6 text-muted-foreground" />
-          {requisitos.length === 0 ? (
-            <>
-              <p className="text-sm font-medium">No hay requisitos legales cargados</p>
-              <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-                Registrá las leyes, decretos, permisos y otros requisitos aplicables, y
-                vinculalos a los procesos que afectan.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-medium">
-                Ningún requisito coincide con este filtro
-              </p>
-              <button
-                type="button"
-                onClick={() => setFiltroNorma("__todas__")}
-                className="mt-2 text-xs text-primary underline-offset-2 hover:underline"
-              >
-                Ver todos
-              </button>
-            </>
+        <div className="space-y-6">
+          {grupos.map((g) => (
+            <div key={g.proceso.id}>
+              <div className="mb-2 flex items-center gap-2">
+                <FolderTree className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-medium">
+                  {g.proceso.codigo ? `${g.proceso.codigo} — ` : ""}
+                  {g.proceso.nombre}
+                </h3>
+                <span className="text-xs text-muted-foreground">
+                  ({g.items.length})
+                </span>
+              </div>
+              {tablaRequisitos(g.items, false)}
+            </div>
+          ))}
+          {sinProceso.length > 0 && (
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <FolderTree className="h-4 w-4 text-muted-foreground/50" />
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  Sin proceso asignado
+                </h3>
+                <span className="text-xs text-muted-foreground">
+                  ({sinProceso.length})
+                </span>
+              </div>
+              {tablaRequisitos(sinProceso, false)}
+            </div>
           )}
         </div>
       )}
