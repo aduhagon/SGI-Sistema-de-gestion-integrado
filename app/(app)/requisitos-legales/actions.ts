@@ -18,6 +18,8 @@ function traducir(msg: string): string {
     return "Ya existe un requisito legal con ese código.";
   if (msg.includes("uq_requisito_legal_proceso"))
     return "Ese requisito ya está vinculado a ese proceso.";
+  if (msg.includes("uq_requisito_legal_norma"))
+    return "Ese requisito ya está vinculado a esa norma.";
   if (msg.includes("row-level security") || msg.includes("violates row-level"))
     return "No tenés permisos para esta operación.";
   return `No se pudo completar la operación: ${msg}`;
@@ -38,6 +40,10 @@ export async function guardarRequisitoLegal(
     .getAll("procesosIds")
     .filter((v): v is string => typeof v === "string" && v.length > 0);
 
+  const normasIds = formData
+    .getAll("normasIds")
+    .filter((v): v is string => typeof v === "string" && v.length > 0);
+
   const parsed = requisitoLegalSchema.safeParse({
     id: formData.get("id") || undefined,
     codigo: formData.get("codigo"),
@@ -49,10 +55,10 @@ export async function guardarRequisitoLegal(
     referencia: formData.get("referencia") || "",
     fechaVigenciaDesde: formData.get("fechaVigenciaDesde") || "",
     urlFuente: formData.get("urlFuente") || "",
-    normaId: formData.get("normaId") || "",
     criticidad: formData.get("criticidad") || "",
     observaciones: formData.get("observaciones") || "",
     procesosIds,
+    normasIds,
   });
 
   if (!parsed.success) {
@@ -73,7 +79,6 @@ export async function guardarRequisitoLegal(
     referencia: limpio(i.referencia),
     fecha_vigencia_desde: limpio(i.fechaVigenciaDesde),
     url_fuente: limpio(i.urlFuente),
-    norma_id: limpio(i.normaId),
     criticidad: limpio(i.criticidad),
     observaciones: limpio(i.observaciones),
   };
@@ -138,6 +143,51 @@ export async function guardarRequisitoLegal(
     }));
   if (nuevos.length > 0) {
     const { error } = await supabase.from("requisito_legal_proceso").insert(nuevos);
+    if (error) return { ok: false, error: traducir(error.message) };
+  }
+
+  // Sincronizar vínculos a normas (N:M). Mismo patrón: soft-delete + alta.
+  const { data: normasActuales } = await supabase
+    .from("requisito_legal_norma")
+    .select("id, version_norma_id")
+    .eq("requisito_legal_id", requisitoId)
+    .is("eliminado_en", null);
+
+  const normasActualesMap = new Map(
+    ((normasActuales ?? []) as any[]).map((v) => [
+      v.version_norma_id as string,
+      v.id as string,
+    ]),
+  );
+  const normasDeseadas = new Set(i.normasIds);
+
+  // Bajas.
+  for (const [verId, vincId] of normasActualesMap) {
+    if (!normasDeseadas.has(verId)) {
+      await supabase
+        .from("requisito_legal_norma")
+        .update({
+          eliminado_en: new Date().toISOString(),
+          eliminado_por: usuarioId,
+          eliminado_motivo: "Desvinculada al editar el requisito legal",
+          activo: false,
+        })
+        .eq("id", vincId);
+    }
+  }
+
+  // Altas.
+  const nuevasNormas = i.normasIds
+    .filter((v) => !normasActualesMap.has(v))
+    .map((v) => ({
+      requisito_legal_id: requisitoId,
+      version_norma_id: v,
+      creado_por: usuarioId,
+    }));
+  if (nuevasNormas.length > 0) {
+    const { error } = await supabase
+      .from("requisito_legal_norma")
+      .insert(nuevasNormas);
     if (error) return { ok: false, error: traducir(error.message) };
   }
 

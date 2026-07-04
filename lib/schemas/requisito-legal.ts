@@ -50,11 +50,13 @@ export const requisitoLegalSchema = z.object({
     .max(500)
     .optional()
     .or(z.literal("")),
-  normaId: z.string().uuid().optional().or(z.literal("")),
   criticidad: z.enum(CRITICIDADES).optional().or(z.literal("")),
   observaciones: z.string().trim().max(4000).optional().or(z.literal("")),
   // Procesos vinculados (IDs). Al menos uno recomendado, pero no obligatorio.
   procesosIds: z.array(z.string().uuid()).default([]),
+  // Normas a las que responde el requisito (N:M, referencian versiones_norma.id).
+  // Un mismo requisito puede aplicar a varias normas. Opcional.
+  normasIds: z.array(z.string().uuid()).default([]),
 });
 
 export type RequisitoLegalInput = z.infer<typeof requisitoLegalSchema>;

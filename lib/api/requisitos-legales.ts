@@ -18,8 +18,8 @@ export type RequisitoLegal = {
   referencia: string | null;
   fechaVigenciaDesde: string | null;
   urlFuente: string | null;
-  normaId: string | null;
-  normaNombre: string | null;
+  // Normas asociadas (N:M). Cada id es un versiones_norma.id.
+  normas: Array<{ id: string; nombre: string }>;
   criticidad: string | null;
   observaciones: string | null;
   procesos: Array<{ id: string; codigo: string; nombre: string }>;
@@ -29,13 +29,15 @@ export type RequisitoLegal = {
   proximaEvaluacion: string | null;
 };
 
-export async function listarRequisitosLegales(): Promise<RequisitoLegal[]> {
+export async function listarRequisitosLegales(
+  filtroVersionNormaId?: string,
+): Promise<RequisitoLegal[]> {
   const supabase = createClient();
 
   const { data, error } = await supabase
     .from("requisitos_legales")
     .select(
-      "id, codigo, titulo, descripcion, tipo, jurisdiccion, organismo_emisor, referencia, fecha_vigencia_desde, url_fuente, norma_id, criticidad, observaciones",
+      "id, codigo, titulo, descripcion, tipo, jurisdiccion, organismo_emisor, referencia, fecha_vigencia_desde, url_fuente, criticidad, observaciones",
     )
     .is("eliminado_en", null)
     .order("codigo", { ascending: true });
@@ -46,15 +48,49 @@ export async function listarRequisitosLegales(): Promise<RequisitoLegal[]> {
 
   const ids = filas.map((r) => r.id);
 
-  // Nombres de norma (resueltos en memoria, evita join frágil de PostgREST).
-  const normaIds = [...new Set(filas.map((r) => r.norma_id).filter(Boolean))];
-  const normaNombre = new Map<string, string>();
-  if (normaIds.length > 0) {
-    const { data: normas } = await supabase
-      .from("normas")
-      .select("id, nombre_corto")
-      .in("id", normaIds);
-    for (const n of (normas ?? []) as any[]) normaNombre.set(n.id, n.nombre_corto);
+  // Normas asociadas (N:M vía requisito_legal_norma -> versiones_norma -> normas).
+  // Self-join resuelto en memoria (PostgREST poco fiable con joins encadenados).
+  const { data: vinculosNorma } = await supabase
+    .from("requisito_legal_norma")
+    .select("requisito_legal_id, version_norma_id")
+    .in("requisito_legal_id", ids)
+    .is("eliminado_en", null);
+
+  const versionIds = [
+    ...new Set(
+      ((vinculosNorma ?? []) as any[]).map((v) => v.version_norma_id).filter(Boolean),
+    ),
+  ];
+  const normaNombrePorVersion = new Map<string, string>();
+  if (versionIds.length > 0) {
+    const { data: versiones } = await supabase
+      .from("versiones_norma")
+      .select("id, norma_id")
+      .in("id", versionIds);
+    const normaIds = [
+      ...new Set(((versiones ?? []) as any[]).map((v) => v.norma_id).filter(Boolean)),
+    ];
+    const nombrePorNorma = new Map<string, string>();
+    if (normaIds.length > 0) {
+      const { data: normas } = await supabase
+        .from("normas")
+        .select("id, nombre_corto")
+        .in("id", normaIds);
+      for (const n of (normas ?? []) as any[]) nombrePorNorma.set(n.id, n.nombre_corto);
+    }
+    for (const v of (versiones ?? []) as any[]) {
+      normaNombrePorVersion.set(v.id, nombrePorNorma.get(v.norma_id) ?? v.id);
+    }
+  }
+
+  const normasPorReq = new Map<string, Array<{ id: string; nombre: string }>>();
+  for (const v of (vinculosNorma ?? []) as any[]) {
+    const arr = normasPorReq.get(v.requisito_legal_id) ?? [];
+    arr.push({
+      id: v.version_norma_id,
+      nombre: normaNombrePorVersion.get(v.version_norma_id) ?? v.version_norma_id,
+    });
+    normasPorReq.set(v.requisito_legal_id, arr);
   }
 
   // Vínculos a procesos.
@@ -107,7 +143,7 @@ export async function listarRequisitosLegales(): Promise<RequisitoLegal[]> {
     }
   }
 
-  return filas.map((r) => {
+  const resultado = filas.map((r) => {
     const ev = ultimaEval.get(r.id);
     return {
       id: r.id,
@@ -120,8 +156,7 @@ export async function listarRequisitosLegales(): Promise<RequisitoLegal[]> {
       referencia: r.referencia,
       fechaVigenciaDesde: r.fecha_vigencia_desde,
       urlFuente: r.url_fuente,
-      normaId: r.norma_id,
-      normaNombre: r.norma_id ? (normaNombre.get(r.norma_id) ?? null) : null,
+      normas: normasPorReq.get(r.id) ?? [],
       criticidad: r.criticidad,
       observaciones: r.observaciones,
       procesos: procesosPorReq.get(r.id) ?? [],
@@ -130,6 +165,17 @@ export async function listarRequisitosLegales(): Promise<RequisitoLegal[]> {
       proximaEvaluacion: ev?.proxima ?? null,
     };
   });
+
+  // Filtro por norma (en memoria). "__sin__" = requisitos sin ninguna norma.
+  if (filtroVersionNormaId === "__sin__") {
+    return resultado.filter((r) => r.normas.length === 0);
+  }
+  if (filtroVersionNormaId) {
+    return resultado.filter((r) =>
+      r.normas.some((n) => n.id === filtroVersionNormaId),
+    );
+  }
+  return resultado;
 }
 
 export type EvaluacionFila = {
@@ -207,18 +253,22 @@ export async function listarProcesosParaSelector(): Promise<
   return (data ?? []) as Array<{ id: string; codigo: string; nombre: string }>;
 }
 
-// Normas para el selector (vínculo opcional a "otros requisitos" ISO).
+// Normas para el selector. Devuelve el id de la VERSIÓN VIGENTE de cada norma
+// (versiones_norma.id), que es lo que referencia la N:M requisito_legal_norma.
 export async function listarNormasParaSelector(): Promise<
   Array<{ id: string; nombre: string }>
 > {
   const supabase = createClient();
   const { data, error } = await supabase
-    .from("normas")
-    .select("id, nombre_corto")
-    .eq("activo", true)
-    .order("nombre_corto", { ascending: true });
+    .from("versiones_norma")
+    .select("id, norma_id, normas!inner(nombre_corto, activo)")
+    .eq("es_version_actual", true)
+    .is("eliminado_en", null);
   if (error) return [];
-  return ((data ?? []) as any[]).map((n) => ({ id: n.id, nombre: n.nombre_corto }));
+  return ((data ?? []) as any[])
+    .filter((v) => v.normas?.activo === true)
+    .map((v) => ({ id: v.id, nombre: v.normas?.nombre_corto ?? v.id }))
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }
 
 export async function sugerirCodigoRequisitoLegal(): Promise<string | null> {

@@ -9,7 +9,6 @@ import {
   Loader2,
   Scale,
   ClipboardCheck,
-  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
@@ -74,6 +73,8 @@ export function GestionRequisitosLegales({
   const [borrarDe, setBorrarDe] = useState<RequisitoLegal | null>(null);
   const [motivo, setMotivo] = useState("");
   const [procesosSel, setProcesosSel] = useState<string[]>([]);
+  const [normasSel, setNormasSel] = useState<string[]>([]);
+  const [filtroNorma, setFiltroNorma] = useState<string>("__todas__");
 
   const [estadoForm, accionForm] = useFormState<EstadoReqLegal, FormData>(
     guardarRequisitoLegal,
@@ -90,6 +91,7 @@ export function GestionRequisitosLegales({
       setAbierto(false);
       setEditando(null);
       setProcesosSel([]);
+      setNormasSel([]);
     }
   }, [estadoForm]);
   useEffect(() => {
@@ -99,11 +101,13 @@ export function GestionRequisitosLegales({
   function abrirNuevo() {
     setEditando(null);
     setProcesosSel([]);
+    setNormasSel([]);
     setAbierto(true);
   }
   function abrirEdicion(r: RequisitoLegal) {
     setEditando(r);
     setProcesosSel(r.procesos.map((p) => p.id));
+    setNormasSel(r.normas.map((n) => n.id));
     setAbierto(true);
   }
 
@@ -112,6 +116,20 @@ export function GestionRequisitosLegales({
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
     );
   }
+
+  function toggleNorma(id: string) {
+    setNormasSel((prev) =>
+      prev.includes(id) ? prev.filter((n) => n !== id) : [...prev, id],
+    );
+  }
+
+  // Filtro por norma (en cliente). "__todas__" = sin filtro; "__sin__" = sin norma.
+  const requisitosFiltrados =
+    filtroNorma === "__todas__"
+      ? requisitos
+      : filtroNorma === "__sin__"
+        ? requisitos.filter((r) => r.normas.length === 0)
+        : requisitos.filter((r) => r.normas.some((n) => n.id === filtroNorma));
 
   async function confirmarBorrado() {
     if (!borrarDe) return;
@@ -132,8 +150,11 @@ export function GestionRequisitosLegales({
     <div>
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {requisitos.length} requisito{requisitos.length === 1 ? "" : "s"} registrado
-          {requisitos.length === 1 ? "" : "s"}
+          {requisitosFiltrados.length} requisito
+          {requisitosFiltrados.length === 1 ? "" : "s"}
+          {filtroNorma !== "__todas__"
+            ? ` (de ${requisitos.length})`
+            : " registrado" + (requisitos.length === 1 ? "" : "s")}
         </p>
         <Button size="sm" onClick={abrirNuevo}>
           <Plus className="h-4 w-4" />
@@ -141,7 +162,35 @@ export function GestionRequisitosLegales({
         </Button>
       </div>
 
-      {requisitos.length > 0 ? (
+      {/* Filtro por norma */}
+      {normas.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Norma:</span>
+          {[
+            { id: "__todas__", nombre: "Todas" },
+            ...normas,
+            { id: "__sin__", nombre: "Sin norma" },
+          ].map((f) => {
+            const activo = filtroNorma === f.id;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setFiltroNorma(f.id)}
+                className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                  activo
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-background text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {f.nombre}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {requisitosFiltrados.length > 0 ? (
         <div className="overflow-hidden rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead>
@@ -149,6 +198,9 @@ export function GestionRequisitosLegales({
                 <th className="px-4 py-2.5 font-medium text-muted-foreground">Requisito</th>
                 <th className="px-4 py-2.5 font-medium text-muted-foreground hidden md:table-cell">
                   Tipo
+                </th>
+                <th className="px-4 py-2.5 font-medium text-muted-foreground hidden md:table-cell">
+                  Normas
                 </th>
                 <th className="px-4 py-2.5 font-medium text-muted-foreground hidden lg:table-cell">
                   Procesos
@@ -158,7 +210,7 @@ export function GestionRequisitosLegales({
               </tr>
             </thead>
             <tbody>
-              {requisitos.map((r) => (
+              {requisitosFiltrados.map((r) => (
                 <tr key={r.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-2.5">
                     <div className="flex items-start gap-2">
@@ -178,6 +230,22 @@ export function GestionRequisitosLegales({
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground hidden md:table-cell">
                     {ETIQUETA_TIPO[r.tipo as keyof typeof ETIQUETA_TIPO] ?? r.tipo}
+                  </td>
+                  <td className="px-4 py-2.5 hidden md:table-cell">
+                    {r.normas.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {r.normas.map((n) => (
+                          <span
+                            key={n.id}
+                            className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700"
+                          >
+                            {n.nombre}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground/50">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-muted-foreground hidden lg:table-cell">
                     {r.procesos.length > 0 ? (
@@ -240,11 +308,28 @@ export function GestionRequisitosLegales({
       ) : (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-12 text-center">
           <Scale className="mb-3 h-6 w-6 text-muted-foreground" />
-          <p className="text-sm font-medium">No hay requisitos legales cargados</p>
-          <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-            Registrá las leyes, decretos, permisos y otros requisitos aplicables, y vinculalos a
-            los procesos que afectan.
-          </p>
+          {requisitos.length === 0 ? (
+            <>
+              <p className="text-sm font-medium">No hay requisitos legales cargados</p>
+              <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                Registrá las leyes, decretos, permisos y otros requisitos aplicables, y
+                vinculalos a los procesos que afectan.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium">
+                Ningún requisito coincide con este filtro
+              </p>
+              <button
+                type="button"
+                onClick={() => setFiltroNorma("__todas__")}
+                className="mt-2 text-xs text-primary underline-offset-2 hover:underline"
+              >
+                Ver todos
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -260,6 +345,9 @@ export function GestionRequisitosLegales({
                 {editando && <input type="hidden" name="id" value={editando.id} />}
                 {procesosSel.map((p) => (
                   <input key={p} type="hidden" name="procesosIds" value={p} />
+                ))}
+                {normasSel.map((n) => (
+                  <input key={n} type="hidden" name="normasIds" value={n} />
                 ))}
 
                 <div className="grid grid-cols-3 gap-3">
@@ -363,45 +451,59 @@ export function GestionRequisitosLegales({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <label htmlFor="normaId" className="text-sm font-medium">
-                      Norma asociada{" "}
-                      <span className="text-muted-foreground">(opcional)</span>
-                    </label>
-                    <select
-                      id="normaId"
-                      name="normaId"
-                      defaultValue={editando?.normaId ?? ""}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <option value="">Sin norma específica</option>
-                      {normas.map((n) => (
-                        <option key={n.id} value={n.id}>
+                {/* Multi-select de normas (N:M) */}
+                <div className="space-y-2">
+                  <span className="text-sm font-medium">
+                    Normas a las que responde{" "}
+                    <span className="text-muted-foreground">(opcional)</span>
+                  </span>
+                  <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-2">
+                    {normas.map((n) => {
+                      const sel = normasSel.includes(n.id);
+                      return (
+                        <button
+                          key={n.id}
+                          type="button"
+                          onClick={() => toggleNorma(n.id)}
+                          className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
+                            sel
+                              ? "bg-emerald-600 text-white"
+                              : "bg-muted text-muted-foreground hover:bg-muted/70"
+                          }`}
+                        >
                           {n.nombre}
-                        </option>
-                      ))}
-                    </select>
+                        </button>
+                      );
+                    })}
+                    {normas.length === 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        No hay normas cargadas.
+                      </span>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <label htmlFor="criticidad" className="text-sm font-medium">
-                      Criticidad{" "}
-                      <span className="text-muted-foreground">(opcional)</span>
-                    </label>
-                    <select
-                      id="criticidad"
-                      name="criticidad"
-                      defaultValue={editando?.criticidad ?? ""}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <option value="">Sin definir</option>
-                      {CRITICIDADES.map((c) => (
-                        <option key={c} value={c}>
-                          {c.charAt(0).toUpperCase() + c.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Un mismo requisito puede aplicar a varias normas.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="criticidad" className="text-sm font-medium">
+                    Criticidad{" "}
+                    <span className="text-muted-foreground">(opcional)</span>
+                  </label>
+                  <select
+                    id="criticidad"
+                    name="criticidad"
+                    defaultValue={editando?.criticidad ?? ""}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="">Sin definir</option>
+                    {CRITICIDADES.map((c) => (
+                      <option key={c} value={c}>
+                        {c.charAt(0).toUpperCase() + c.slice(1)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="space-y-2">
