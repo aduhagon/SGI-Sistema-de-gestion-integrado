@@ -372,22 +372,59 @@ export function claseRama(etiqueta: string | null): "feliz" | "desvio" | null {
 
 export type LadoContacto = "izq" | "der" | "arriba" | "abajo";
 
-// Igual que puntoContacto pero además informa por qué lado sale/entra la línea,
-// para poder rutear perpendicular a ese lado.
+// Punto de contacto + lado por donde sale/entra la línea, para rutear perpendicular.
+// rol="salida": la línea SALE de este nodo; rol="entrada": LLEGA a este nodo.
+// Entrada y salida se sesgan a lados distintos para no compartir el mismo punto.
 export function contactoConLado(
-  forma: FormaNodo, x: number, y: number, w: number, h: number, haciaX: number, haciaY: number
+  forma: FormaNodo, x: number, y: number, w: number, h: number, haciaX: number, haciaY: number,
+  rol: "salida" | "entrada" = "salida"
 ): { px: number; py: number; lado: LadoContacto } {
   const cx = x + w / 2, cy = y + h / 2;
   const ux = haciaX - cx, uy = haciaY - cy;
-  const horizontal = Math.abs(ux) >= Math.abs(uy);
-  if (horizontal) {
-    return ux >= 0
-      ? { px: x + w, py: cy, lado: "der" }
-      : { px: x, py: cy, lado: "izq" };
+  // Diferencia vertical significativa → priorizar arriba/abajo; si no, izquierda/derecha.
+  const dominanteVertical = Math.abs(uy) > h * 0.9;
+  let lado: LadoContacto;
+  if (dominanteVertical) {
+    // el otro nodo está claramente arriba o abajo → usar ese lado
+    lado = uy >= 0 ? "abajo" : "arriba";
+  } else {
+    // en la misma banda horizontal: el lado apunta hacia el otro nodo (der si está a la derecha)
+    lado = ux >= 0 ? "der" : "izq";
   }
-  return uy >= 0
-    ? { px: cx, py: y + h, lado: "abajo" }
-    : { px: cx, py: y, lado: "arriba" };
+  // coordenadas del punto según el lado
+  let px = cx, py = cy;
+  if (lado === "der") { px = x + w; py = cy; }
+  else if (lado === "izq") { px = x; py = cy; }
+  else if (lado === "abajo") { px = cx; py = y + h; }
+  else { px = cx; py = y; }
+  // Para círculo, ajustar el punto a la circunferencia sobre ese lado (queda pegado, sin gap)
+  if (forma === "circulo") {
+    const r = Math.min(w, h) / 2;
+    if (lado === "der") px = cx + r;
+    else if (lado === "izq") px = cx - r;
+    else if (lado === "abajo") py = cy + r;
+    else py = cy - r;
+  }
+  return { px, py, lado };
+}
+
+// Dado un lado ya decidido, devuelve el punto de contacto en el borde del nodo (ajustado a la forma).
+export function puntoEnLado(
+  forma: FormaNodo, x: number, y: number, w: number, h: number, lado: LadoContacto
+): { px: number; py: number } {
+  const cx = x + w / 2, cy = y + h / 2;
+  if (forma === "circulo") {
+    const r = Math.min(w, h) / 2;
+    if (lado === "der") return { px: cx + r, py: cy };
+    if (lado === "izq") return { px: cx - r, py: cy };
+    if (lado === "abajo") return { px: cx, py: cy + r };
+    return { px: cx, py: cy - r };
+  }
+  // rombo y rect: el rombo toca su vértice (que coincide con el centro del lado del bounding box)
+  if (lado === "der") return { px: x + w, py: cy };
+  if (lado === "izq") return { px: x, py: cy };
+  if (lado === "abajo") return { px: cx, py: y + h };
+  return { px: cx, py: y };
 }
 
 // Construye un path SVG ortogonal entre salida (con su lado) y llegada (con su lado).
@@ -447,4 +484,54 @@ function avanzar(x: number, y: number, lado: LadoContacto, d: number): { x: numb
     case "arriba": return { x, y: y - d };
     case "abajo": return { x, y: y + d };
   }
+}
+
+
+// Asigna, para cada arista, el lado de salida (en origen) y de entrada (en destino),
+// garantizando que en un mismo nodo las entrantes y salientes no colisionen en el mismo lado
+// cuando se puede evitar. Devuelve Map aristaId → {ladoSal, ladoEnt}.
+export function asignarLados(
+  nodos: { id: string; orden?: number }[],
+  aristas: { id: string; origenId: string; destinoId: string }[],
+  pos: (id: string) => { cx: number; cy: number } | null
+): Map<string, { ladoSal: LadoContacto; ladoEnt: LadoContacto }> {
+  const res = new Map<string, { ladoSal: LadoContacto; ladoEnt: LadoContacto }>();
+  const ladoHacia = (fromC: { cx: number; cy: number }, toC: { cx: number; cy: number }, h = 58): LadoContacto => {
+    const ux = toC.cx - fromC.cx, uy = toC.cy - fromC.cy;
+    if (Math.abs(uy) > h * 0.9) return uy >= 0 ? "abajo" : "arriba";
+    return ux >= 0 ? "der" : "izq";
+  };
+  const opuesto = (l: LadoContacto): LadoContacto =>
+    l === "der" ? "izq" : l === "izq" ? "der" : l === "arriba" ? "abajo" : "arriba";
+
+  for (const a of aristas) {
+    const oc = pos(a.origenId), dc = pos(a.destinoId);
+    if (!oc || !dc) { res.set(a.id, { ladoSal: "der", ladoEnt: "izq" }); continue; }
+    let ladoSal = ladoHacia(oc, dc);
+    let ladoEnt = ladoHacia(dc, oc);
+    res.set(a.id, { ladoSal, ladoEnt });
+  }
+
+  // Corrección por nodo: si un nodo tiene una entrante y una saliente en el MISMO lado,
+  // mover la saliente al lado opuesto (preferimos que la salida "avance").
+  const salPorNodo = new Map<string, string[]>();
+  const entPorNodo = new Map<string, string[]>();
+  for (const a of aristas) {
+    (salPorNodo.get(a.origenId) ?? salPorNodo.set(a.origenId, []).get(a.origenId)!).push(a.id);
+    (entPorNodo.get(a.destinoId) ?? entPorNodo.set(a.destinoId, []).get(a.destinoId)!).push(a.id);
+  }
+  for (const n of nodos) {
+    const sals = salPorNodo.get(n.id) ?? [];
+    const ents = entPorNodo.get(n.id) ?? [];
+    const ladosEnt = new Set(ents.map((id) => res.get(id)!.ladoEnt));
+    for (const sid of sals) {
+      const r = res.get(sid)!;
+      if (ladosEnt.has(r.ladoSal)) {
+        // colisión: intentar mover la salida al opuesto
+        const alt = opuesto(r.ladoSal);
+        if (!ladosEnt.has(alt)) r.ladoSal = alt;
+      }
+    }
+  }
+  return res;
 }

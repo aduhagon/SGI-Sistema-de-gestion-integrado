@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type {
   NodoFlujo, AristaFlujo, DataObject, PuestoRef, GapSubproceso, EstadoGap,
 } from "@/lib/api/flujogramas-tipos";
-import { agregarEstado, evaluarEstiloNodo, formaDeNodo, contactoConLado, pathOrtogonal, claseRama, asignarCanales, detectarSecuenciaRota } from "@/lib/api/flujogramas-tipos";
+import { agregarEstado, evaluarEstiloNodo, formaDeNodo, puntoEnLado, pathOrtogonal, claseRama, asignarCanales, asignarLados, detectarSecuenciaRota } from "@/lib/api/flujogramas-tipos";
 import { EditorProceso, EditorPaso, EditorSubproceso } from "@/components/flujogramas/EditorFlujo";
 import { ModalFlujograma } from "@/components/flujogramas/ModalFlujograma";
 
@@ -420,6 +420,13 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
   const H = lanes.length * LANE_H + TOP + 12;
   const salidas = (id: string) => aristas.filter((a) => a.origenId === id);
   const canales = asignarCanales(aristas);
+  const posNodo = (id: string) => {
+    const n = pasos.find((pp) => pp.id === id);
+    if (!n) return null;
+    const i = idx.get(id); if (i === undefined) return null;
+    return { cx: posX(i) + NODE_W / 2, cy: laneY(n.puestoId ?? "—") + NODE_H / 2 };
+  };
+  const lados = asignarLados(pasos, aristas, posNodo);
   const conConexion = new Set<string>();
   for (const a of aristas) { conConexion.add(a.origenId); conConexion.add(a.destinoId); }
   const estaSuelto = (id: string) => !conConexion.has(id);
@@ -459,16 +466,15 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
             const back = j <= iP;
             const ox = posX(iP), oy = laneY(p.puestoId ?? "—");
             const bx = posX(j), by = laneY(b.puestoId ?? "—");
-            const oCx = ox + NODE_W / 2, oCy = oy + NODE_H / 2;
-            const bCx = bx + NODE_W / 2, bCy = by + NODE_H / 2;
-            const start = contactoConLado(formaDeNodo(p.tipoBpmn), ox, oy, NODE_W, NODE_H, bCx, bCy);
-            const end = contactoConLado(formaDeNodo(b.tipoBpmn), bx, by, NODE_W, NODE_H, oCx, oCy);
+            const lad = lados.get(a.id) ?? { ladoSal: "der" as const, ladoEnt: "izq" as const };
+            const start = puntoEnLado(formaDeNodo(p.tipoBpmn), ox, oy, NODE_W, NODE_H, lad.ladoSal);
+            const end = puntoEnLado(formaDeNodo(b.tipoBpmn), bx, by, NODE_W, NODE_H, lad.ladoEnt);
             const sx = start.px, sy = start.py, ex = end.px, ey = end.py;
             const clase = claseRama(a.etiqueta);
             const col = clase === "desvio" ? "#dc2626"
               : clase === "feliz" ? "#16a34a"
               : a.tipo === "rama" ? "#64748b" : "#94a3b8";
-            const d = pathOrtogonal(sx, sy, start.lado, ex, ey, end.lado, 22, canales.get(a.id) ?? 0);
+            const d = pathOrtogonal(sx, sy, lad.ladoSal, ex, ey, lad.ladoEnt, 22, canales.get(a.id) ?? 0);
             const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
             return (
               <g key={a.id}>
