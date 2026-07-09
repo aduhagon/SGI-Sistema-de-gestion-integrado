@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type {
   NodoFlujo, AristaFlujo, DataObject, PuestoRef, GapSubproceso, EstadoGap,
 } from "@/lib/api/flujogramas-tipos";
-import { agregarEstado, evaluarEstiloNodo, formaDeNodo, contactoConLado, pathOrtogonal, claseRama } from "@/lib/api/flujogramas-tipos";
+import { agregarEstado, evaluarEstiloNodo, formaDeNodo, contactoConLado, pathOrtogonal, claseRama, asignarCanales, detectarSecuenciaRota } from "@/lib/api/flujogramas-tipos";
 import { EditorProceso, EditorPaso, EditorSubproceso } from "@/components/flujogramas/EditorFlujo";
 import { ModalFlujograma } from "@/components/flujogramas/ModalFlujograma";
 
@@ -81,6 +81,22 @@ export function FlujogramasVista({
     }
     return m;
   }, [procesos, procSgiInfo]);
+
+  // Elementos sueltos (sin conexiones) para el panel de acceso rápido
+  const sueltos = useMemo(() => {
+    const rotos = detectarSecuenciaRota(nodos, aristas);
+    const out: { nodoId: string; titulo: string; proceso: string; subproceso: string; subId: string; procId: string }[] = [];
+    for (const r of rotos) {
+      for (const p of r.problemas) {
+        if (p.tipo !== "suelto") continue;
+        const nodo = porId.get(p.nodoId);
+        const sub = nodo?.padreId ? porId.get(nodo.padreId) : undefined;
+        const proc = sub?.padreId ? porId.get(sub.padreId) : undefined;
+        out.push({ nodoId: p.nodoId, titulo: p.titulo, proceso: r.proceso, subproceso: r.subproceso, subId: sub?.id ?? "", procId: proc?.id ?? "" });
+      }
+    }
+    return out;
+  }, [nodos, aristas, porId]);
 
   // Nivel raíz agrupado por proceso SGI, y estos a su vez por TIPO (estratégico/operativo/apoyo)
   const gruposSgi = useMemo(() => {
@@ -196,11 +212,33 @@ export function FlujogramasVista({
 
         <div className="flex-1 overflow-auto p-5">
           {sel.nivel === 0 && (
-            <NivelProcesos
-              procesos={procesos} subsDe={subsDe} gapDeSub={gapDeSub} estadoDeProc={estadoDeProc}
-              tipoDeProceso={tipoDeProceso}
-              onPick={(id) => setSel({ nivel: 1, procId: id, subId: null, pasoId: null })}
-            />
+            <>
+              <NivelProcesos
+                procesos={procesos} subsDe={subsDe} gapDeSub={gapDeSub} estadoDeProc={estadoDeProc}
+                tipoDeProceso={tipoDeProceso}
+                onPick={(id) => setSel({ nivel: 1, procId: id, subId: null, pasoId: null })}
+              />
+              {esAdminSgi && sueltos.length > 0 && (
+                <div className="mt-6 rounded-xl border border-red-200 bg-red-50/50 p-4">
+                  <p className="mb-2 text-sm font-semibold text-red-700">{sueltos.length} elemento{sueltos.length !== 1 ? "s" : ""} sin conectar</p>
+                  <p className="mb-3 text-xs text-muted-foreground">Estos pasos no tienen ninguna conexión. Entrá a cada uno para conectarlo en la secuencia.</p>
+                  <div className="space-y-1">
+                    {sueltos.map((s) => (
+                      <div key={s.nodoId} className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">{s.proceso} · {s.subproceso} ·</span>
+                        <span className="font-medium">{s.titulo}</span>
+                        <button
+                          onClick={() => setSel({ nivel: 3, procId: s.procId, subId: s.subId, pasoId: s.nodoId })}
+                          className="rounded-md border border-red-300 px-2 py-0.5 text-xs text-red-700 hover:bg-red-100"
+                        >
+                          Ir a conectar →
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
           {sel.nivel === 1 && sel.procId && (
             <>
@@ -381,6 +419,10 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
   const W = HEAD + pasos.length * COL_W + 20;
   const H = lanes.length * LANE_H + TOP + 12;
   const salidas = (id: string) => aristas.filter((a) => a.origenId === id);
+  const canales = asignarCanales(aristas);
+  const conConexion = new Set<string>();
+  for (const a of aristas) { conConexion.add(a.origenId); conConexion.add(a.destinoId); }
+  const estaSuelto = (id: string) => !conConexion.has(id);
 
   return (
     <div>
@@ -426,7 +468,7 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
             const col = clase === "desvio" ? "#dc2626"
               : clase === "feliz" ? "#16a34a"
               : a.tipo === "rama" ? "#64748b" : "#94a3b8";
-            const d = pathOrtogonal(sx, sy, start.lado, ex, ey, end.lado);
+            const d = pathOrtogonal(sx, sy, start.lado, ex, ey, end.lado, 22, canales.get(a.id) ?? 0);
             const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
             return (
               <g key={a.id}>
@@ -444,8 +486,12 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
             const fill = dec ? "#fef3c7" : ev ? "#dbeafe" : "#dcfce7";
             const stroke = dec ? "#d97706" : ev ? "#2563eb" : "#16a34a";
             const gapMark = p.codRiesgo && p.tipoBpmn !== "decision";
+            const suelto = estaSuelto(p.id);
             return (
               <g key={p.id} className="cursor-pointer" onClick={() => onPaso(p.id)}>
+                {suelto && (
+                  <rect x={x - 5} y={y - 5} width={NODE_W + 10} height={NODE_H + 10} rx={12} fill="none" stroke="#dc2626" strokeWidth={2} strokeDasharray="5 3" />
+                )}
                 {dec ? (
                   <polygon points={`${x + NODE_W / 2},${y} ${x + NODE_W},${y + NODE_H / 2} ${x + NODE_W / 2},${y + NODE_H} ${x},${y + NODE_H / 2}`} fill={fill} stroke={stroke} strokeWidth={1.6} />
                 ) : ev ? (
@@ -464,6 +510,9 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
                   </text>
                 )}
                 {gapMark && !ev && <text x={x + NODE_W - 12} y={y + 14} fontSize={13}>⚠</text>}
+                {suelto && (
+                  <text x={x + NODE_W / 2} y={y - 10} fontSize={9} fontWeight={700} fill="#dc2626" textAnchor="middle">sin conectar</text>
+                )}
               </g>
             );
           })}

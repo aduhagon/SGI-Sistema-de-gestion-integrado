@@ -395,37 +395,49 @@ export function contactoConLado(
 export function pathOrtogonal(
   sx: number, sy: number, sLado: LadoContacto,
   ex: number, ey: number, eLado: LadoContacto,
-  stub = 22
+  stub = 22, canal = 0
 ): string {
-  // primer punto: alejarse perpendicular del nodo origen
+  // 'canal' desplaza el tramo intermedio para que líneas paralelas no se superpongan.
+  const off = canal * 10;
   const p1 = avanzar(sx, sy, sLado, stub);
-  // último punto antes de entrar: alejarse perpendicular del nodo destino
   const p2 = avanzar(ex, ey, eLado, stub);
 
   const pts: [number, number][] = [[sx, sy], [p1.x, p1.y]];
-
-  // conectar p1 → p2 con codos ortogonales
   const saleHorizontal = sLado === "izq" || sLado === "der";
   const entraHorizontal = eLado === "izq" || eLado === "der";
 
   if (saleHorizontal && entraHorizontal) {
-    // ambos horizontales: subir/bajar en el medio (forma Z)
-    const midX = (p1.x + p2.x) / 2;
+    const midX = (p1.x + p2.x) / 2 + off; // desplazar el tramo vertical del medio
     pts.push([midX, p1.y], [midX, p2.y]);
   } else if (!saleHorizontal && !entraHorizontal) {
-    // ambos verticales: desplazar en el medio
-    const midY = (p1.y + p2.y) / 2;
+    const midY = (p1.y + p2.y) / 2 + off; // desplazar el tramo horizontal del medio
     pts.push([p1.x, midY], [p2.x, midY]);
   } else if (saleHorizontal && !entraHorizontal) {
-    // sale horizontal, entra vertical: codo en (p2.x, p1.y)
     pts.push([p2.x, p1.y]);
   } else {
-    // sale vertical, entra horizontal: codo en (p1.x, p2.y)
     pts.push([p1.x, p2.y]);
   }
 
   pts.push([p2.x, p2.y], [ex, ey]);
   return "M " + pts.map(([px, py]) => `${Math.round(px)} ${Math.round(py)}`).join(" L ");
+}
+
+// Asigna un número de canal a cada arista para separar las que comparten origen o destino.
+// Devuelve un Map aristaId → canal (…-1, 0, 1…) centrado en 0.
+export function asignarCanales(aristas: { id: string; origenId: string; destinoId: string }[]): Map<string, number> {
+  const canal = new Map<string, number>();
+  // agrupar por par de nodos involucrados (mismo tramo probable)
+  const porOrigen = new Map<string, string[]>();
+  for (const a of aristas) {
+    const arr = porOrigen.get(a.origenId) ?? [];
+    arr.push(a.id);
+    porOrigen.set(a.origenId, arr);
+  }
+  for (const [, ids] of porOrigen) {
+    const n = ids.length;
+    ids.forEach((id, i) => canal.set(id, i - (n - 1) / 2)); // centrado en 0
+  }
+  return canal;
 }
 
 function avanzar(x: number, y: number, lado: LadoContacto, d: number): { x: number; y: number } {

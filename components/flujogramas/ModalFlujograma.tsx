@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { NodoFlujo, AristaFlujo, SubtipoEvento } from "@/lib/api/flujogramas-tipos";
-import { formaDeNodo, contactoConLado, pathOrtogonal, claseRama } from "@/lib/api/flujogramas-tipos";
+import { formaDeNodo, contactoConLado, pathOrtogonal, claseRama, asignarCanales } from "@/lib/api/flujogramas-tipos";
 
 // Símbolo BPMN dentro del círculo de evento según subtipo
 function IconoEvento({ subtipo, cx, cy }: { subtipo: SubtipoEvento; cx: number; cy: number }) {
@@ -59,6 +59,11 @@ export function ModalFlujograma({ titulo, pasos, aristas, puestoNombre, onPaso, 
   const W = HEAD + pasos.length * COL_W + 20;
   const H = lanes.length * LANE_H + TOP + 12;
   const salidas = (id: string) => aristas.filter((a) => a.origenId === id);
+  const canales = asignarCanales(aristas);
+  // nodos sin ninguna conexión (sueltos)
+  const conConexion = new Set<string>();
+  for (const a of aristas) { conConexion.add(a.origenId); conConexion.add(a.destinoId); }
+  const estaSuelto = (id: string) => !conConexion.has(id);
 
   // fit-to-width al abrir
   useEffect(() => {
@@ -126,7 +131,7 @@ export function ModalFlujograma({ titulo, pasos, aristas, puestoNombre, onPaso, 
               const col = clase === "desvio" ? "#dc2626"
                 : clase === "feliz" ? "#16a34a"
                 : a.tipo === "rama" ? "#64748b" : "#94a3b8";
-              const d = pathOrtogonal(sx, sy, start.lado, ex, ey, end.lado);
+              const d = pathOrtogonal(sx, sy, start.lado, ex, ey, end.lado, 22, canales.get(a.id) ?? 0);
               const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
               return (
                 <g key={a.id}>
@@ -142,8 +147,12 @@ export function ModalFlujograma({ titulo, pasos, aristas, puestoNombre, onPaso, 
               const fill = dec ? "#fef3c7" : ev ? "#dbeafe" : "#dcfce7";
               const stroke = dec ? "#d97706" : ev ? "#2563eb" : "#16a34a";
               const gapMark = p.codRiesgo && p.tipoBpmn !== "decision";
+              const suelto = estaSuelto(p.id);
               return (
                 <g key={p.id} className="cursor-pointer" onClick={() => onPaso(p.id)}>
+                  {suelto && (
+                    <rect x={x - 5} y={y - 5} width={NODE_W + 10} height={NODE_H + 10} rx={12} fill="none" stroke="#dc2626" strokeWidth={2} strokeDasharray="5 3" />
+                  )}
                   {dec ? (
                     <polygon points={`${x + NODE_W / 2},${y} ${x + NODE_W},${y + NODE_H / 2} ${x + NODE_W / 2},${y + NODE_H} ${x},${y + NODE_H / 2}`} fill={fill} stroke={stroke} strokeWidth={1.6} />
                   ) : ev ? (
@@ -165,6 +174,9 @@ export function ModalFlujograma({ titulo, pasos, aristas, puestoNombre, onPaso, 
                     </text>
                   )}
                   {gapMark && <text x={x + NODE_W - 12} y={y + 14} fontSize={13}>⚠</text>}
+                  {suelto && (
+                    <text x={x + NODE_W / 2} y={y - 10} fontSize={9} fontWeight={700} fill="#dc2626" textAnchor="middle">sin conectar</text>
+                  )}
                 </g>
               );
             })}
