@@ -496,24 +496,38 @@ export function asignarLados(
   pos: (id: string) => { cx: number; cy: number } | null
 ): Map<string, { ladoSal: LadoContacto; ladoEnt: LadoContacto }> {
   const res = new Map<string, { ladoSal: LadoContacto; ladoEnt: LadoContacto }>();
-  const ladoHacia = (fromC: { cx: number; cy: number }, toC: { cx: number; cy: number }, h = 58): LadoContacto => {
-    const ux = toC.cx - fromC.cx, uy = toC.cy - fromC.cy;
-    if (Math.abs(uy) > h * 0.9) return uy >= 0 ? "abajo" : "arriba";
-    return ux >= 0 ? "der" : "izq";
-  };
   const opuesto = (l: LadoContacto): LadoContacto =>
     l === "der" ? "izq" : l === "izq" ? "der" : l === "arriba" ? "abajo" : "arriba";
+
+  // Elige lados con MÍNIMOS codos según la posición relativa de los nodos.
+  // dx = destino a la derecha (+) o izquierda (−); dy = destino abajo (+) o arriba (−).
+  const elegirLados = (dx: number, dy: number, umbralV: number): { ladoSal: LadoContacto; ladoEnt: LadoContacto } => {
+    const mismaBandaV = Math.abs(dy) <= umbralV; // prácticamente misma fila
+    const mismaBandaH = Math.abs(dx) <= umbralV;
+    if (mismaBandaV) {
+      // fluye horizontal: sale der/izq, entra por el opuesto → 0 codos si alineados
+      return dx >= 0 ? { ladoSal: "der", ladoEnt: "izq" } : { ladoSal: "izq", ladoEnt: "der" };
+    }
+    if (mismaBandaH) {
+      // fluye vertical
+      return dy >= 0 ? { ladoSal: "abajo", ladoEnt: "arriba" } : { ladoSal: "arriba", ladoEnt: "abajo" };
+    }
+    // Diagonal (distinta fila y columna): 1 codo. Preferimos salir horizontal y entrar vertical
+    // (mantiene la sensación de avance horizontal y baja/sube al final).
+    return {
+      ladoSal: dx >= 0 ? "der" : "izq",
+      ladoEnt: dy >= 0 ? "arriba" : "abajo",
+    };
+  };
 
   for (const a of aristas) {
     const oc = pos(a.origenId), dc = pos(a.destinoId);
     if (!oc || !dc) { res.set(a.id, { ladoSal: "der", ladoEnt: "izq" }); continue; }
-    let ladoSal = ladoHacia(oc, dc);
-    let ladoEnt = ladoHacia(dc, oc);
-    res.set(a.id, { ladoSal, ladoEnt });
+    const dx = dc.cx - oc.cx, dy = dc.cy - oc.cy;
+    res.set(a.id, elegirLados(dx, dy, 40));
   }
 
-  // Corrección por nodo: si un nodo tiene una entrante y una saliente en el MISMO lado,
-  // mover la saliente al lado opuesto (preferimos que la salida "avance").
+  // Resolver colisiones: en un nodo, una saliente y una entrante no deberían usar el mismo lado.
   const salPorNodo = new Map<string, string[]>();
   const entPorNodo = new Map<string, string[]>();
   for (const a of aristas) {
@@ -527,7 +541,6 @@ export function asignarLados(
     for (const sid of sals) {
       const r = res.get(sid)!;
       if (ladosEnt.has(r.ladoSal)) {
-        // colisión: intentar mover la salida al opuesto
         const alt = opuesto(r.ladoSal);
         if (!ladosEnt.has(alt)) r.ladoSal = alt;
       }
