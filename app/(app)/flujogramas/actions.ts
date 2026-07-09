@@ -369,3 +369,85 @@ export async function insertarGatewayEnSalidas(tareaId: string): Promise<Resulta
   revalidatePath("/flujogramas");
   return { ok: true };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// paquete-069 · Reordenar pasos + limpiar aristas duplicadas
+// ═══════════════════════════════════════════════════════════════
+
+// (15) Cambiar el orden de un paso (mover izquierda/derecha en el swimlane).
+// direccion: -1 = antes, +1 = después. Intercambia el orden con el vecino.
+export async function moverPaso(nodoId: string, direccion: -1 | 1): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  const sb = createClient();
+
+  const { data: paso, error: eP } = await sb.from("flujo_nodo")
+    .select("id,padre_id,orden").eq("id", nodoId).single();
+  if (eP || !paso) return { ok: false, error: eP?.message ?? "Paso no encontrado." };
+  const p = paso as { id: string; padre_id: string; orden: number };
+
+  // hermanos ordenados
+  const { data: hermanos, error: eH } = await sb.from("flujo_nodo")
+    .select("id,orden").eq("padre_id", p.padre_id).eq("nivel", "paso").order("orden", { ascending: true });
+  if (eH) return { ok: false, error: eH.message };
+  const lista = (hermanos ?? []) as { id: string; orden: number }[];
+  const i = lista.findIndex((h) => h.id === nodoId);
+  const j = i + direccion;
+  if (i < 0 || j < 0 || j >= lista.length) return { ok: false, error: "No se puede mover más allá del límite." };
+
+  // intercambiar orden con el vecino
+  const vecino = lista[j];
+  const { error: e1 } = await sb.from("flujo_nodo").update({ orden: vecino.orden }).eq("id", p.id);
+  if (e1) return { ok: false, error: e1.message };
+  const { error: e2 } = await sb.from("flujo_nodo").update({ orden: p.orden }).eq("id", vecino.id);
+  if (e2) return { ok: false, error: e2.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
+// (16) Fijar el orden exacto de un paso (posición numérica), reacomodando el resto.
+export async function fijarOrdenPaso(nodoId: string, nuevaPos: number): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  const sb = createClient();
+  const { data: paso, error: eP } = await sb.from("flujo_nodo").select("padre_id").eq("id", nodoId).single();
+  if (eP || !paso) return { ok: false, error: eP?.message ?? "Paso no encontrado." };
+  const padreId = (paso as { padre_id: string }).padre_id;
+
+  const { data: hermanos } = await sb.from("flujo_nodo")
+    .select("id").eq("padre_id", padreId).eq("nivel", "paso").order("orden", { ascending: true });
+  const lista = (hermanos ?? []).map((h: { id: string }) => h.id);
+  const sinEste = lista.filter((id: string) => id !== nodoId);
+  const pos = Math.max(0, Math.min(nuevaPos, sinEste.length));
+  sinEste.splice(pos, 0, nodoId);
+
+  // reasignar orden 1..N
+  for (let k = 0; k < sinEste.length; k++) {
+    const { error } = await sb.from("flujo_nodo").update({ orden: k + 1 }).eq("id", sinEste[k]);
+    if (error) return { ok: false, error: error.message };
+  }
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
+// (17) Limpiar aristas duplicadas de un paso (deja una por cada destino).
+export async function limpiarAristasDuplicadas(nodoId: string): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  const sb = createClient();
+  const { data: aristas, error } = await sb.from("flujo_arista")
+    .select("id,destino_id,etiqueta").eq("origen_id", nodoId).order("id", { ascending: true });
+  if (error) return { ok: false, error: error.message };
+  const vistos = new Set<string>();
+  const aBorrar: string[] = [];
+  for (const a of (aristas ?? []) as { id: string; destino_id: string; etiqueta: string | null }[]) {
+    const clave = a.destino_id + "|" + (a.etiqueta ?? "");
+    if (vistos.has(clave)) aBorrar.push(a.id);
+    else vistos.add(clave);
+  }
+  if (aBorrar.length === 0) return { ok: true };
+  const { error: eDel } = await sb.from("flujo_arista").delete().in("id", aBorrar);
+  if (eDel) return { ok: false, error: eDel.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}

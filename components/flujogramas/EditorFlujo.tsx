@@ -10,6 +10,7 @@ import {
   crearPaso, borrarPasoCosiendo, crearDataObject, editarDataObject, eliminarDataObject,
   cambiarOrigenArista, crearAristaEntrante, insertarPasoEntre,
   editarSubtipoEvento, insertarGatewayEnSalidas,
+  moverPaso, limpiarAristasDuplicadas,
 } from "@/app/(app)/flujogramas/actions";
 
 type ProcesoOpc = { id: string; nombre: string };
@@ -128,6 +129,14 @@ export function EditorPaso({
     <div className="mt-4 space-y-4 rounded-xl border border-dashed border-border bg-muted/30 p-4">
       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Editar paso</p>
 
+      {/* Reordenar posición en el swimlane */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">Posición en el flujo:</span>
+        <button disabled={pending} onClick={() => correr(() => moverPaso(paso.id, -1), "Paso movido a la izquierda.")} className="rounded-md border border-border px-2 py-1 text-sm hover:bg-muted disabled:opacity-50" title="Mover antes">◀</button>
+        <button disabled={pending} onClick={() => correr(() => moverPaso(paso.id, 1), "Paso movido a la derecha.")} className="rounded-md border border-border px-2 py-1 text-sm hover:bg-muted disabled:opacity-50" title="Mover después">▶</button>
+        <span className="text-xs text-muted-foreground">(orden actual: {paso.orden})</span>
+      </div>
+
       {/* Carril / puesto */}
       <div>
         <label className="text-xs text-muted-foreground">Puesto responsable (carril)</label>
@@ -219,6 +228,7 @@ export function EditorPaso({
           <EditorArista key={a.id} arista={a} otros={otros} correr={correr} pending={pending} />
         ))}
         <NuevaArista pasoId={paso.id} otros={otros} correr={correr} pending={pending} />
+        <button disabled={pending} onClick={() => correr(() => limpiarAristasDuplicadas(paso.id), "Conexiones duplicadas eliminadas.")} className="mt-2 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50">Limpiar conexiones duplicadas</button>
       </div>
 
       {/* Secuencia entrante: quién apunta a este paso */}

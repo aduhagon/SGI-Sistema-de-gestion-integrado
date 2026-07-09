@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { FlujogramasVista } from "@/components/flujogramas/FlujogramasVista";
 import { TableroGaps } from "@/components/flujogramas/TableroGaps";
 import { TableroEstilo } from "@/components/flujogramas/TableroEstilo";
+import { TableroSecuencia } from "@/components/flujogramas/TableroSecuencia";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,10 @@ export default async function FlujogramasPage({ searchParams }: { searchParams: 
 
       <div className="mb-8">
         <TableroEstilo nodos={nodos} procesoDeNodo={procesoDeNodo} />
+      </div>
+
+      <div className="mb-8">
+        <TableroSecuencia nodos={nodos} aristas={aristas.map((a) => ({ origenId: a.origenId, destinoId: a.destinoId }))} />
       </div>
 
       <Suspense fallback={null}>

@@ -220,3 +220,94 @@ export const SUBTIPO_EVENTO_LABEL: Record<SubtipoEvento, string> = {
   error: "Error",
   terminacion: "Terminación",
 };
+
+// ─────────────────────────────────────────────────────────────
+// Detección de secuencia rota (pasos sueltos, sin salida/entrada, duplicados)
+// ─────────────────────────────────────────────────────────────
+
+export type ProblemaConexion = {
+  nodoId: string;
+  codigo: string | null;
+  titulo: string;
+  tipo: "suelto" | "sin_salida" | "sin_entrada" | "duplicada";
+  detalle: string;
+};
+
+export type SubprocesoConProblemas = {
+  subprocesoId: string;
+  subproceso: string;
+  proceso: string;
+  problemas: ProblemaConexion[];
+};
+
+export function detectarSecuenciaRota(
+  nodos: NodoFlujo[],
+  aristas: AristaLike[]
+): SubprocesoConProblemas[] {
+  const porId = new Map(nodos.map((n) => [n.id, n]));
+  const salidas = new Map<string, number>();
+  const entradas = new Map<string, number>();
+  const paresVistos = new Map<string, number>();
+  for (const a of aristas) {
+    salidas.set(a.origenId, (salidas.get(a.origenId) ?? 0) + 1);
+    entradas.set(a.destinoId, (entradas.get(a.destinoId) ?? 0) + 1);
+    const clave = a.origenId + "→" + a.destinoId;
+    paresVistos.set(clave, (paresVistos.get(clave) ?? 0) + 1);
+  }
+  // pares duplicados por nodo origen
+  const dupPorOrigen = new Map<string, string[]>();
+  for (const [clave, veces] of paresVistos) {
+    if (veces > 1) {
+      const origen = clave.split("→")[0];
+      const arr = dupPorOrigen.get(origen) ?? [];
+      arr.push(clave);
+      dupPorOrigen.set(origen, arr);
+    }
+  }
+
+  const porSub = new Map<string, ProblemaConexion[]>();
+  for (const n of nodos) {
+    if (n.nivel !== "paso" || !n.padreId) continue;
+    const s = salidas.get(n.id) ?? 0;
+    const e = entradas.get(n.id) ?? 0;
+    const probs: ProblemaConexion[] = [];
+    if (s === 0 && e === 0) {
+      probs.push({ nodoId: n.id, codigo: n.codigo, titulo: n.titulo, tipo: "suelto", detalle: "Sin conexiones (aislado)" });
+    } else {
+      if (n.tipoBpmn !== "fin" && s === 0) {
+        probs.push({ nodoId: n.id, codigo: n.codigo, titulo: n.titulo, tipo: "sin_salida", detalle: "No lleva a ningún paso" });
+      }
+      if (n.tipoBpmn !== "inicio" && e === 0) {
+        probs.push({ nodoId: n.id, codigo: n.codigo, titulo: n.titulo, tipo: "sin_entrada", detalle: "Ningún paso llega a este (inalcanzable)" });
+      }
+    }
+    if (dupPorOrigen.has(n.id)) {
+      probs.push({ nodoId: n.id, codigo: n.codigo, titulo: n.titulo, tipo: "duplicada", detalle: "Tiene conexiones duplicadas al mismo destino" });
+    }
+    if (probs.length > 0) {
+      const arr = porSub.get(n.padreId) ?? [];
+      arr.push(...probs);
+      porSub.set(n.padreId, arr);
+    }
+  }
+
+  const out: SubprocesoConProblemas[] = [];
+  for (const [subId, problemas] of porSub) {
+    const sub = porId.get(subId);
+    const proc = sub?.padreId ? porId.get(sub.padreId) : undefined;
+    out.push({
+      subprocesoId: subId,
+      subproceso: sub?.titulo ?? "—",
+      proceso: proc?.titulo ?? "—",
+      problemas,
+    });
+  }
+  return out.sort((a, b) => b.problemas.length - a.problemas.length);
+}
+
+export const PROBLEMA_LABEL: Record<ProblemaConexion["tipo"], string> = {
+  suelto: "Suelto",
+  sin_salida: "Sin salida",
+  sin_entrada: "Sin entrada",
+  duplicada: "Duplicada",
+};
