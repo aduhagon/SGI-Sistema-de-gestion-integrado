@@ -6,6 +6,7 @@ import { obtenerContextoLayout } from "@/lib/api/contexto-layout";
 import { createClient } from "@/lib/supabase/server";
 import { FlujogramasVista } from "@/components/flujogramas/FlujogramasVista";
 import { TableroGaps } from "@/components/flujogramas/TableroGaps";
+import { TableroEstilo } from "@/components/flujogramas/TableroEstilo";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,16 @@ export default async function FlujogramasPage({ searchParams }: { searchParams: 
     listarDocumentosRef(),
   ]);
   const gaps = calcularGaps(nodos);
+
+  // mapa paso → nombre de proceso (para dar contexto en el tablero de estilo)
+  const nodoPorId = new Map(nodos.map((n) => [n.id, n]));
+  const procesoDeNodo = new Map<string, string>();
+  for (const n of nodos) {
+    if (n.nivel !== "paso") continue;
+    const sub = n.padreId ? nodoPorId.get(n.padreId) : undefined;
+    const proc = sub?.padreId ? nodoPorId.get(sub.padreId) : undefined;
+    procesoDeNodo.set(n.id, proc?.titulo ?? "—");
+  }
 
   const procesos = nodos.filter((n) => n.nivel === "proceso").length;
   const pasos = nodos.filter((n) => n.nivel === "paso").length;
@@ -60,6 +71,10 @@ export default async function FlujogramasPage({ searchParams }: { searchParams: 
 
       <div className="mb-8">
         <TableroGaps gaps={gaps} />
+      </div>
+
+      <div className="mb-8">
+        <TableroEstilo nodos={nodos} procesoDeNodo={procesoDeNodo} />
       </div>
 
       <Suspense fallback={null}>

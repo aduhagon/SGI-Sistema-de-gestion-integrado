@@ -73,6 +73,14 @@ export function FlujogramasVista({
 
   // Árbol de 4 niveles: agrupar procesos-flujograma bajo su proceso del SGI (procesoId)
   const procSgiInfo = useMemo(() => new Map(procesosSgi.map((p) => [p.id, p])), [procesosSgi]);
+  const tipoDeProceso = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of procesos) {
+      const info = p.procesoId ? procSgiInfo.get(p.procesoId) : undefined;
+      m.set(p.id, info?.tipo ?? "sin_tipo");
+    }
+    return m;
+  }, [procesos, procSgiInfo]);
 
   // Nivel raíz agrupado por proceso SGI, y estos a su vez por TIPO (estratégico/operativo/apoyo)
   const gruposSgi = useMemo(() => {
@@ -190,6 +198,7 @@ export function FlujogramasVista({
           {sel.nivel === 0 && (
             <NivelProcesos
               procesos={procesos} subsDe={subsDe} gapDeSub={gapDeSub} estadoDeProc={estadoDeProc}
+              tipoDeProceso={tipoDeProceso}
               onPick={(id) => setSel({ nivel: 1, procId: id, subId: null, pasoId: null })}
             />
           )}
@@ -256,40 +265,63 @@ export function FlujogramasVista({
 }
 
 // ── Nivel 0 ──
-function NivelProcesos({ procesos, subsDe, gapDeSub, estadoDeProc, onPick }: {
+function NivelProcesos({ procesos, subsDe, gapDeSub, estadoDeProc, tipoDeProceso, onPick }: {
   procesos: NodoFlujo[];
   subsDe: Map<string, NodoFlujo[]>;
   gapDeSub: Map<string, GapSubproceso>;
   estadoDeProc: Map<string, EstadoGap>;
+  tipoDeProceso: Map<string, string>;
   onPick: (id: string) => void;
 }) {
+  const TIPO_ORDEN: Record<string, number> = { estrategico: 0, operativo: 1, apoyo: 2, sin_tipo: 3 };
+  const TIPO_LABEL: Record<string, string> = {
+    estrategico: "Procesos estratégicos", operativo: "Procesos principales",
+    apoyo: "Procesos de apoyo", sin_tipo: "Sin clasificar",
+  };
+  const secciones = (() => {
+    const m = new Map<string, NodoFlujo[]>();
+    for (const p of procesos) {
+      const t = tipoDeProceso.get(p.id) ?? "sin_tipo";
+      if (!m.has(t)) m.set(t, []);
+      m.get(t)!.push(p);
+    }
+    return Array.from(m.entries()).sort((a, b) => (TIPO_ORDEN[a[0]] ?? 9) - (TIPO_ORDEN[b[0]] ?? 9));
+  })();
+
+  const Tarjeta = ({ p }: { p: NodoFlujo }) => {
+    const subs = subsDe.get(p.id) ?? [];
+    const est = estadoDeProc.get(p.id) ?? "sindatos";
+    const nRojo = subs.filter((s) => gapDeSub.get(s.id)?.estado === "rojo").length;
+    return (
+      <button
+        onClick={() => onPick(p.id)}
+        className="rounded-xl border border-border bg-background p-4 text-left transition hover:shadow-md"
+        style={{ borderLeftWidth: 4, borderLeftColor: COLOR[est] }}
+      >
+        <div className="flex items-start justify-between">
+          <span className="font-medium">{p.titulo}</span>
+          <span>{PUNTO[est]}</span>
+        </div>
+        <div className="mt-3 text-xs text-muted-foreground">
+          {subs.length} subproceso{subs.length !== 1 ? "s" : ""}
+          {nRojo > 0 && <span className="font-semibold text-red-600"> · {nRojo} con riesgo sin control</span>}
+        </div>
+      </button>
+    );
+  };
+
   return (
     <div>
       <h2 className="mb-1 font-serif text-2xl font-semibold">Mapa de procesos</h2>
-      <p className="mb-5 text-sm text-muted-foreground">El color agrega el estado de cumplimiento de los subprocesos. Clic para entrar.</p>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
-        {procesos.map((p) => {
-          const subs = subsDe.get(p.id) ?? [];
-          const est = estadoDeProc.get(p.id) ?? "sindatos";
-          const nRojo = subs.filter((s) => gapDeSub.get(s.id)?.estado === "rojo").length;
-          return (
-            <button
-              key={p.id} onClick={() => onPick(p.id)}
-              className="rounded-xl border border-border bg-background p-4 text-left transition hover:shadow-md"
-              style={{ borderLeftWidth: 4, borderLeftColor: COLOR[est] }}
-            >
-              <div className="flex items-start justify-between">
-                <span className="font-medium">{p.titulo}</span>
-                <span>{PUNTO[est]}</span>
-              </div>
-              <div className="mt-3 text-xs text-muted-foreground">
-                {subs.length} subproceso{subs.length !== 1 ? "s" : ""}
-                {nRojo > 0 && <span className="font-semibold text-red-600"> · {nRojo} con riesgo sin control</span>}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <p className="mb-5 text-sm text-muted-foreground">Agrupados por tipo, con la clasificación del mapa general. El color agrega el estado de cumplimiento. Clic para entrar.</p>
+      {secciones.map(([tipo, procs]) => (
+        <div key={tipo} className="mb-6">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">{TIPO_LABEL[tipo] ?? tipo}</p>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
+            {procs.map((p) => <Tarjeta key={p.id} p={p} />)}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
