@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import type { GapSubproceso, EstadoGap } from "@/lib/api/flujogramas";
+import type { GapSubproceso, EstadoGap } from "@/lib/api/flujogramas-tipos";
 
 const PUNTO: Record<EstadoGap, string> = { rojo: "🔴", amarillo: "🟡", verde: "🟢", sindatos: "⚪" };
 const BADGE: Record<EstadoGap, string> = {

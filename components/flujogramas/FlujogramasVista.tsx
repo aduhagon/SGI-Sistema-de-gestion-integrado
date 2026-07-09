@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import type {
   NodoFlujo, AristaFlujo, DataObject, PuestoRef, GapSubproceso, EstadoGap,
-} from "@/lib/api/flujogramas";
-import { agregarEstado } from "@/lib/api/flujogramas";
+} from "@/lib/api/flujogramas-tipos";
+import { agregarEstado } from "@/lib/api/flujogramas-tipos";
 
 type Nivel = 0 | 1 | 2 | 3;
 type Sel = { nivel: Nivel; procId: string | null; subId: string | null; pasoId: string | null };
