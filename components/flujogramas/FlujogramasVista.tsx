@@ -396,8 +396,8 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
       <div className="overflow-auto rounded-lg border border-border">
         <svg width={W} height={H} className="block">
           <defs>
-            <marker id="fl-ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
-              <path d="M0,0 L8,4 L0,8 z" fill="#94a3b8" />
+            <marker id="fl-ar" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+              <path d="M0,0 L9,4.5 L0,9 z" fill="#64748b" />
             </marker>
           </defs>
           {lanes.map((ln, i) => (
@@ -413,20 +413,32 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
             const j = idx.get(a.destinoId);
             if (j === undefined) return null;
             const b = pasos[j];
-            const back = (idx.get(b.id) ?? 0) <= (idx.get(p.id) ?? 0);
-            const x1 = posX(idx.get(p.id)!) + NODE_W, y1 = laneY(p.puestoId ?? "—") + NODE_H / 2;
-            const x2 = posX(j), y2 = laneY(b.puestoId ?? "—") + NODE_H / 2;
+            const iP = idx.get(p.id)!;
+            const back = j <= iP;
+            const oLane = laneY(p.puestoId ?? "—"), dLane = laneY(b.puestoId ?? "—");
+            const oCy = oLane + NODE_H / 2, dCx = posX(j) + NODE_W / 2, dCy = dLane + NODE_H / 2;
+            const GAP = 3;
+            const sx = back ? posX(iP) - GAP : posX(iP) + NODE_W + GAP;
+            const sy = oCy;
+            let ex: number, ey: number;
+            if (Math.abs(dCy - oCy) > NODE_H) {
+              ex = dCx; ey = dCy > oCy ? dLane - GAP : dLane + NODE_H + GAP;
+            } else {
+              ex = back ? posX(j) + NODE_W + GAP : posX(j) - GAP; ey = dCy;
+            }
             const col = a.etiqueta === "Rechazado" || a.etiqueta === "No" || a.etiqueta === "Difiere" ? "#dc2626"
               : a.tipo === "rama" ? "#16a34a" : "#94a3b8";
-            const d = back
-              ? `M ${posX(idx.get(p.id)!) + NODE_W / 2} ${laneY(p.puestoId ?? "—")} C ${x1} ${TOP - 6}, ${x2} ${TOP - 6}, ${posX(j) + NODE_W / 2} ${laneY(b.puestoId ?? "—")}`
-              : `M ${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`;
-            const mx = (x1 + x2) / 2, my = back ? TOP - 6 : (y1 + y2) / 2 - 6;
+            const midX = (sx + ex) / 2;
+            const c1x = back ? sx - 40 : sx + 40;
+            const d = Math.abs(dCy - oCy) > NODE_H
+              ? `M ${sx} ${sy} C ${c1x} ${sy}, ${ex} ${(sy + ey) / 2}, ${ex} ${ey}`
+              : `M ${sx} ${sy} C ${midX} ${sy}, ${midX} ${ey}, ${ex} ${ey}`;
+            const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
             return (
               <g key={a.id}>
                 <path d={d} fill="none" stroke={col} strokeWidth={1.8} markerEnd="url(#fl-ar)" strokeDasharray={back ? "4 3" : "0"} />
                 {a.etiqueta && (
-                  <text x={mx} y={my} fontSize={10} fontWeight={700} fill={col} textAnchor="middle">{a.etiqueta}</text>
+                  <text x={mx} y={my} fontSize={10} fontWeight={700} fill={col} textAnchor="middle" style={{ paintOrder: "stroke" }} stroke="#ffffff" strokeWidth={3}>{a.etiqueta}</text>
                 )}
               </g>
             );
