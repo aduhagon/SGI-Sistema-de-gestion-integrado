@@ -451,3 +451,22 @@ export async function limpiarAristasDuplicadas(nodoId: string): Promise<Resultad
   revalidatePath("/flujogramas");
   return { ok: true };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// paquete-077 · Etiqueta de rama en decisiones
+// ═══════════════════════════════════════════════════════════════
+
+// (18) Editar la etiqueta de una arista (Sí/No/texto libre). Vacía = quita etiqueta y vuelve a 'secuencia'.
+export async function editarEtiquetaArista(aristaId: string, etiqueta: string): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  const sb = createClient();
+  const limpia = etiqueta.trim();
+  const { error } = await sb.from("flujo_arista").update({
+    etiqueta: limpia || null,
+    tipo: limpia ? "rama" : "secuencia",
+  }).eq("id", aristaId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}

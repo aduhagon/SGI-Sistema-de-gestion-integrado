@@ -10,7 +10,7 @@ import {
   crearPaso, borrarPasoCosiendo, crearDataObject, editarDataObject, eliminarDataObject,
   cambiarOrigenArista, crearAristaEntrante, insertarPasoEntre,
   editarSubtipoEvento, insertarGatewayEnSalidas,
-  moverPaso, limpiarAristasDuplicadas,
+  moverPaso, limpiarAristasDuplicadas, editarEtiquetaArista,
 } from "@/app/(app)/flujogramas/actions";
 
 type ProcesoOpc = { id: string; nombre: string };
@@ -225,7 +225,7 @@ export function EditorPaso({
         <p className="mb-1 text-xs text-muted-foreground">Secuencia (a qué paso apunta)</p>
         {aristasSalientes.length === 0 && <p className="text-sm text-muted-foreground">Este paso no tiene salidas. Agregá una abajo.</p>}
         {aristasSalientes.map((a) => (
-          <EditorArista key={a.id} arista={a} otros={otros} correr={correr} pending={pending} />
+          <EditorArista key={a.id} arista={a} otros={otros} correr={correr} pending={pending} esDecision={paso.tipoBpmn === "decision"} />
         ))}
         <NuevaArista pasoId={paso.id} otros={otros} correr={correr} pending={pending} />
         <button disabled={pending} onClick={() => correr(() => limpiarAristasDuplicadas(paso.id), "Conexiones duplicadas eliminadas.")} className="mt-2 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50">Limpiar conexiones duplicadas</button>
@@ -473,25 +473,40 @@ export function EditorSubproceso({
 }
 
 function EditorArista({
-  arista, otros, correr, pending,
+  arista, otros, correr, pending, esDecision = false,
 }: {
   arista: AristaFlujo;
   otros: NodoFlujo[];
   correr: (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) => void;
   pending: boolean;
+  esDecision?: boolean;
 }) {
   const [destino, setDestino] = useState(arista.destinoId);
+  const [etiqueta, setEtiqueta] = useState(arista.etiqueta ?? "");
   return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-2">
-      {arista.etiqueta && <span className="rounded bg-muted px-1.5 py-0.5 text-xs">{arista.etiqueta}</span>}
-      <span className="text-sm text-muted-foreground">→</span>
-      <select value={destino} onChange={(e) => setDestino(e.target.value)} className="min-w-[200px] rounded-md border border-border bg-background px-2 py-1 text-sm">
-        {otros.map((o) => <option key={o.id} value={o.id}>{o.codigo ? `${o.codigo} · ` : ""}{o.titulo.slice(0, 30)}</option>)}
-        {/* incluir el destino actual aunque no esté en hermanos (por si apunta fuera) */}
-        {!otros.some((o) => o.id === arista.destinoId) && <option value={arista.destinoId}>(destino actual)</option>}
-      </select>
-      <button disabled={pending || destino === arista.destinoId} onClick={() => correr(() => cambiarDestinoArista(arista.id, destino), "Secuencia corregida.")} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50">Cambiar</button>
-      <button disabled={pending} onClick={() => correr(() => eliminarArista(arista.id), "Conexión eliminada.")} className="rounded-md border border-border px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50">Quitar</button>
+    <div className="mt-1.5 rounded-md border border-border/60 p-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted-foreground">→</span>
+        <select value={destino} onChange={(e) => setDestino(e.target.value)} className="min-w-[200px] rounded-md border border-border bg-background px-2 py-1 text-sm">
+          {otros.map((o) => <option key={o.id} value={o.id}>{o.codigo ? `${o.codigo} · ` : ""}{o.titulo.slice(0, 30)}</option>)}
+          {!otros.some((o) => o.id === arista.destinoId) && <option value={arista.destinoId}>(destino actual)</option>}
+        </select>
+        <button disabled={pending || destino === arista.destinoId} onClick={() => correr(() => cambiarDestinoArista(arista.id, destino), "Secuencia corregida.")} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50">Cambiar</button>
+        <button disabled={pending} onClick={() => correr(() => eliminarArista(arista.id), "Conexión eliminada.")} className="rounded-md border border-border px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50">Quitar</button>
+      </div>
+      {/* Etiqueta de la rama (útil sobre todo en decisiones) */}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">Etiqueta{esDecision ? " (rama)" : ""}:</span>
+        {esDecision && (
+          <>
+            <button onClick={() => { setEtiqueta("Sí"); correr(() => editarEtiquetaArista(arista.id, "Sí"), "Rama etiquetada: Sí."); }} className="rounded-md border border-green-300 px-2 py-1 text-xs text-green-700 hover:bg-green-50">Sí</button>
+            <button onClick={() => { setEtiqueta("No"); correr(() => editarEtiquetaArista(arista.id, "No"), "Rama etiquetada: No."); }} className="rounded-md border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50">No</button>
+          </>
+        )}
+        <input value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} placeholder="texto libre" className="w-36 rounded-md border border-border bg-background px-2 py-1 text-xs" />
+        <button disabled={pending || etiqueta === (arista.etiqueta ?? "")} onClick={() => correr(() => editarEtiquetaArista(arista.id, etiqueta), "Etiqueta guardada.")} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50">Guardar</button>
+        {arista.etiqueta && <button disabled={pending} onClick={() => { setEtiqueta(""); correr(() => editarEtiquetaArista(arista.id, ""), "Etiqueta quitada."); }} className="rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50">Quitar etiqueta</button>}
+      </div>
     </div>
   );
 }

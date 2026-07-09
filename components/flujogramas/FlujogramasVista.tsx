@@ -16,6 +16,28 @@ const COLOR: Record<EstadoGap, string> = {
 };
 const PUNTO: Record<EstadoGap, string> = { rojo: "🔴", amarillo: "🟡", verde: "🟢", sindatos: "⚪" };
 
+// Divide un texto en hasta maxLineas líneas de ~maxChars, sin cortar palabras.
+function envolverTexto(texto: string, maxChars: number, maxLineas: number): string[] {
+  const palabras = texto.split(/\s+/);
+  const lineas: string[] = [];
+  let actual = "";
+  for (const w of palabras) {
+    if ((actual + " " + w).trim().length <= maxChars) {
+      actual = (actual + " " + w).trim();
+    } else {
+      if (actual) lineas.push(actual);
+      actual = w;
+      if (lineas.length === maxLineas - 1) break;
+    }
+  }
+  if (actual && lineas.length < maxLineas) lineas.push(actual);
+  const usadas = lineas.join(" ").split(/\s+/).length;
+  if (usadas < palabras.length && lineas.length > 0) {
+    lineas[lineas.length - 1] = lineas[lineas.length - 1] + "…";
+  }
+  return lineas;
+}
+
 export function FlujogramasVista({
   nodos, aristas, dataObjects, puestos, gaps, esAdminSgi = false, procesosSgi = [], procesoInicial = null, documentos = [],
 }: {
@@ -480,7 +502,10 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
               <g key={a.id}>
                 <path d={d} fill="none" stroke={col} strokeWidth={1.8} markerEnd="url(#fl-ar)" strokeDasharray={back ? "4 3" : "0"} />
                 {a.etiqueta && (
-                  <text x={mx} y={my} fontSize={10} fontWeight={700} fill={col} textAnchor="middle" style={{ paintOrder: "stroke" }} stroke="#ffffff" strokeWidth={3}>{a.etiqueta}</text>
+                  <g>
+                    <rect x={mx - a.etiqueta.length * 3.2 - 4} y={my - 10} width={a.etiqueta.length * 6.4 + 8} height={15} rx={3} fill="#ffffff" stroke={col} strokeWidth={0.8} opacity={0.95} />
+                    <text x={mx} y={my} fontSize={10} fontWeight={700} fill={col} textAnchor="middle">{a.etiqueta}</text>
+                  </g>
                 )}
               </g>
             );
@@ -489,8 +514,10 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
             const x = posX(idx.get(p.id)!), y = laneY(p.puestoId ?? "—");
             const dec = p.tipoBpmn === "decision";
             const ev = p.tipoBpmn === "inicio" || p.tipoBpmn === "fin";
-            const fill = dec ? "#fef3c7" : ev ? "#dbeafe" : "#dcfce7";
-            const stroke = dec ? "#d97706" : ev ? "#2563eb" : "#16a34a";
+            const esInicio = p.tipoBpmn === "inicio";
+            const esFin = p.tipoBpmn === "fin";
+            const fill = dec ? "#fef3c7" : esInicio ? "#dcfce7" : esFin ? "#fee2e2" : "#dcfce7";
+            const stroke = dec ? "#d97706" : esInicio ? "#16a34a" : esFin ? "#dc2626" : "#16a34a";
             const gapMark = p.codRiesgo && p.tipoBpmn !== "decision";
             const suelto = estaSuelto(p.id);
             return (
@@ -505,16 +532,19 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
                 ) : (
                   <rect x={x} y={y} width={NODE_W} height={NODE_H} rx={9} fill={fill} stroke={stroke} strokeWidth={1.6} />
                 )}
-                {!ev && (
-                  <text x={x + NODE_W / 2} y={y + NODE_H / 2 + 4} fontSize={11} fontWeight={600} fill="#1e293b" textAnchor="middle">
-                    {(p.titulo ?? "").length > 18 ? p.titulo.slice(0, 17) + "…" : p.titulo}
-                  </text>
-                )}
-                {ev && (
-                  <text x={x + NODE_W / 2} y={y + NODE_H + 12} fontSize={10} fontWeight={600} fill="#475569" textAnchor="middle">
-                    {(p.titulo ?? "").length > 20 ? p.titulo.slice(0, 19) + "…" : p.titulo}
-                  </text>
-                )}
+                {(() => {
+                  const t = p.titulo ?? "";
+                  const entra = !ev && t.length <= 18;
+                  if (entra) {
+                    return <text x={x + NODE_W / 2} y={y + NODE_H / 2 + 4} fontSize={11} fontWeight={600} fill="#1e293b" textAnchor="middle">{t}</text>;
+                  }
+                  const lineas = envolverTexto(t, 26, 2);
+                  return (
+                    <text x={x + NODE_W / 2} y={y + NODE_H + 12} fontSize={10} fontWeight={600} fill="#475569" textAnchor="middle">
+                      {lineas.map((ln, k) => <tspan key={k} x={x + NODE_W / 2} dy={k === 0 ? 0 : 11}>{ln}</tspan>)}
+                    </text>
+                  );
+                })()}
                 {gapMark && !ev && <text x={x + NODE_W - 12} y={y + 14} fontSize={13}>⚠</text>}
                 {suelto && (
                   <text x={x + NODE_W / 2} y={y - 10} fontSize={9} fontWeight={700} fill="#dc2626" textAnchor="middle">sin conectar</text>
