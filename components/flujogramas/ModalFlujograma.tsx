@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { NodoFlujo, AristaFlujo, SubtipoEvento } from "@/lib/api/flujogramas-tipos";
-import { formaDeNodo, puntoContacto } from "@/lib/api/flujogramas-tipos";
+import { formaDeNodo, puntoContacto, claseRama } from "@/lib/api/flujogramas-tipos";
 
 // Símbolo BPMN dentro del círculo de evento según subtipo
 function IconoEvento({ subtipo, cx, cy }: { subtipo: SubtipoEvento; cx: number; cy: number }) {
@@ -127,13 +127,15 @@ export function ModalFlujograma({ titulo, pasos, aristas, puestoNombre, onPaso, 
               const evl = Math.hypot(evx, evy) || 1;
               const ex = end.px - (evx / evl) * GAP, ey = end.py - (evy / evl) * GAP;
               const sx = start.px, sy = start.py;
-              const col = a.etiqueta === "Rechazado" || a.etiqueta === "No" || a.etiqueta === "Difiere" ? "#dc2626"
-                : a.tipo === "rama" ? "#16a34a" : "#94a3b8";
-              // curva: control points según separación vertical
+              const clase = claseRama(a.etiqueta);
+              const col = clase === "desvio" ? "#dc2626"
+                : clase === "feliz" ? "#16a34a"
+                : a.tipo === "rama" ? "#64748b" : "#94a3b8";
               const distintoCarril = Math.abs(bCy - oCy) > NODE_H;
-              const midX = (sx + ex) / 2;
-              const d = distintoCarril
-                ? `M ${sx} ${sy} C ${sx + (back ? -50 : 50)} ${sy}, ${ex} ${(sy + ey) / 2}, ${ex} ${ey}`
+              const midX = (sx + ex) / 2, midY = (sy + ey) / 2;
+              // Camino feliz recto y horizontal; desvío se curva marcadamente en vertical.
+              const d = clase === "desvio" || distintoCarril
+                ? `M ${sx} ${sy} C ${sx + (back ? -50 : 50)} ${sy}, ${ex} ${midY}, ${ex} ${ey}`
                 : `M ${sx} ${sy} C ${midX} ${sy}, ${midX} ${ey}, ${ex} ${ey}`;
               const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
               return (

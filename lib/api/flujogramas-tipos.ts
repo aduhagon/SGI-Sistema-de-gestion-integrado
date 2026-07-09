@@ -326,31 +326,41 @@ export function formaDeNodo(tipoBpmn: TipoBpmn | null): FormaNodo {
   return "rect";
 }
 
-// Devuelve el punto de contacto en el borde del nodo, en la dirección de (fromX,fromY)→centro.
+// Punto de contacto en el borde del nodo según su forma y la dirección de la línea.
+// - rombo: SIEMPRE uno de los 4 vértices (BPMN: gateways conectan por vértices).
+// - rect (tarea): SIEMPRE el centro de uno de los 4 lados.
+// - circulo (evento): la circunferencia.
 export function puntoContacto(
   forma: FormaNodo, x: number, y: number, w: number, h: number, fromX: number, fromY: number
 ): { px: number; py: number } {
   const cx = x + w / 2, cy = y + h / 2;
-  let dx = cx - fromX, dy = cy - fromY;
-  const len = Math.hypot(dx, dy) || 1;
-  dx /= len; dy /= len; // dirección unitaria desde el origen hacia el centro
-  // el contacto está en el centro menos t*dirección (retrocediendo desde el centro hacia el origen)
-  const ux = -dx, uy = -dy; // dirección centro→origen
+  const ux = fromX - cx, uy = fromY - cy; // dirección centro → origen de la línea
+  const horizontal = Math.abs(ux) >= Math.abs(uy);
 
-  if (forma === "circulo") {
-    const r = Math.min(w, h) / 2 - 1;
-    return { px: cx + ux * r, py: cy + uy * r };
-  }
   if (forma === "rombo") {
-    // rombo con vértices en (cx±w/2, cy) y (cx, cy±h/2): |X|/(w/2) + |Y|/(h/2) = 1
-    const a = w / 2, b = h / 2;
-    const t = 1 / (Math.abs(ux) / a + Math.abs(uy) / b);
-    return { px: cx + ux * t, py: cy + uy * t };
+    // 4 vértices; elegir el más alineado con la dirección predominante
+    if (horizontal) return { px: cx + (ux >= 0 ? w / 2 : -w / 2), py: cy };
+    return { px: cx, py: cy + (uy >= 0 ? h / 2 : -h / 2) };
   }
-  // rectángulo: intersección con el borde de la caja
-  const a = w / 2, b = h / 2;
-  const tx = ux !== 0 ? a / Math.abs(ux) : Infinity;
-  const ty = uy !== 0 ? b / Math.abs(uy) : Infinity;
-  const t = Math.min(tx, ty);
-  return { px: cx + ux * t, py: cy + uy * t };
+  if (forma === "rect") {
+    // centro del lado según dirección predominante
+    if (horizontal) return { px: cx + (ux >= 0 ? w / 2 : -w / 2), py: cy };
+    return { px: cx, py: cy + (uy >= 0 ? h / 2 : -h / 2) };
+  }
+  // circulo: circunferencia en la dirección exacta
+  let dx = ux, dy = uy;
+  const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+  const r = Math.min(w, h) / 2 - 1;
+  return { px: cx + dx * r, py: cy + dy * r };
+}
+
+// Clasifica una etiqueta de rama como "feliz" (positiva) o "desvio" (negativa) o null (sin datos).
+export function claseRama(etiqueta: string | null): "feliz" | "desvio" | null {
+  if (!etiqueta) return null;
+  const e = etiqueta.trim().toLowerCase();
+  const positivas = ["si", "sí", "aprobado", "aprueba", "ok", "coincide", "conforme", "correcto", "cumple", "aceptado"];
+  const negativas = ["no", "rechazado", "rechaza", "difiere", "error", "incorrecto", "no cumple", "no conforme", "rechazo"];
+  if (positivas.some((p) => e === p || e.startsWith(p))) return "feliz";
+  if (negativas.some((n) => e === n || e.startsWith(n))) return "desvio";
+  return null;
 }

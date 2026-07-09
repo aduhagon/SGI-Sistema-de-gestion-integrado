@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type {
   NodoFlujo, AristaFlujo, DataObject, PuestoRef, GapSubproceso, EstadoGap,
 } from "@/lib/api/flujogramas-tipos";
-import { agregarEstado, evaluarEstiloNodo, formaDeNodo, puntoContacto } from "@/lib/api/flujogramas-tipos";
+import { agregarEstado, evaluarEstiloNodo, formaDeNodo, puntoContacto, claseRama } from "@/lib/api/flujogramas-tipos";
 import { EditorProceso, EditorPaso, EditorSubproceso } from "@/components/flujogramas/EditorFlujo";
 import { ModalFlujograma } from "@/components/flujogramas/ModalFlujograma";
 
@@ -426,12 +426,14 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
             const evl = Math.hypot(evx, evy) || 1;
             const ex = end.px - (evx / evl) * GAP, ey = end.py - (evy / evl) * GAP;
             const sx = start.px, sy = start.py;
-            const col = a.etiqueta === "Rechazado" || a.etiqueta === "No" || a.etiqueta === "Difiere" ? "#dc2626"
-              : a.tipo === "rama" ? "#16a34a" : "#94a3b8";
+            const clase = claseRama(a.etiqueta);
+            const col = clase === "desvio" ? "#dc2626"
+              : clase === "feliz" ? "#16a34a"
+              : a.tipo === "rama" ? "#64748b" : "#94a3b8";
             const distintoCarril = Math.abs(bCy - oCy) > NODE_H;
-            const midX = (sx + ex) / 2;
-            const d = distintoCarril
-              ? `M ${sx} ${sy} C ${sx + (back ? -50 : 50)} ${sy}, ${ex} ${(sy + ey) / 2}, ${ex} ${ey}`
+            const midX = (sx + ex) / 2, midY = (sy + ey) / 2;
+            const d = clase === "desvio" || distintoCarril
+              ? `M ${sx} ${sy} C ${sx + (back ? -50 : 50)} ${sy}, ${ex} ${midY}, ${ex} ${ey}`
               : `M ${sx} ${sy} C ${midX} ${sy}, ${midX} ${ey}, ${ex} ${ey}`;
             const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
             return (
