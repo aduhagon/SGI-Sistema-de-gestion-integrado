@@ -5,9 +5,8 @@ import {
 import { obtenerContextoLayout } from "@/lib/api/contexto-layout";
 import { createClient } from "@/lib/supabase/server";
 import { FlujogramasVista } from "@/components/flujogramas/FlujogramasVista";
-import { TableroGaps } from "@/components/flujogramas/TableroGaps";
-import { TableroEstilo } from "@/components/flujogramas/TableroEstilo";
-import { TableroSecuencia } from "@/components/flujogramas/TableroSecuencia";
+import { evaluarEstiloLista, detectarSecuenciaRota } from "@/lib/api/flujogramas-tipos";
+import { PanelObservaciones } from "@/components/flujogramas/PanelObservaciones";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +40,12 @@ export default async function FlujogramasPage({ searchParams }: { searchParams: 
     procesoDeNodo.set(n.id, proc?.titulo ?? "—");
   }
 
+  // Totales para el panel de observaciones (resumen compacto)
+  const aristasLike = aristas.map((a) => ({ origenId: a.origenId, destinoId: a.destinoId }));
+  const totalGaps = gaps.filter((g) => g.estado === "rojo").length;
+  const totalEstilo = evaluarEstiloLista(nodos).length;
+  const totalSecuencia = detectarSecuenciaRota(nodos, aristasLike).reduce((n, s) => n + s.problemas.length, 0);
+
   const procesos = nodos.filter((n) => n.nivel === "proceso").length;
   const pasos = nodos.filter((n) => n.nivel === "paso").length;
   const rojos = gaps.filter((g) => g.estado === "rojo").length;
@@ -70,24 +75,17 @@ export default async function FlujogramasPage({ searchParams }: { searchParams: 
         </div>
       </header>
 
-      <div className="mb-8">
-        <TableroGaps gaps={gaps} />
-      </div>
-
-      <div className="mb-8">
-        <TableroEstilo nodos={nodos} procesoDeNodo={procesoDeNodo} />
-      </div>
-
-      <div className="mb-8">
-        <TableroSecuencia nodos={nodos} aristas={aristas.map((a) => ({ origenId: a.origenId, destinoId: a.destinoId }))} />
-      </div>
-
       <Suspense fallback={null}>
         <FlujogramasVista
           nodos={nodos} aristas={aristas} dataObjects={dataObjects} puestos={puestos} gaps={gaps}
           esAdminSgi={esAdminSgi} procesosSgi={procesosSgi} procesoInicial={procesoInicial} documentos={documentos}
         />
       </Suspense>
+
+      <PanelObservaciones
+        gaps={gaps} nodos={nodos} aristas={aristasLike} procesoDeNodo={procesoDeNodo}
+        totalGaps={totalGaps} totalEstilo={totalEstilo} totalSecuencia={totalSecuencia}
+      />
     </div>
   );
 }
