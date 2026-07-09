@@ -97,3 +97,92 @@ export function calcularGaps(nodos: NodoFlujo[]): GapSubproceso[] {
     return rank(a.estado) - rank(b.estado) || b.riesgos - a.riesgos;
   });
 }
+
+// ─────────────────────────────────────────────────────────────
+// Validador de estilo BPMN (método Bruce Silver)
+// Regla principal: las tareas se nombran con VERBO EN INFINITIVO
+// ("Registrar contrato", no "Registro de contrato").
+// Detecta y sugiere; no cambia nada automáticamente.
+// ─────────────────────────────────────────────────────────────
+
+export type AvisoEstilo = {
+  nodoId: string;
+  titulo: string;
+  regla: string;
+  sugerencia: string | null;
+};
+
+// Sustantivos deverbales frecuentes → verbo infinitivo (para sugerir corrección)
+const SUSTANTIVO_A_VERBO: Record<string, string> = {
+  control: "Controlar", registro: "Registrar", solicitud: "Solicitar",
+  análisis: "Analizar", analisis: "Analizar", cierre: "Cerrar",
+  ingreso: "Ingresar", acondicionamiento: "Acondicionar", firma: "Firmar",
+  "firma/aprobación": "Firmar/Aprobar", gestión: "Gestionar", gestion: "Gestionar",
+  alta: "Dar de alta", negociación: "Negociar", negociacion: "Negociar",
+  liquidación: "Liquidar", liquidacion: "Liquidar", cobro: "Cobrar",
+  recepción: "Recibir", recepcion: "Recibir", autorización: "Autorizar",
+  autorizacion: "Autorizar", despacho: "Despachar", entrega: "Entregar",
+  evaluación: "Evaluar", evaluacion: "Evaluar", determinación: "Determinar",
+  determinacion: "Determinar", emisión: "Emitir", emision: "Emitir",
+  elección: "Elegir", eleccion: "Elegir", confección: "Confeccionar",
+  confeccion: "Confeccionar", asignación: "Asignar", asignacion: "Asignar",
+  búsqueda: "Buscar", busqueda: "Buscar", carga: "Cargar", pago: "Pagar",
+  reclamo: "Reclamar", recopilación: "Recopilar", recopilacion: "Recopilar",
+  seguimiento: "Hacer seguimiento de", oficialización: "Oficializar",
+  conciliacion: "Conciliar", conciliación: "Conciliar", recupero: "Recuperar",
+  producción: "Producir", produccion: "Producir", almacenamiento: "Almacenar",
+  actualización: "Actualizar", actualizacion: "Actualizar", coordinación: "Coordinar",
+  coordinacion: "Coordinar", precios: "Fijar precios", fijación: "Fijar", fijacion: "Fijar",
+};
+
+// ¿La primera palabra es un verbo infinitivo? (heurística español: termina en ar/er/ir)
+function empiezaEnInfinitivo(titulo: string): boolean {
+  const p = (titulo.trim().split(/\s+/)[0] || "").toLowerCase().replace(/[.,:;]/g, "");
+  return /(ar|er|ir)$/.test(p) && p.length > 2;
+}
+
+function sugerirInfinitivo(titulo: string): string | null {
+  const primera = (titulo.trim().split(/\s+/)[0] || "").toLowerCase().replace(/[.,:;]/g, "");
+  const verbo = SUSTANTIVO_A_VERBO[primera];
+  if (!verbo) return null;
+  const resto = titulo.trim().split(/\s+/).slice(1).join(" ");
+  // quitar "de/del/de la" inicial del resto para que quede natural
+  const restoLimpio = resto.replace(/^(de\s+la|del|de|d[eo]s)\s+/i, "");
+  return restoLimpio ? `${verbo} ${restoLimpio}` : verbo;
+}
+
+// Evalúa el estilo de un nodo. Solo aplica a tareas y decisiones.
+export function evaluarEstiloNodo(nodo: NodoFlujo): AvisoEstilo | null {
+  if (nodo.nivel !== "paso") return null;
+  if (nodo.tipoBpmn === "tarea") {
+    if (!empiezaEnInfinitivo(nodo.titulo)) {
+      return {
+        nodoId: nodo.id,
+        titulo: nodo.titulo,
+        regla: "Las tareas se nombran con verbo en infinitivo.",
+        sugerencia: sugerirInfinitivo(nodo.titulo),
+      };
+    }
+  }
+  if (nodo.tipoBpmn === "decision") {
+    // Las decisiones se nombran como pregunta
+    if (!nodo.titulo.trim().includes("?")) {
+      return {
+        nodoId: nodo.id,
+        titulo: nodo.titulo,
+        regla: "Las decisiones (gateways) se nombran como pregunta.",
+        sugerencia: `¿${nodo.titulo.trim()}?`,
+      };
+    }
+  }
+  return null;
+}
+
+export function evaluarEstiloLista(nodos: NodoFlujo[]): AvisoEstilo[] {
+  const out: AvisoEstilo[] = [];
+  for (const n of nodos) {
+    const a = evaluarEstiloNodo(n);
+    if (a) out.push(a);
+  }
+  return out;
+}

@@ -9,11 +9,11 @@ import { TableroGaps } from "@/components/flujogramas/TableroGaps";
 
 export const dynamic = "force-dynamic";
 
-async function listarProcesosSgi(): Promise<{ id: string; nombre: string }[]> {
+async function listarProcesosSgi(): Promise<{ id: string; nombre: string; tipo?: string }[]> {
   const sb = createClient();
-  const { data, error } = await sb.from("procesos").select("id,nombre").order("nombre", { ascending: true });
+  const { data, error } = await sb.from("procesos").select("id,nombre,tipo").order("nombre", { ascending: true });
   if (error) return [];
-  return (data ?? []).map((r: { id: string; nombre: string }) => ({ id: r.id, nombre: r.nombre }));
+  return (data ?? []).map((r: { id: string; nombre: string; tipo: string | null }) => ({ id: r.id, nombre: r.nombre, tipo: r.tipo ?? undefined }));
 }
 
 export default async function FlujogramasPage({ searchParams }: { searchParams: { proceso?: string } }) {

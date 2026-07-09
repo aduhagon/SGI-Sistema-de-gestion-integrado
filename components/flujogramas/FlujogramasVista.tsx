@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type {
   NodoFlujo, AristaFlujo, DataObject, PuestoRef, GapSubproceso, EstadoGap,
 } from "@/lib/api/flujogramas-tipos";
-import { agregarEstado } from "@/lib/api/flujogramas-tipos";
+import { agregarEstado, evaluarEstiloNodo } from "@/lib/api/flujogramas-tipos";
 import { EditorProceso, EditorPaso } from "@/components/flujogramas/EditorFlujo";
 
 type Nivel = 0 | 1 | 2 | 3;
@@ -24,7 +24,7 @@ export function FlujogramasVista({
   puestos: PuestoRef[];
   gaps: GapSubproceso[];
   esAdminSgi?: boolean;
-  procesosSgi?: { id: string; nombre: string }[];
+  procesosSgi?: { id: string; nombre: string; tipo?: string }[];
   procesoInicial?: string | null;
 }) {
   const [sel, setSel] = useState<Sel>(() => {
@@ -69,17 +69,35 @@ export function FlujogramasVista({
   const puestoNombre = useMemo(() => new Map(puestos.map((p) => [p.id, p.nombre])), [puestos]);
 
   // Árbol de 4 niveles: agrupar procesos-flujograma bajo su proceso del SGI (procesoId)
-  const procSgiNombre = useMemo(() => new Map(procesosSgi.map((p) => [p.id, p.nombre])), [procesosSgi]);
+  const procSgiInfo = useMemo(() => new Map(procesosSgi.map((p) => [p.id, p])), [procesosSgi]);
+
+  // Nivel raíz agrupado por proceso SGI, y estos a su vez por TIPO (estratégico/operativo/apoyo)
   const gruposSgi = useMemo(() => {
-    const m = new Map<string, { nombre: string; procesos: NodoFlujo[] }>();
+    const m = new Map<string, { nombre: string; tipo: string; procesos: NodoFlujo[] }>();
     for (const p of procesos) {
       const key = p.procesoId ?? "__sin__";
-      const nombre = p.procesoId ? (procSgiNombre.get(p.procesoId) ?? "Proceso SGI") : "Sin vincular al SGI";
-      if (!m.has(key)) m.set(key, { nombre, procesos: [] });
+      const info = p.procesoId ? procSgiInfo.get(p.procesoId) : undefined;
+      const nombre = info?.nombre ?? (p.procesoId ? "Proceso SGI" : "Sin vincular al SGI");
+      const tipo = info?.tipo ?? "sin_tipo";
+      if (!m.has(key)) m.set(key, { nombre, tipo, procesos: [] });
       m.get(key)!.procesos.push(p);
     }
     return Array.from(m.entries()).map(([id, v]) => ({ id, ...v })).sort((a, b) => a.nombre.localeCompare(b.nombre));
-  }, [procesos, procSgiNombre]);
+  }, [procesos, procSgiInfo]);
+
+  const TIPO_ORDEN: Record<string, number> = { estrategico: 0, operativo: 1, apoyo: 2, sin_tipo: 3 };
+  const TIPO_LABEL: Record<string, string> = {
+    estrategico: "Procesos estratégicos", operativo: "Procesos principales",
+    apoyo: "Procesos de apoyo", sin_tipo: "Sin clasificar",
+  };
+  const seccionesPorTipo = useMemo(() => {
+    const m = new Map<string, typeof gruposSgi>();
+    for (const g of gruposSgi) {
+      if (!m.has(g.tipo)) m.set(g.tipo, []);
+      m.get(g.tipo)!.push(g);
+    }
+    return Array.from(m.entries()).sort((a, b) => (TIPO_ORDEN[a[0]] ?? 9) - (TIPO_ORDEN[b[0]] ?? 9));
+  }, [gruposSgi]);
 
   const crumbs = useMemo(() => {
     const c: { label: string; go: Sel }[] = [{ label: "Procesos", go: { nivel: 0, procId: null, subId: null, pasoId: null } }];
@@ -94,7 +112,10 @@ export function FlujogramasVista({
       {/* Árbol lateral · 4 niveles: proceso SGI › flujograma › subproceso › paso */}
       <aside className="w-64 shrink-0 border-r border-border bg-muted/30 p-3 overflow-auto max-h-[80vh]">
         <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Mapa de procesos</p>
-        {gruposSgi.map((g) => {
+        {seccionesPorTipo.map(([tipo, grupos]) => (
+          <div key={tipo} className="mb-3">
+            <p className="px-2 pb-1 pt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{TIPO_LABEL[tipo] ?? tipo}</p>
+            {grupos.map((g) => {
           const estados = g.procesos.map((p) => estadoDeProc.get(p.id) ?? "sindatos");
           const estG = agregarEstado(estados);
           const openG = abierto["sgi:" + g.id] ?? true;
@@ -139,8 +160,10 @@ export function FlujogramasVista({
                 );
               })}
             </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        ))}
       </aside>
 
       {/* Lienzo */}
@@ -401,6 +424,19 @@ function FichaPaso({ paso, dataObjects, puestoNombre, onClose }: {
         <Row k="Riesgo declarado" v={paso.codRiesgo ?? "— ninguno —"} />
         <Row k="Normativa" v={paso.normativa ?? "—"} />
         {gap && <Row k="⚠ Gap detectado" v="Declara riesgo pero no es un control. Candidato a NC (2ª etapa)." danger />}
+        {(() => {
+          const av = evaluarEstiloNodo(paso);
+          if (!av) return null;
+          return (
+            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm">
+              <span className="font-medium text-amber-800">✎ Estilo BPMN:</span>{" "}
+              <span className="text-amber-700">{av.regla}</span>
+              {av.sugerencia && (
+                <div className="mt-1 text-amber-700">Sugerencia: <span className="font-medium">“{av.sugerencia}”</span></div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
