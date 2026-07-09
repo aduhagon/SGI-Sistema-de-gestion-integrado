@@ -16,7 +16,7 @@ const COLOR: Record<EstadoGap, string> = {
 const PUNTO: Record<EstadoGap, string> = { rojo: "🔴", amarillo: "🟡", verde: "🟢", sindatos: "⚪" };
 
 export function FlujogramasVista({
-  nodos, aristas, dataObjects, puestos, gaps, esAdminSgi = false, procesosSgi = [],
+  nodos, aristas, dataObjects, puestos, gaps, esAdminSgi = false, procesosSgi = [], procesoInicial = null,
 }: {
   nodos: NodoFlujo[];
   aristas: AristaFlujo[];
@@ -25,8 +25,15 @@ export function FlujogramasVista({
   gaps: GapSubproceso[];
   esAdminSgi?: boolean;
   procesosSgi?: { id: string; nombre: string }[];
+  procesoInicial?: string | null;
 }) {
-  const [sel, setSel] = useState<Sel>({ nivel: 0, procId: null, subId: null, pasoId: null });
+  const [sel, setSel] = useState<Sel>(() => {
+    if (procesoInicial) {
+      const primero = nodos.find((n) => n.nivel === "proceso" && n.procesoId === procesoInicial);
+      if (primero) return { nivel: 1, procId: primero.id, subId: null, pasoId: null };
+    }
+    return { nivel: 0, procId: null, subId: null, pasoId: null };
+  });
   const [abierto, setAbierto] = useState<Record<string, boolean>>({});
 
   const porId = useMemo(() => new Map(nodos.map((n) => [n.id, n])), [nodos]);
@@ -61,6 +68,19 @@ export function FlujogramasVista({
 
   const puestoNombre = useMemo(() => new Map(puestos.map((p) => [p.id, p.nombre])), [puestos]);
 
+  // Árbol de 4 niveles: agrupar procesos-flujograma bajo su proceso del SGI (procesoId)
+  const procSgiNombre = useMemo(() => new Map(procesosSgi.map((p) => [p.id, p.nombre])), [procesosSgi]);
+  const gruposSgi = useMemo(() => {
+    const m = new Map<string, { nombre: string; procesos: NodoFlujo[] }>();
+    for (const p of procesos) {
+      const key = p.procesoId ?? "__sin__";
+      const nombre = p.procesoId ? (procSgiNombre.get(p.procesoId) ?? "Proceso SGI") : "Sin vincular al SGI";
+      if (!m.has(key)) m.set(key, { nombre, procesos: [] });
+      m.get(key)!.procesos.push(p);
+    }
+    return Array.from(m.entries()).map(([id, v]) => ({ id, ...v })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [procesos, procSgiNombre]);
+
   const crumbs = useMemo(() => {
     const c: { label: string; go: Sel }[] = [{ label: "Procesos", go: { nivel: 0, procId: null, subId: null, pasoId: null } }];
     if (sel.procId) c.push({ label: porId.get(sel.procId)?.titulo ?? "", go: { nivel: 1, procId: sel.procId, subId: null, pasoId: null } });
@@ -71,34 +91,51 @@ export function FlujogramasVista({
 
   return (
     <div className="flex min-h-[70vh] gap-0 rounded-xl border border-border overflow-hidden bg-card">
-      {/* Árbol lateral */}
+      {/* Árbol lateral · 4 niveles: proceso SGI › flujograma › subproceso › paso */}
       <aside className="w-64 shrink-0 border-r border-border bg-muted/30 p-3 overflow-auto max-h-[80vh]">
-        <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Estructura</p>
-        {procesos.map((p) => {
-          const subs = subsDe.get(p.id) ?? [];
-          const est = estadoDeProc.get(p.id) ?? "sindatos";
-          const open = abierto[p.id];
+        <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Mapa de procesos</p>
+        {gruposSgi.map((g) => {
+          const estados = g.procesos.map((p) => estadoDeProc.get(p.id) ?? "sindatos");
+          const estG = agregarEstado(estados);
+          const openG = abierto["sgi:" + g.id] ?? true;
           return (
-            <div key={p.id}>
+            <div key={g.id} className="mb-1">
               <button
-                onClick={() => { setAbierto((o) => ({ ...o, [p.id]: !o[p.id] })); setSel({ nivel: 1, procId: p.id, subId: null, pasoId: null }); }}
-                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium hover:bg-muted ${sel.procId === p.id && !sel.subId ? "bg-muted" : ""}`}
+                onClick={() => setAbierto((o) => ({ ...o, ["sgi:" + g.id]: !(o["sgi:" + g.id] ?? true) }))}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-semibold hover:bg-muted"
               >
-                <span className="w-3 text-muted-foreground">{subs.length ? (open ? "▾" : "▸") : "·"}</span>
-                <span className="text-[11px]">{PUNTO[est]}</span>
-                <span className="flex-1 truncate">{p.titulo}</span>
+                <span className="w-3 text-muted-foreground">{openG ? "▾" : "▸"}</span>
+                <span className="text-[11px]">{PUNTO[estG]}</span>
+                <span className="flex-1 truncate">{g.nombre}</span>
               </button>
-              {open && subs.map((s) => {
-                const est2 = gapDeSub.get(s.id)?.estado ?? "sindatos";
+              {openG && g.procesos.map((p) => {
+                const subs = subsDe.get(p.id) ?? [];
+                const est = estadoDeProc.get(p.id) ?? "sindatos";
+                const open = abierto[p.id];
                 return (
-                  <button
-                    key={s.id}
-                    onClick={() => setSel({ nivel: 2, procId: p.id, subId: s.id, pasoId: null })}
-                    className={`flex w-full items-center gap-2 rounded-md py-1.5 pl-8 pr-2 text-left text-[13px] hover:bg-muted ${sel.subId === s.id ? "bg-muted text-foreground" : "text-muted-foreground"}`}
-                  >
-                    <span className="text-[10px]">{PUNTO[est2]}</span>
-                    <span className="flex-1 truncate">{s.titulo}</span>
-                  </button>
+                  <div key={p.id} className="ml-2">
+                    <button
+                      onClick={() => { setAbierto((o) => ({ ...o, [p.id]: !o[p.id] })); setSel({ nivel: 1, procId: p.id, subId: null, pasoId: null }); }}
+                      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted ${sel.procId === p.id && !sel.subId ? "bg-muted" : ""}`}
+                    >
+                      <span className="w-3 text-muted-foreground">{subs.length ? (open ? "▾" : "▸") : "·"}</span>
+                      <span className="text-[11px]">{PUNTO[est]}</span>
+                      <span className="flex-1 truncate">{p.titulo}</span>
+                    </button>
+                    {open && subs.map((s) => {
+                      const est2 = gapDeSub.get(s.id)?.estado ?? "sindatos";
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => setSel({ nivel: 2, procId: p.id, subId: s.id, pasoId: null })}
+                          className={`flex w-full items-center gap-2 rounded-md py-1.5 pl-9 pr-2 text-left text-[13px] hover:bg-muted ${sel.subId === s.id ? "bg-muted text-foreground" : "text-muted-foreground"}`}
+                        >
+                          <span className="text-[10px]">{PUNTO[est2]}</span>
+                          <span className="flex-1 truncate">{s.titulo}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 );
               })}
             </div>

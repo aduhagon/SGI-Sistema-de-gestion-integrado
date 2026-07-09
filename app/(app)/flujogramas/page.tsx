@@ -16,7 +16,8 @@ async function listarProcesosSgi(): Promise<{ id: string; nombre: string }[]> {
   return (data ?? []).map((r: { id: string; nombre: string }) => ({ id: r.id, nombre: r.nombre }));
 }
 
-export default async function FlujogramasPage() {
+export default async function FlujogramasPage({ searchParams }: { searchParams: { proceso?: string } }) {
+  const procesoInicial = searchParams?.proceso ?? null;
   const [nodos, aristas, dataObjects, puestos, { esAdminSgi }, procesosSgi] = await Promise.all([
     listarNodos(),
     listarAristas(),
@@ -63,7 +64,7 @@ export default async function FlujogramasPage() {
       <Suspense fallback={null}>
         <FlujogramasVista
           nodos={nodos} aristas={aristas} dataObjects={dataObjects} puestos={puestos} gaps={gaps}
-          esAdminSgi={esAdminSgi} procesosSgi={procesosSgi}
+          esAdminSgi={esAdminSgi} procesosSgi={procesosSgi} procesoInicial={procesoInicial}
         />
       </Suspense>
     </div>

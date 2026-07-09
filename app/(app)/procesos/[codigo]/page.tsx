@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, FileText, Plus } from "lucide-react";
+import { ChevronLeft, FileText, Plus, Workflow } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { listarDocumentosPorProceso } from "@/lib/api/documentos";
 import { listarNCsPorProceso } from "@/lib/api/ncs";
@@ -66,6 +66,16 @@ export default async function ProcesoDetallePage({ params }: Props) {
     listarIndicadores(proceso.id),
   ]);
 
+  // ¿Este proceso del SGI tiene un flujograma vinculado?
+  const { data: nodoFlujo } = await supabase
+    .from("flujo_nodo")
+    .select("id")
+    .eq("nivel", "proceso")
+    .eq("proceso_id", proceso.id)
+    .limit(1)
+    .maybeSingle();
+  const tieneFlujograma = Boolean(nodoFlujo);
+
   const Icon = getProcessIcon(proceso.icono);
   const color = proceso.color_hex ?? "#475569";
   const tipoLabel = TIPO_LABEL[proceso.tipo] ?? proceso.tipo;
@@ -97,6 +107,15 @@ export default async function ProcesoDetallePage({ params }: Props) {
             </Badge>
             <Badge variant="muted">{tipoLabel}</Badge>
           </div>
+          {tieneFlujograma && (
+            <Link
+              href={`/flujogramas?proceso=${proceso.id}`}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mb-2 gap-1.5")}
+            >
+              <Workflow className="h-4 w-4" aria-hidden="true" />
+              Ver flujograma
+            </Link>
+          )}
           <h1 className="font-serif text-4xl font-semibold tracking-tight mb-3 leading-tight">
             {proceso.nombre}
           </h1>
