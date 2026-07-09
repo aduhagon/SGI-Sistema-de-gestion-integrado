@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { NodoFlujo, AristaFlujo, SubtipoEvento } from "@/lib/api/flujogramas-tipos";
+import { formaDeNodo, puntoContacto } from "@/lib/api/flujogramas-tipos";
 
 // Símbolo BPMN dentro del círculo de evento según subtipo
 function IconoEvento({ subtipo, cx, cy }: { subtipo: SubtipoEvento; cx: number; cy: number }) {
@@ -111,36 +112,28 @@ export function ModalFlujograma({ titulo, pasos, aristas, puestoNombre, onPaso, 
               if (j === undefined) return null;
               const b = pasos[j];
               const iP = idx.get(p.id)!;
-              const back = j <= iP;                       // el destino está antes → loop hacia atrás
-              const oLane = laneY(p.puestoId ?? "—");
-              const dLane = laneY(b.puestoId ?? "—");
-              const mismaCol = j === iP;
-              // Centros de cada nodo
-              const oCx = posX(iP) + NODE_W / 2, oCy = oLane + NODE_H / 2;
-              const dCx = posX(j) + NODE_W / 2, dCy = dLane + NODE_H / 2;
-              const GAP = 3; // separación de la punta respecto al borde del nodo
-              // Punto de SALIDA: por el borde derecho (flujo normal) o izquierdo (loop)
-              const sx = back ? posX(iP) - GAP : posX(iP) + NODE_W + GAP;
-              const sy = oCy;
-              // Punto de LLEGADA: si cambia de carril, entra por arriba/abajo; si no, por el costado.
-              let ex: number, ey: number;
-              if (Math.abs(dCy - oCy) > NODE_H) {
-                // distinto carril: entrar por el borde superior o inferior del destino
-                ex = dCx;
-                ey = dCy > oCy ? dLane - GAP : dLane + NODE_H + GAP;
-              } else {
-                // mismo carril (o adyacente): entrar por el costado izquierdo (o derecho si loop)
-                ex = back ? posX(j) + NODE_W + GAP : posX(j) - GAP;
-                ey = dCy;
-              }
+              const back = j <= iP;
+              // bounding boxes
+              const ox = posX(iP), oy = laneY(p.puestoId ?? "—");
+              const bx = posX(j), by = laneY(b.puestoId ?? "—");
+              const oCx = ox + NODE_W / 2, oCy = oy + NODE_H / 2;
+              const bCx = bx + NODE_W / 2, bCy = by + NODE_H / 2;
+              // punto de contacto en el borde real de cada figura
+              const start = puntoContacto(formaDeNodo(p.tipoBpmn), ox, oy, NODE_W, NODE_H, bCx, bCy);
+              const end = puntoContacto(formaDeNodo(b.tipoBpmn), bx, by, NODE_W, NODE_H, oCx, oCy);
+              const GAP = 4;
+              // separar la punta un poco del borde (en dirección al centro del destino)
+              const evx = bCx - end.px, evy = bCy - end.py;
+              const evl = Math.hypot(evx, evy) || 1;
+              const ex = end.px - (evx / evl) * GAP, ey = end.py - (evy / evl) * GAP;
+              const sx = start.px, sy = start.py;
               const col = a.etiqueta === "Rechazado" || a.etiqueta === "No" || a.etiqueta === "Difiere" ? "#dc2626"
                 : a.tipo === "rama" ? "#16a34a" : "#94a3b8";
-              // Curva bezier con puntos de control que respetan la dirección de salida/entrada
+              // curva: control points según separación vertical
+              const distintoCarril = Math.abs(bCy - oCy) > NODE_H;
               const midX = (sx + ex) / 2;
-              const c1x = back ? sx - 40 : sx + 40, c1y = sy;
-              const c2x = ex, c2y = ey + (ey < dCy ? -30 : ey > dCy ? 30 : 0);
-              const d = Math.abs(dCy - oCy) > NODE_H
-                ? `M ${sx} ${sy} C ${c1x} ${sy}, ${ex} ${(sy + ey) / 2}, ${ex} ${ey}`
+              const d = distintoCarril
+                ? `M ${sx} ${sy} C ${sx + (back ? -50 : 50)} ${sy}, ${ex} ${(sy + ey) / 2}, ${ex} ${ey}`
                 : `M ${sx} ${sy} C ${midX} ${sy}, ${midX} ${ey}, ${ex} ${ey}`;
               const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
               return (

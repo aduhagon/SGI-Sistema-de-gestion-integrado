@@ -311,3 +311,46 @@ export const PROBLEMA_LABEL: Record<ProblemaConexion["tipo"], string> = {
   sin_entrada: "Sin entrada",
   duplicada: "Duplicada",
 };
+
+// ─────────────────────────────────────────────────────────────
+// Geometría de conexión: punto donde una línea toca el BORDE REAL
+// de un nodo según su forma (rombo / círculo / rectángulo).
+// x,y = esquina sup-izq del bounding box; w,h = tamaño; fromX,fromY = de dónde viene la línea.
+// ─────────────────────────────────────────────────────────────
+
+export type FormaNodo = "rombo" | "circulo" | "rect";
+
+export function formaDeNodo(tipoBpmn: TipoBpmn | null): FormaNodo {
+  if (tipoBpmn === "decision") return "rombo";
+  if (tipoBpmn === "inicio" || tipoBpmn === "fin") return "circulo";
+  return "rect";
+}
+
+// Devuelve el punto de contacto en el borde del nodo, en la dirección de (fromX,fromY)→centro.
+export function puntoContacto(
+  forma: FormaNodo, x: number, y: number, w: number, h: number, fromX: number, fromY: number
+): { px: number; py: number } {
+  const cx = x + w / 2, cy = y + h / 2;
+  let dx = cx - fromX, dy = cy - fromY;
+  const len = Math.hypot(dx, dy) || 1;
+  dx /= len; dy /= len; // dirección unitaria desde el origen hacia el centro
+  // el contacto está en el centro menos t*dirección (retrocediendo desde el centro hacia el origen)
+  const ux = -dx, uy = -dy; // dirección centro→origen
+
+  if (forma === "circulo") {
+    const r = Math.min(w, h) / 2 - 1;
+    return { px: cx + ux * r, py: cy + uy * r };
+  }
+  if (forma === "rombo") {
+    // rombo con vértices en (cx±w/2, cy) y (cx, cy±h/2): |X|/(w/2) + |Y|/(h/2) = 1
+    const a = w / 2, b = h / 2;
+    const t = 1 / (Math.abs(ux) / a + Math.abs(uy) / b);
+    return { px: cx + ux * t, py: cy + uy * t };
+  }
+  // rectángulo: intersección con el borde de la caja
+  const a = w / 2, b = h / 2;
+  const tx = ux !== 0 ? a / Math.abs(ux) : Infinity;
+  const ty = uy !== 0 ? b / Math.abs(uy) : Infinity;
+  const t = Math.min(tx, ty);
+  return { px: cx + ux * t, py: cy + uy * t };
+}

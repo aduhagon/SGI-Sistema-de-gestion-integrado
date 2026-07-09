@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type {
   NodoFlujo, AristaFlujo, DataObject, PuestoRef, GapSubproceso, EstadoGap,
 } from "@/lib/api/flujogramas-tipos";
-import { agregarEstado, evaluarEstiloNodo } from "@/lib/api/flujogramas-tipos";
+import { agregarEstado, evaluarEstiloNodo, formaDeNodo, puntoContacto } from "@/lib/api/flujogramas-tipos";
 import { EditorProceso, EditorPaso, EditorSubproceso } from "@/components/flujogramas/EditorFlujo";
 import { ModalFlujograma } from "@/components/flujogramas/ModalFlujograma";
 
@@ -415,23 +415,23 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
             const b = pasos[j];
             const iP = idx.get(p.id)!;
             const back = j <= iP;
-            const oLane = laneY(p.puestoId ?? "—"), dLane = laneY(b.puestoId ?? "—");
-            const oCy = oLane + NODE_H / 2, dCx = posX(j) + NODE_W / 2, dCy = dLane + NODE_H / 2;
-            const GAP = 3;
-            const sx = back ? posX(iP) - GAP : posX(iP) + NODE_W + GAP;
-            const sy = oCy;
-            let ex: number, ey: number;
-            if (Math.abs(dCy - oCy) > NODE_H) {
-              ex = dCx; ey = dCy > oCy ? dLane - GAP : dLane + NODE_H + GAP;
-            } else {
-              ex = back ? posX(j) + NODE_W + GAP : posX(j) - GAP; ey = dCy;
-            }
+            const ox = posX(iP), oy = laneY(p.puestoId ?? "—");
+            const bx = posX(j), by = laneY(b.puestoId ?? "—");
+            const oCx = ox + NODE_W / 2, oCy = oy + NODE_H / 2;
+            const bCx = bx + NODE_W / 2, bCy = by + NODE_H / 2;
+            const start = puntoContacto(formaDeNodo(p.tipoBpmn), ox, oy, NODE_W, NODE_H, bCx, bCy);
+            const end = puntoContacto(formaDeNodo(b.tipoBpmn), bx, by, NODE_W, NODE_H, oCx, oCy);
+            const GAP = 4;
+            const evx = bCx - end.px, evy = bCy - end.py;
+            const evl = Math.hypot(evx, evy) || 1;
+            const ex = end.px - (evx / evl) * GAP, ey = end.py - (evy / evl) * GAP;
+            const sx = start.px, sy = start.py;
             const col = a.etiqueta === "Rechazado" || a.etiqueta === "No" || a.etiqueta === "Difiere" ? "#dc2626"
               : a.tipo === "rama" ? "#16a34a" : "#94a3b8";
+            const distintoCarril = Math.abs(bCy - oCy) > NODE_H;
             const midX = (sx + ex) / 2;
-            const c1x = back ? sx - 40 : sx + 40;
-            const d = Math.abs(dCy - oCy) > NODE_H
-              ? `M ${sx} ${sy} C ${c1x} ${sy}, ${ex} ${(sy + ey) / 2}, ${ex} ${ey}`
+            const d = distintoCarril
+              ? `M ${sx} ${sy} C ${sx + (back ? -50 : 50)} ${sy}, ${ex} ${(sy + ey) / 2}, ${ex} ${ey}`
               : `M ${sx} ${sy} C ${midX} ${sy}, ${midX} ${ey}, ${ex} ${ey}`;
             const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
             return (
@@ -454,13 +454,22 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
               <g key={p.id} className="cursor-pointer" onClick={() => onPaso(p.id)}>
                 {dec ? (
                   <polygon points={`${x + NODE_W / 2},${y} ${x + NODE_W},${y + NODE_H / 2} ${x + NODE_W / 2},${y + NODE_H} ${x},${y + NODE_H / 2}`} fill={fill} stroke={stroke} strokeWidth={1.6} />
+                ) : ev ? (
+                  <circle cx={x + NODE_W / 2} cy={y + NODE_H / 2} r={NODE_H / 2 - 2} fill={fill} stroke={stroke} strokeWidth={p.tipoBpmn === "fin" ? 3 : 1.6} />
                 ) : (
-                  <rect x={x} y={y} width={NODE_W} height={NODE_H} rx={ev ? 26 : 9} fill={fill} stroke={stroke} strokeWidth={1.6} />
+                  <rect x={x} y={y} width={NODE_W} height={NODE_H} rx={9} fill={fill} stroke={stroke} strokeWidth={1.6} />
                 )}
-                <text x={x + NODE_W / 2} y={y + NODE_H / 2 + 4} fontSize={11} fontWeight={600} fill="#1e293b" textAnchor="middle">
-                  {(p.titulo ?? "").length > 18 ? p.titulo.slice(0, 17) + "…" : p.titulo}
-                </text>
-                {gapMark && <text x={x + NODE_W - 12} y={y + 14} fontSize={13}>⚠</text>}
+                {!ev && (
+                  <text x={x + NODE_W / 2} y={y + NODE_H / 2 + 4} fontSize={11} fontWeight={600} fill="#1e293b" textAnchor="middle">
+                    {(p.titulo ?? "").length > 18 ? p.titulo.slice(0, 17) + "…" : p.titulo}
+                  </text>
+                )}
+                {ev && (
+                  <text x={x + NODE_W / 2} y={y + NODE_H + 12} fontSize={10} fontWeight={600} fill="#475569" textAnchor="middle">
+                    {(p.titulo ?? "").length > 20 ? p.titulo.slice(0, 19) + "…" : p.titulo}
+                  </text>
+                )}
+                {gapMark && !ev && <text x={x + NODE_W - 12} y={y + 14} fontSize={13}>⚠</text>}
               </g>
             );
           })}
