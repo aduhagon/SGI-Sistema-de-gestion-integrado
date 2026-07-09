@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import type { NodoFlujo, AristaFlujo, SubtipoEvento } from "@/lib/api/flujogramas-tipos";
-import { formaDeNodo, puntoContacto, claseRama } from "@/lib/api/flujogramas-tipos";
+import { formaDeNodo, contactoConLado, pathOrtogonal, claseRama } from "@/lib/api/flujogramas-tipos";
 
 // Símbolo BPMN dentro del círculo de evento según subtipo
 function IconoEvento({ subtipo, cx, cy }: { subtipo: SubtipoEvento; cx: number; cy: number }) {
@@ -118,25 +118,15 @@ export function ModalFlujograma({ titulo, pasos, aristas, puestoNombre, onPaso, 
               const bx = posX(j), by = laneY(b.puestoId ?? "—");
               const oCx = ox + NODE_W / 2, oCy = oy + NODE_H / 2;
               const bCx = bx + NODE_W / 2, bCy = by + NODE_H / 2;
-              // punto de contacto en el borde real de cada figura
-              const start = puntoContacto(formaDeNodo(p.tipoBpmn), ox, oy, NODE_W, NODE_H, bCx, bCy);
-              const end = puntoContacto(formaDeNodo(b.tipoBpmn), bx, by, NODE_W, NODE_H, oCx, oCy);
-              const GAP = 4;
-              // separar la punta un poco del borde (en dirección al centro del destino)
-              const evx = bCx - end.px, evy = bCy - end.py;
-              const evl = Math.hypot(evx, evy) || 1;
-              const ex = end.px - (evx / evl) * GAP, ey = end.py - (evy / evl) * GAP;
-              const sx = start.px, sy = start.py;
+              // contacto con lado (perpendicular) en cada figura → ruteo ortogonal
+              const start = contactoConLado(formaDeNodo(p.tipoBpmn), ox, oy, NODE_W, NODE_H, bCx, bCy);
+              const end = contactoConLado(formaDeNodo(b.tipoBpmn), bx, by, NODE_W, NODE_H, oCx, oCy);
+              const sx = start.px, sy = start.py, ex = end.px, ey = end.py;
               const clase = claseRama(a.etiqueta);
               const col = clase === "desvio" ? "#dc2626"
                 : clase === "feliz" ? "#16a34a"
                 : a.tipo === "rama" ? "#64748b" : "#94a3b8";
-              const distintoCarril = Math.abs(bCy - oCy) > NODE_H;
-              const midX = (sx + ex) / 2, midY = (sy + ey) / 2;
-              // Camino feliz recto y horizontal; desvío se curva marcadamente en vertical.
-              const d = clase === "desvio" || distintoCarril
-                ? `M ${sx} ${sy} C ${sx + (back ? -50 : 50)} ${sy}, ${ex} ${midY}, ${ex} ${ey}`
-                : `M ${sx} ${sy} C ${midX} ${sy}, ${midX} ${ey}, ${ex} ${ey}`;
+              const d = pathOrtogonal(sx, sy, start.lado, ex, ey, end.lado);
               const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
               return (
                 <g key={a.id}>

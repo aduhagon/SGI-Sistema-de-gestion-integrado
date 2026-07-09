@@ -364,3 +364,75 @@ export function claseRama(etiqueta: string | null): "feliz" | "desvio" | null {
   if (negativas.some((n) => e === n || e.startsWith(n))) return "desvio";
   return null;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Ruteo ORTOGONAL (Manhattan): solo tramos horizontales y verticales,
+// codos en ángulo recto, entrada perpendicular al nodo. Sin diagonales.
+// ─────────────────────────────────────────────────────────────
+
+export type LadoContacto = "izq" | "der" | "arriba" | "abajo";
+
+// Igual que puntoContacto pero además informa por qué lado sale/entra la línea,
+// para poder rutear perpendicular a ese lado.
+export function contactoConLado(
+  forma: FormaNodo, x: number, y: number, w: number, h: number, haciaX: number, haciaY: number
+): { px: number; py: number; lado: LadoContacto } {
+  const cx = x + w / 2, cy = y + h / 2;
+  const ux = haciaX - cx, uy = haciaY - cy;
+  const horizontal = Math.abs(ux) >= Math.abs(uy);
+  if (horizontal) {
+    return ux >= 0
+      ? { px: x + w, py: cy, lado: "der" }
+      : { px: x, py: cy, lado: "izq" };
+  }
+  return uy >= 0
+    ? { px: cx, py: y + h, lado: "abajo" }
+    : { px: cx, py: y, lado: "arriba" };
+}
+
+// Construye un path SVG ortogonal entre salida (con su lado) y llegada (con su lado).
+// stub = cuánto se aleja perpendicular del nodo antes de doblar.
+export function pathOrtogonal(
+  sx: number, sy: number, sLado: LadoContacto,
+  ex: number, ey: number, eLado: LadoContacto,
+  stub = 22
+): string {
+  // primer punto: alejarse perpendicular del nodo origen
+  const p1 = avanzar(sx, sy, sLado, stub);
+  // último punto antes de entrar: alejarse perpendicular del nodo destino
+  const p2 = avanzar(ex, ey, eLado, stub);
+
+  const pts: [number, number][] = [[sx, sy], [p1.x, p1.y]];
+
+  // conectar p1 → p2 con codos ortogonales
+  const saleHorizontal = sLado === "izq" || sLado === "der";
+  const entraHorizontal = eLado === "izq" || eLado === "der";
+
+  if (saleHorizontal && entraHorizontal) {
+    // ambos horizontales: subir/bajar en el medio (forma Z)
+    const midX = (p1.x + p2.x) / 2;
+    pts.push([midX, p1.y], [midX, p2.y]);
+  } else if (!saleHorizontal && !entraHorizontal) {
+    // ambos verticales: desplazar en el medio
+    const midY = (p1.y + p2.y) / 2;
+    pts.push([p1.x, midY], [p2.x, midY]);
+  } else if (saleHorizontal && !entraHorizontal) {
+    // sale horizontal, entra vertical: codo en (p2.x, p1.y)
+    pts.push([p2.x, p1.y]);
+  } else {
+    // sale vertical, entra horizontal: codo en (p1.x, p2.y)
+    pts.push([p1.x, p2.y]);
+  }
+
+  pts.push([p2.x, p2.y], [ex, ey]);
+  return "M " + pts.map(([px, py]) => `${Math.round(px)} ${Math.round(py)}`).join(" L ");
+}
+
+function avanzar(x: number, y: number, lado: LadoContacto, d: number): { x: number; y: number } {
+  switch (lado) {
+    case "izq": return { x: x - d, y };
+    case "der": return { x: x + d, y };
+    case "arriba": return { x, y: y - d };
+    case "abajo": return { x, y: y + d };
+  }
+}
