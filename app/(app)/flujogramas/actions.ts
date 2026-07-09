@@ -236,3 +236,67 @@ export async function eliminarDataObject(id: string): Promise<ResultadoAccion> {
   revalidatePath("/flujogramas");
   return { ok: true };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// paquete-066 · Aristas entrantes + insertar entre dos
+// ═══════════════════════════════════════════════════════════════
+
+// (10) Cambiar el ORIGEN de una arista (simétrico a cambiarDestinoArista)
+export async function cambiarOrigenArista(aristaId: string, nuevoOrigenId: string): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  const sb = createClient();
+  const { data: ar, error: e1 } = await sb.from("flujo_arista").select("destino_id").eq("id", aristaId).single();
+  if (e1) return { ok: false, error: e1.message };
+  if (ar && (ar as { destino_id: string }).destino_id === nuevoOrigenId) {
+    return { ok: false, error: "Un paso no puede conectarse consigo mismo." };
+  }
+  const { error } = await sb.from("flujo_arista").update({ origen_id: nuevoOrigenId }).eq("id", aristaId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
+// (11) Crear una arista entrante hacia este paso (desde un origen elegido)
+export async function crearAristaEntrante(destinoId: string, origenId: string, etiqueta?: string): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  if (origenId === destinoId) return { ok: false, error: "Un paso no puede conectarse consigo mismo." };
+  const sb = createClient();
+  const { error } = await sb.from("flujo_arista").insert({
+    origen_id: origenId,
+    destino_id: destinoId,
+    tipo: etiqueta ? "rama" : "secuencia",
+    etiqueta: etiqueta?.trim() || null,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
+// (12) Insertar un paso EXISTENTE entre dos pasos consecutivos A→B.
+// Corta la arista A→B (o todas las A→B si hay varias), y crea A→nuevo y nuevo→B.
+export async function insertarPasoEntre(
+  pasoId: string, origenId: string, destinoId: string
+): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  if (pasoId === origenId || pasoId === destinoId) {
+    return { ok: false, error: "El paso a insertar no puede ser el origen ni el destino." };
+  }
+  const sb = createClient();
+
+  // 1) borrar la(s) arista(s) directa(s) origen→destino
+  const { error: eDel } = await sb.from("flujo_arista")
+    .delete().eq("origen_id", origenId).eq("destino_id", destinoId);
+  if (eDel) return { ok: false, error: eDel.message };
+
+  // 2) crear origen→paso y paso→destino
+  const { error: eIns } = await sb.from("flujo_arista").insert([
+    { origen_id: origenId, destino_id: pasoId, tipo: "secuencia" },
+    { origen_id: pasoId, destino_id: destinoId, tipo: "secuencia" },
+  ]);
+  if (eIns) return { ok: false, error: eIns.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}

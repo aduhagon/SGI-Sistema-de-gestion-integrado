@@ -223,8 +223,15 @@ export function FlujogramasVista({
                   puestos={puestos}
                   pasosHermanos={(pasosDe.get(porId.get(sel.pasoId)!.padreId ?? "") ?? [])}
                   aristasSalientes={aristas.filter((a) => a.origenId === sel.pasoId)}
+                  aristasEntrantes={aristas.filter((a) => a.destinoId === sel.pasoId)}
                   dataObjects={dataObjects.filter((d) => d.nodoId === sel.pasoId)}
                   documentos={documentos}
+                  procesoIdSgi={(() => {
+                    const p = porId.get(sel.pasoId!);
+                    const sub = p?.padreId ? porId.get(p.padreId) : undefined;
+                    const procFlujo = sub?.padreId ? porId.get(sub.padreId) : undefined;
+                    return procFlujo?.procesoId ?? null;
+                  })()}
                 />
               )}
             </>

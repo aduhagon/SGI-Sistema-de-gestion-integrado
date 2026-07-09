@@ -75,19 +75,29 @@ export async function listarPuestos(): Promise<PuestoRef[]> {
   return map(data, (r) => ({ id: r.id as string, codigo: r.codigo as string, nombre: r.nombre as string }));
 }
 
-// Documentos del maestro para vincular data objects (código + título)
-export type DocumentoRef = { id: string; codigo: string; titulo: string };
+// Documentos del maestro para vincular data objects.
+// Incluye el/los proceso(s) SGI a los que pertenece cada documento, para que el
+// front ordene "los del proceso primero, el resto del maestro debajo".
+export type DocumentoRef = { id: string; codigo: string; titulo: string; procesoIds: string[] };
 
 export async function listarDocumentosRef(): Promise<DocumentoRef[]> {
   const sb = createClient();
-  const { data, error } = await sb
-    .from("documentos")
-    .select("id,codigo,titulo")
-    .order("codigo", { ascending: true });
+  const [{ data: docs, error }, { data: secundarios }] = await Promise.all([
+    sb.from("documentos").select("id,codigo,titulo,proceso_principal_id").order("codigo", { ascending: true }),
+    sb.from("documento_proceso_secundario").select("documento_id,proceso_id").eq("activo", true),
+  ]);
   if (error) return [];
-  return (data ?? []).map((r: { id: string; codigo: string | null; titulo: string | null }) => ({
-    id: r.id,
-    codigo: r.codigo ?? "",
-    titulo: r.titulo ?? "",
-  }));
+  // agrupar procesos secundarios por documento
+  const secPorDoc = new Map<string, string[]>();
+  for (const s of (secundarios ?? []) as { documento_id: string; proceso_id: string }[]) {
+    const arr = secPorDoc.get(s.documento_id) ?? [];
+    arr.push(s.proceso_id);
+    secPorDoc.set(s.documento_id, arr);
+  }
+  return (docs ?? []).map((r: { id: string; codigo: string | null; titulo: string | null; proceso_principal_id: string | null }) => {
+    const ids: string[] = [];
+    if (r.proceso_principal_id) ids.push(r.proceso_principal_id);
+    ids.push(...(secPorDoc.get(r.id) ?? []));
+    return { id: r.id, codigo: r.codigo ?? "", titulo: r.titulo ?? "", procesoIds: ids };
+  });
 }

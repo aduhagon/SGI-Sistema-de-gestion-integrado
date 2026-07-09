@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from "react";
 import type { NodoFlujo, AristaFlujo, PuestoRef, TipoBpmn, Marcador, DataObject } from "@/lib/api/flujogramas-tipos";
-type DocumentoRef = { id: string; codigo: string; titulo: string };
+type DocumentoRef = { id: string; codigo: string; titulo: string; procesoIds?: string[] };
 import {
   reasignarProceso, reasignarPuesto, editarPaso, cambiarDestinoArista,
   crearArista, eliminarArista, type EdicionPaso,
   crearPaso, borrarPasoCosiendo, crearDataObject, editarDataObject, eliminarDataObject,
+  cambiarOrigenArista, crearAristaEntrante, insertarPasoEntre,
 } from "@/app/(app)/flujogramas/actions";
 
 type ProcesoOpc = { id: string; nombre: string };
@@ -32,6 +33,44 @@ function Aviso({ msg }: { msg: { tipo: "ok" | "err"; texto: string } | null }) {
       {msg.texto}
     </div>
   );
+}
+
+// Selector de documento con optgroups: los del proceso primero, el resto del maestro debajo.
+function SelectorDoc({
+  value, onChange, delProceso, otros,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  delProceso: DocumentoRef[];
+  otros: DocumentoRef[];
+}) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="min-w-[170px] rounded-md border border-border bg-background px-2 py-1 text-xs">
+      <option value="">— sin vincular —</option>
+      {delProceso.length > 0 && (
+        <optgroup label="Del proceso">
+          {delProceso.map((d) => <option key={d.id} value={d.id}>{d.codigo} · {d.titulo.slice(0, 24)}</option>)}
+        </optgroup>
+      )}
+      {otros.length > 0 && (
+        <optgroup label={delProceso.length > 0 ? "Otros documentos" : "Documentos"}>
+          {otros.map((d) => <option key={d.id} value={d.id}>{d.codigo} · {d.titulo.slice(0, 24)}</option>)}
+        </optgroup>
+      )}
+    </select>
+  );
+}
+
+// Ordena documentos: los del proceso del paso primero, el resto del maestro debajo.
+function ordenarDocs(documentos: DocumentoRef[], procesoIdSgi: string | null): { delProceso: DocumentoRef[]; otros: DocumentoRef[] } {
+  if (!procesoIdSgi) return { delProceso: [], otros: documentos };
+  const delProceso: DocumentoRef[] = [];
+  const otros: DocumentoRef[] = [];
+  for (const d of documentos) {
+    if ((d.procesoIds ?? []).includes(procesoIdSgi)) delProceso.push(d);
+    else otros.push(d);
+  }
+  return { delProceso, otros };
 }
 
 // ── Editor de nodo-proceso: reasignar proceso del SGI ──
@@ -61,14 +100,16 @@ export function EditorProceso({ nodo, procesos }: { nodo: NodoFlujo; procesos: P
 
 // ── Editor de paso: carril (puesto), campos y secuencia ──
 export function EditorPaso({
-  paso, puestos, pasosHermanos, aristasSalientes, dataObjects = [], documentos = [],
+  paso, puestos, pasosHermanos, aristasSalientes, aristasEntrantes = [], dataObjects = [], documentos = [], procesoIdSgi = null,
 }: {
   paso: NodoFlujo;
   puestos: PuestoRef[];
   pasosHermanos: NodoFlujo[];
   aristasSalientes: AristaFlujo[];
+  aristasEntrantes?: AristaFlujo[];
   dataObjects?: DataObject[];
   documentos?: DocumentoRef[];
+  procesoIdSgi?: string | null;
 }) {
   const { pending, msg, correr } = useAccion();
 
@@ -154,13 +195,28 @@ export function EditorPaso({
         <NuevaArista pasoId={paso.id} otros={otros} correr={correr} pending={pending} />
       </div>
 
+      {/* Secuencia entrante: quién apunta a este paso */}
+      <div>
+        <p className="mb-1 text-xs text-muted-foreground">Entra desde (qué pasos apuntan a este)</p>
+        {aristasEntrantes.length === 0 && <p className="text-sm text-muted-foreground">Ningún paso apunta a este todavía.</p>}
+        {aristasEntrantes.map((a) => (
+          <EditorAristaEntrante key={a.id} arista={a} otros={otros} correr={correr} pending={pending} />
+        ))}
+        <NuevaAristaEntrante pasoId={paso.id} otros={otros} correr={correr} pending={pending} />
+      </div>
+
+      {/* Insertar este paso entre dos consecutivos */}
+      <div className="border-t border-border pt-3">
+        <InsertarEntre pasoId={paso.id} otros={otros} correr={correr} pending={pending} />
+      </div>
+
       {/* Data Objects (documentos entrada/salida) */}
       <div className="border-t border-border pt-3">
         <p className="mb-1 text-xs text-muted-foreground">Documentos (entrada / salida)</p>
         {dataObjects.map((d) => (
-          <EditorDataObject key={d.id} data={d} documentos={documentos} correr={correr} pending={pending} />
+          <EditorDataObject key={d.id} data={d} documentos={documentos} procesoIdSgi={procesoIdSgi} correr={correr} pending={pending} />
         ))}
-        <NuevoDataObject nodoId={paso.id} documentos={documentos} correr={correr} pending={pending} />
+        <NuevoDataObject nodoId={paso.id} documentos={documentos} procesoIdSgi={procesoIdSgi} correr={correr} pending={pending} />
       </div>
 
       {/* Borrar paso cosiendo el hueco */}
@@ -173,27 +229,105 @@ export function EditorPaso({
   );
 }
 
+// ── Editar el origen de una arista entrante ──
+function EditorAristaEntrante({
+  arista, otros, correr, pending,
+}: {
+  arista: AristaFlujo;
+  otros: NodoFlujo[];
+  correr: (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) => void;
+  pending: boolean;
+}) {
+  const [origen, setOrigen] = useState(arista.origenId);
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+      <select value={origen} onChange={(e) => setOrigen(e.target.value)} className="min-w-[200px] rounded-md border border-border bg-background px-2 py-1 text-sm">
+        {otros.map((o) => <option key={o.id} value={o.id}>{o.codigo ? `${o.codigo} · ` : ""}{o.titulo.slice(0, 30)}</option>)}
+        {!otros.some((o) => o.id === arista.origenId) && <option value={arista.origenId}>(origen actual)</option>}
+      </select>
+      <span className="text-sm text-muted-foreground">→ este paso</span>
+      {arista.etiqueta && <span className="rounded bg-muted px-1.5 py-0.5 text-xs">{arista.etiqueta}</span>}
+      <button disabled={pending || origen === arista.origenId} onClick={() => correr(() => cambiarOrigenArista(arista.id, origen), "Origen corregido.")} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50">Cambiar</button>
+      <button disabled={pending} onClick={() => correr(() => eliminarArista(arista.id), "Conexión eliminada.")} className="rounded-md border border-border px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50">Quitar</button>
+    </div>
+  );
+}
+
+// ── Alta de arista entrante ──
+function NuevaAristaEntrante({
+  pasoId, otros, correr, pending,
+}: {
+  pasoId: string;
+  otros: NodoFlujo[];
+  correr: (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) => void;
+  pending: boolean;
+}) {
+  const [origen, setOrigen] = useState("");
+  const [etiqueta, setEtiqueta] = useState("");
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border pt-2">
+      <span className="text-xs text-muted-foreground">+ entra desde</span>
+      <select value={origen} onChange={(e) => setOrigen(e.target.value)} className="min-w-[200px] rounded-md border border-border bg-background px-2 py-1 text-sm">
+        <option value="">— elegir paso —</option>
+        {otros.map((o) => <option key={o.id} value={o.id}>{o.codigo ? `${o.codigo} · ` : ""}{o.titulo.slice(0, 30)}</option>)}
+      </select>
+      <input value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} placeholder="etiqueta (opcional)" className="w-32 rounded-md border border-border bg-background px-2 py-1 text-xs" />
+      <button disabled={pending || !origen} onClick={() => correr(() => crearAristaEntrante(pasoId, origen, etiqueta || undefined), "Conexión creada.")} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50">Agregar</button>
+    </div>
+  );
+}
+
+// ── Insertar este paso entre dos consecutivos (A → este → B) ──
+function InsertarEntre({
+  pasoId, otros, correr, pending,
+}: {
+  pasoId: string;
+  otros: NodoFlujo[];
+  correr: (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) => void;
+  pending: boolean;
+}) {
+  const [a, setA] = useState("");
+  const [b, setB] = useState("");
+  return (
+    <div>
+      <p className="mb-1 text-xs text-muted-foreground">Insertar este paso entre dos consecutivos</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={a} onChange={(e) => setA(e.target.value)} className="min-w-[170px] rounded-md border border-border bg-background px-2 py-1 text-sm">
+          <option value="">— desde (A) —</option>
+          {otros.map((o) => <option key={o.id} value={o.id}>{o.codigo ? `${o.codigo} · ` : ""}{o.titulo.slice(0, 26)}</option>)}
+        </select>
+        <span className="text-sm text-muted-foreground">→ [este] →</span>
+        <select value={b} onChange={(e) => setB(e.target.value)} className="min-w-[170px] rounded-md border border-border bg-background px-2 py-1 text-sm">
+          <option value="">— hacia (B) —</option>
+          {otros.map((o) => <option key={o.id} value={o.id}>{o.codigo ? `${o.codigo} · ` : ""}{o.titulo.slice(0, 26)}</option>)}
+        </select>
+        <button disabled={pending || !a || !b || a === b} onClick={() => correr(() => insertarPasoEntre(pasoId, a, b), "Paso insertado entre A y B.")} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50">Insertar</button>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">Corta la conexión A→B y la reemplaza por A→este→B.</p>
+    </div>
+  );
+}
+
 // ── Editor de un data object existente ──
 function EditorDataObject({
-  data, documentos, correr, pending,
+  data, documentos, procesoIdSgi, correr, pending,
 }: {
   data: DataObject;
   documentos: DocumentoRef[];
+  procesoIdSgi: string | null;
   correr: (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) => void;
   pending: boolean;
 }) {
   const [etiqueta, setEtiqueta] = useState(data.etiqueta);
   const [docId, setDocId] = useState(data.documentoId ?? "");
+  const { delProceso, otros } = ordenarDocs(documentos, procesoIdSgi);
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-2">
       <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${data.direccion === "entrada" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>
         {data.direccion}
       </span>
       <input value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} className="min-w-[160px] rounded-md border border-border bg-background px-2 py-1 text-sm" />
-      <select value={docId} onChange={(e) => setDocId(e.target.value)} className="min-w-[160px] rounded-md border border-border bg-background px-2 py-1 text-xs">
-        <option value="">— sin vincular —</option>
-        {documentos.map((d) => <option key={d.id} value={d.id}>{d.codigo} · {d.titulo.slice(0, 24)}</option>)}
-      </select>
+      <SelectorDoc value={docId} onChange={setDocId} delProceso={delProceso} otros={otros} />
       <button disabled={pending || (etiqueta === data.etiqueta && docId === (data.documentoId ?? ""))} onClick={() => correr(() => editarDataObject(data.id, { etiqueta, documentoId: docId }), "Documento actualizado.")} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50">Guardar</button>
       <button disabled={pending} onClick={() => correr(() => eliminarDataObject(data.id), "Documento eliminado.")} className="rounded-md border border-border px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50">Quitar</button>
     </div>
@@ -202,16 +336,18 @@ function EditorDataObject({
 
 // ── Alta de data object ──
 function NuevoDataObject({
-  nodoId, documentos, correr, pending,
+  nodoId, documentos, procesoIdSgi, correr, pending,
 }: {
   nodoId: string;
   documentos: DocumentoRef[];
+  procesoIdSgi: string | null;
   correr: (fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) => void;
   pending: boolean;
 }) {
   const [dir, setDir] = useState<"entrada" | "salida">("entrada");
   const [etiqueta, setEtiqueta] = useState("");
   const [docId, setDocId] = useState("");
+  const { delProceso, otros } = ordenarDocs(documentos, procesoIdSgi);
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-border pt-2">
       <span className="text-xs text-muted-foreground">+ documento</span>
@@ -220,10 +356,7 @@ function NuevoDataObject({
         <option value="salida">salida</option>
       </select>
       <input value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} placeholder="etiqueta (texto libre)" className="min-w-[150px] rounded-md border border-border bg-background px-2 py-1 text-sm" />
-      <select value={docId} onChange={(e) => setDocId(e.target.value)} className="min-w-[150px] rounded-md border border-border bg-background px-2 py-1 text-xs">
-        <option value="">— sin vincular —</option>
-        {documentos.map((d) => <option key={d.id} value={d.id}>{d.codigo} · {d.titulo.slice(0, 24)}</option>)}
-      </select>
+      <SelectorDoc value={docId} onChange={setDocId} delProceso={delProceso} otros={otros} />
       <button disabled={pending || !etiqueta.trim()} onClick={() => { correr(() => crearDataObject(nodoId, dir, etiqueta, docId || undefined), "Documento agregado."); setEtiqueta(""); setDocId(""); }} className="rounded-md border border-border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50">Agregar</button>
     </div>
   );
