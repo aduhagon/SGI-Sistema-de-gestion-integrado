@@ -17,6 +17,7 @@ import {
   Gauge,
   Scale,
   LineChart,
+  Workflow,
   Table2,
   Users,
   Settings,
@@ -57,6 +58,7 @@ const navItems: NavItem[] = [
 
   // Análisis — lectura / reporte
   { href: "/indicadores",   label: "Indicadores",        icon: Gauge,      section: "analisis", modulo: "indicadores" },
+  { href: "/flujogramas",   label: "Flujogramas",        icon: Workflow,   section: "analisis", modulo: "flujogramas" },
   { href: "/tablero",       label: "Tablero de control", icon: LineChart,  section: "analisis" },
   { href: "/reportes/raci", label: "Matriz RACI",        icon: Table2,     section: "analisis", soloAdminSgi: true },
   { href: "/reportes/personas", label: "Perfil por persona", icon: Users,  section: "analisis", soloAdminSgi: true },
