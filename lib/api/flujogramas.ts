@@ -74,3 +74,20 @@ export async function listarPuestos(): Promise<PuestoRef[]> {
   if (error) throw error;
   return map(data, (r) => ({ id: r.id as string, codigo: r.codigo as string, nombre: r.nombre as string }));
 }
+
+// Documentos del maestro para vincular data objects (código + título)
+export type DocumentoRef = { id: string; codigo: string; titulo: string };
+
+export async function listarDocumentosRef(): Promise<DocumentoRef[]> {
+  const sb = createClient();
+  const { data, error } = await sb
+    .from("documentos")
+    .select("id,codigo,titulo")
+    .order("codigo", { ascending: true });
+  if (error) return [];
+  return (data ?? []).map((r: { id: string; codigo: string | null; titulo: string | null }) => ({
+    id: r.id,
+    codigo: r.codigo ?? "",
+    titulo: r.titulo ?? "",
+  }));
+}

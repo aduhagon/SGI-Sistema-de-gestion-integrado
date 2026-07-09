@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import {
-  listarNodos, listarAristas, listarDataObjects, listarPuestos, calcularGaps,
+  listarNodos, listarAristas, listarDataObjects, listarPuestos, calcularGaps, listarDocumentosRef,
 } from "@/lib/api/flujogramas";
 import { obtenerContextoLayout } from "@/lib/api/contexto-layout";
 import { createClient } from "@/lib/supabase/server";
@@ -18,13 +18,14 @@ async function listarProcesosSgi(): Promise<{ id: string; nombre: string; tipo?:
 
 export default async function FlujogramasPage({ searchParams }: { searchParams: { proceso?: string } }) {
   const procesoInicial = searchParams?.proceso ?? null;
-  const [nodos, aristas, dataObjects, puestos, { esAdminSgi }, procesosSgi] = await Promise.all([
+  const [nodos, aristas, dataObjects, puestos, { esAdminSgi }, procesosSgi, documentos] = await Promise.all([
     listarNodos(),
     listarAristas(),
     listarDataObjects(),
     listarPuestos(),
     obtenerContextoLayout(),
     listarProcesosSgi(),
+    listarDocumentosRef(),
   ]);
   const gaps = calcularGaps(nodos);
 
@@ -64,7 +65,7 @@ export default async function FlujogramasPage({ searchParams }: { searchParams: 
       <Suspense fallback={null}>
         <FlujogramasVista
           nodos={nodos} aristas={aristas} dataObjects={dataObjects} puestos={puestos} gaps={gaps}
-          esAdminSgi={esAdminSgi} procesosSgi={procesosSgi} procesoInicial={procesoInicial}
+          esAdminSgi={esAdminSgi} procesosSgi={procesosSgi} procesoInicial={procesoInicial} documentos={documentos}
         />
       </Suspense>
     </div>

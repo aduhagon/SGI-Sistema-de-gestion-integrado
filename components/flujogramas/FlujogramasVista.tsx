@@ -5,7 +5,7 @@ import type {
   NodoFlujo, AristaFlujo, DataObject, PuestoRef, GapSubproceso, EstadoGap,
 } from "@/lib/api/flujogramas-tipos";
 import { agregarEstado, evaluarEstiloNodo } from "@/lib/api/flujogramas-tipos";
-import { EditorProceso, EditorPaso } from "@/components/flujogramas/EditorFlujo";
+import { EditorProceso, EditorPaso, EditorSubproceso } from "@/components/flujogramas/EditorFlujo";
 
 type Nivel = 0 | 1 | 2 | 3;
 type Sel = { nivel: Nivel; procId: string | null; subId: string | null; pasoId: string | null };
@@ -16,7 +16,7 @@ const COLOR: Record<EstadoGap, string> = {
 const PUNTO: Record<EstadoGap, string> = { rojo: "🔴", amarillo: "🟡", verde: "🟢", sindatos: "⚪" };
 
 export function FlujogramasVista({
-  nodos, aristas, dataObjects, puestos, gaps, esAdminSgi = false, procesosSgi = [], procesoInicial = null,
+  nodos, aristas, dataObjects, puestos, gaps, esAdminSgi = false, procesosSgi = [], procesoInicial = null, documentos = [],
 }: {
   nodos: NodoFlujo[];
   aristas: AristaFlujo[];
@@ -26,6 +26,7 @@ export function FlujogramasVista({
   esAdminSgi?: boolean;
   procesosSgi?: { id: string; nombre: string; tipo?: string }[];
   procesoInicial?: string | null;
+  documentos?: { id: string; codigo: string; titulo: string }[];
 }) {
   const [sel, setSel] = useState<Sel>(() => {
     if (procesoInicial) {
@@ -200,11 +201,14 @@ export function FlujogramasVista({
             </>
           )}
           {sel.nivel === 2 && sel.subId && (
-            <NivelSwimlane
-              sub={porId.get(sel.subId)!} pasos={pasosDe.get(sel.subId) ?? []} aristas={aristas}
-              puestoNombre={puestoNombre}
-              onPaso={(id) => setSel({ ...sel, nivel: 3, pasoId: id })}
-            />
+            <>
+              <NivelSwimlane
+                sub={porId.get(sel.subId)!} pasos={pasosDe.get(sel.subId) ?? []} aristas={aristas}
+                puestoNombre={puestoNombre}
+                onPaso={(id) => setSel({ ...sel, nivel: 3, pasoId: id })}
+              />
+              {esAdminSgi && <EditorSubproceso subprocesoId={sel.subId} puestos={puestos} />}
+            </>
           )}
           {sel.nivel === 3 && sel.pasoId && (
             <>
@@ -219,6 +223,8 @@ export function FlujogramasVista({
                   puestos={puestos}
                   pasosHermanos={(pasosDe.get(porId.get(sel.pasoId)!.padreId ?? "") ?? [])}
                   aristasSalientes={aristas.filter((a) => a.origenId === sel.pasoId)}
+                  dataObjects={dataObjects.filter((d) => d.nodoId === sel.pasoId)}
+                  documentos={documentos}
                 />
               )}
             </>

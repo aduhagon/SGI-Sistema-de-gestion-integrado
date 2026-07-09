@@ -112,3 +112,127 @@ export async function eliminarArista(aristaId: string): Promise<ResultadoAccion>
   revalidatePath("/flujogramas");
   return { ok: true };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// paquete-065 · Alta/baja de pasos + CRUD de data objects
+// ═══════════════════════════════════════════════════════════════
+
+// (5) Crear un paso nuevo, suelto (sin conexiones). Se conecta luego a mano.
+export async function crearPaso(
+  subprocesoId: string,
+  datos: { titulo: string; tipoBpmn?: "inicio" | "tarea" | "decision" | "fin"; puestoId?: string | null }
+): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  const sb = createClient();
+
+  // orden = max(orden hermanos) + 1
+  const { data: hermanos } = await sb
+    .from("flujo_nodo")
+    .select("orden")
+    .eq("padre_id", subprocesoId)
+    .eq("nivel", "paso")
+    .order("orden", { ascending: false })
+    .limit(1);
+  const nuevoOrden = hermanos && hermanos.length > 0 ? ((hermanos[0] as { orden: number }).orden ?? 0) + 1 : 1;
+
+  const { error } = await sb.from("flujo_nodo").insert({
+    nivel: "paso",
+    padre_id: subprocesoId,
+    titulo: datos.titulo.trim() || "(nuevo paso)",
+    tipo_bpmn: datos.tipoBpmn ?? "tarea",
+    puesto_id: datos.puestoId || null,
+    orden: nuevoOrden,
+    activo: true,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
+// (6) Borrar un paso "cosiendo" el hueco: conecta cada origen entrante con cada destino saliente.
+export async function borrarPasoCosiendo(nodoId: string): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  const sb = createClient();
+
+  // aristas entrantes y salientes del paso a borrar
+  const [{ data: entrantes }, { data: salientes }] = await Promise.all([
+    sb.from("flujo_arista").select("id,origen_id,tipo,etiqueta").eq("destino_id", nodoId),
+    sb.from("flujo_arista").select("id,destino_id").eq("origen_id", nodoId),
+  ]);
+
+  // coser: por cada (origen → nodo) y (nodo → destino), crear (origen → destino)
+  const nuevas: { origen_id: string; destino_id: string; tipo: string; etiqueta: string | null }[] = [];
+  for (const e of (entrantes ?? []) as { origen_id: string; tipo: string; etiqueta: string | null }[]) {
+    for (const s of (salientes ?? []) as { destino_id: string }[]) {
+      if (e.origen_id !== s.destino_id) {
+        nuevas.push({ origen_id: e.origen_id, destino_id: s.destino_id, tipo: e.tipo, etiqueta: e.etiqueta });
+      }
+    }
+  }
+  if (nuevas.length > 0) {
+    const { error: eIns } = await sb.from("flujo_arista").insert(nuevas);
+    if (eIns) return { ok: false, error: "No se pudo coser el flujo: " + eIns.message };
+  }
+
+  // borrar el nodo (CASCADE limpia sus aristas y data objects)
+  const { error } = await sb.from("flujo_nodo").delete().eq("id", nodoId).eq("nivel", "paso");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
+// (7) Data objects: crear
+export async function crearDataObject(
+  nodoId: string,
+  direccion: "entrada" | "salida",
+  etiqueta: string,
+  documentoId?: string | null
+): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  if (!etiqueta.trim()) return { ok: false, error: "La etiqueta no puede estar vacía." };
+  const sb = createClient();
+  const { error } = await sb.from("flujo_data_object").insert({
+    nodo_id: nodoId,
+    direccion,
+    etiqueta: etiqueta.trim(),
+    documento_id: documentoId || null,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
+// (8) Data objects: editar (etiqueta y/o vínculo documental)
+export async function editarDataObject(
+  id: string,
+  cambios: { etiqueta?: string; documentoId?: string | null }
+): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  const patch: Record<string, unknown> = {};
+  if (cambios.etiqueta !== undefined) {
+    if (!cambios.etiqueta.trim()) return { ok: false, error: "La etiqueta no puede estar vacía." };
+    patch.etiqueta = cambios.etiqueta.trim();
+  }
+  if (cambios.documentoId !== undefined) patch.documento_id = cambios.documentoId || null;
+  if (Object.keys(patch).length === 0) return { ok: true };
+  const sb = createClient();
+  const { error } = await sb.from("flujo_data_object").update(patch).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
+// (9) Data objects: eliminar
+export async function eliminarDataObject(id: string): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  const sb = createClient();
+  const { error } = await sb.from("flujo_data_object").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
