@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { NodoFlujo, AristaFlujo, PuestoRef, TipoBpmn, Marcador, DataObject } from "@/lib/api/flujogramas-tipos";
+import type { NodoFlujo, AristaFlujo, PuestoRef, TipoBpmn, Marcador, DataObject, SubtipoEvento } from "@/lib/api/flujogramas-tipos";
+import { SUBTIPO_EVENTO_LABEL } from "@/lib/api/flujogramas-tipos";
 type DocumentoRef = { id: string; codigo: string; titulo: string; procesoIds?: string[] };
 import {
   reasignarProceso, reasignarPuesto, editarPaso, cambiarDestinoArista,
   crearArista, eliminarArista, type EdicionPaso,
   crearPaso, borrarPasoCosiendo, crearDataObject, editarDataObject, eliminarDataObject,
   cambiarOrigenArista, crearAristaEntrante, insertarPasoEntre,
+  editarSubtipoEvento, insertarGatewayEnSalidas,
 } from "@/app/(app)/flujogramas/actions";
 
 type ProcesoOpc = { id: string; nombre: string };
@@ -118,6 +120,7 @@ export function EditorPaso({
   const [tipo, setTipo] = useState<TipoBpmn>(paso.tipoBpmn ?? "tarea");
   const [marcador, setMarcador] = useState<Marcador>(paso.marcador);
   const [riesgo, setRiesgo] = useState(paso.codRiesgo ?? "");
+  const [subtipo, setSubtipo] = useState<SubtipoEvento>(paso.subtipoEvento);
 
   const otros = pasosHermanos.filter((p) => p.id !== paso.id);
 
@@ -184,6 +187,29 @@ export function EditorPaso({
       >
         {pending ? "Guardando…" : "Guardar cambios del paso"}
       </button>
+
+      {/* Clasificación BPMN del evento (solo inicio/fin) */}
+      {(tipo === "inicio" || tipo === "fin") && (
+        <div className="border-t border-border pt-3">
+          <label className="text-xs text-muted-foreground">Tipo de evento BPMN</label>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <select value={subtipo} onChange={(e) => setSubtipo(e.target.value as SubtipoEvento)} className="rounded-md border border-border bg-background px-3 py-1.5 text-sm">
+              {(Object.keys(SUBTIPO_EVENTO_LABEL) as SubtipoEvento[]).map((s) => (
+                <option key={s} value={s}>{SUBTIPO_EVENTO_LABEL[s]}</option>
+              ))}
+            </select>
+            <button disabled={pending || subtipo === paso.subtipoEvento} onClick={() => correr(() => editarSubtipoEvento(paso.id, subtipo), "Evento clasificado.")} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50">Guardar tipo de evento</button>
+          </div>
+        </div>
+      )}
+
+      {/* Gateway automático: si una TAREA tiene 2+ salidas, ofrecer insertar gateway */}
+      {tipo === "tarea" && aristasSalientes.length >= 2 && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2">
+          <p className="text-sm text-amber-800">Esta tarea tiene {aristasSalientes.length} salidas sin un gateway. En BPMN, la divergencia debería pasar por un gateway (rombo).</p>
+          <button disabled={pending} onClick={() => correr(() => insertarGatewayEnSalidas(paso.id), "Gateway insertado: las salidas ahora pasan por el rombo.")} className="mt-2 rounded-md bg-amber-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50">Insertar gateway automáticamente</button>
+        </div>
+      )}
 
       {/* Secuencia: destino de cada arista saliente */}
       <div>

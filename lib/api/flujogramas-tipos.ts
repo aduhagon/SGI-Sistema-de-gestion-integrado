@@ -4,6 +4,7 @@
 export type NivelFlujo = "proceso" | "subproceso" | "paso";
 export type TipoBpmn = "inicio" | "tarea" | "decision" | "fin" | "subproceso_ref";
 export type Marcador = "user" | "service" | "manual" | "sin_marcador";
+export type SubtipoEvento = "ninguno" | "mensaje" | "temporizador" | "senial" | "condicional" | "error" | "terminacion";
 export type EstadoGap = "rojo" | "amarillo" | "verde" | "sindatos";
 
 export type NodoFlujo = {
@@ -20,6 +21,7 @@ export type NodoFlujo = {
   orden: number;
   normativa: string | null;
   codRiesgo: string | null;
+  subtipoEvento: SubtipoEvento;
 };
 
 export type AristaFlujo = {
@@ -186,3 +188,35 @@ export function evaluarEstiloLista(nodos: NodoFlujo[]): AvisoEstilo[] {
   }
   return out;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Detección BPMN: tareas con divergencia/convergencia sin gateway
+// En BPMN, si una tarea tiene 2+ salidas (o 2+ entradas) debería
+// haber un gateway explícito. Una 'decision' YA es un gateway → ok.
+// ─────────────────────────────────────────────────────────────
+
+export type AristaLike = { origenId: string; destinoId: string };
+
+// Devuelve los ids de tareas que tienen 2+ salidas sin ser gateway (decision).
+export function tareasConDivergenciaSinGateway(nodos: NodoFlujo[], aristas: AristaLike[]): string[] {
+  const salidasPorNodo = new Map<string, number>();
+  for (const a of aristas) salidasPorNodo.set(a.origenId, (salidasPorNodo.get(a.origenId) ?? 0) + 1);
+  const out: string[] = [];
+  for (const n of nodos) {
+    if (n.nivel !== "paso") continue;
+    if (n.tipoBpmn === "decision") continue; // ya es gateway
+    if ((salidasPorNodo.get(n.id) ?? 0) >= 2) out.push(n.id);
+  }
+  return out;
+}
+
+// Etiquetas legibles de subtipo de evento (para UI)
+export const SUBTIPO_EVENTO_LABEL: Record<SubtipoEvento, string> = {
+  ninguno: "Simple",
+  mensaje: "Mensaje",
+  temporizador: "Temporizador",
+  senial: "Señal",
+  condicional: "Condicional",
+  error: "Error",
+  terminacion: "Terminación",
+};

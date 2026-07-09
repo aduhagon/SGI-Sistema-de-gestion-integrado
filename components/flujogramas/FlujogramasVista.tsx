@@ -6,6 +6,7 @@ import type {
 } from "@/lib/api/flujogramas-tipos";
 import { agregarEstado, evaluarEstiloNodo } from "@/lib/api/flujogramas-tipos";
 import { EditorProceso, EditorPaso, EditorSubproceso } from "@/components/flujogramas/EditorFlujo";
+import { ModalFlujograma } from "@/components/flujogramas/ModalFlujograma";
 
 type Nivel = 0 | 1 | 2 | 3;
 type Sel = { nivel: Nivel; procId: string | null; subId: string | null; pasoId: string | null };
@@ -36,6 +37,7 @@ export function FlujogramasVista({
     return { nivel: 0, procId: null, subId: null, pasoId: null };
   });
   const [abierto, setAbierto] = useState<Record<string, boolean>>({});
+  const [modalSubId, setModalSubId] = useState<string | null>(null);
 
   const porId = useMemo(() => new Map(nodos.map((n) => [n.id, n])), [nodos]);
   const procesos = useMemo(() => nodos.filter((n) => n.nivel === "proceso").sort((a, b) => a.orden - b.orden), [nodos]);
@@ -206,6 +208,7 @@ export function FlujogramasVista({
                 sub={porId.get(sel.subId)!} pasos={pasosDe.get(sel.subId) ?? []} aristas={aristas}
                 puestoNombre={puestoNombre}
                 onPaso={(id) => setSel({ ...sel, nivel: 3, pasoId: id })}
+                onExpandir={() => setModalSubId(sel.subId)}
               />
               {esAdminSgi && <EditorSubproceso subprocesoId={sel.subId} puestos={puestos} />}
             </>
@@ -238,6 +241,16 @@ export function FlujogramasVista({
           )}
         </div>
       </div>
+      {modalSubId && (
+        <ModalFlujograma
+          titulo={porId.get(modalSubId)?.titulo ?? "Flujograma"}
+          pasos={pasosDe.get(modalSubId) ?? []}
+          aristas={aristas}
+          puestoNombre={puestoNombre}
+          onPaso={(id) => { setSel({ nivel: 3, procId: sel.procId, subId: modalSubId, pasoId: id }); setModalSubId(null); }}
+          onClose={() => setModalSubId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -316,9 +329,9 @@ function NivelSubprocesos({ proc, subs, gapDeSub, onPick }: {
 }
 
 // ── Nivel 2: swimlane BPMN ──
-function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso }: {
+function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }: {
   sub: NodoFlujo; pasos: NodoFlujo[]; aristas: AristaFlujo[];
-  puestoNombre: Map<string, string>; onPaso: (id: string) => void;
+  puestoNombre: Map<string, string>; onPaso: (id: string) => void; onExpandir?: () => void;
 }) {
   if (pasos.length === 0) {
     return (
@@ -339,7 +352,14 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso }: {
 
   return (
     <div>
-      <h2 className="mb-1 font-serif text-2xl font-semibold">{sub.titulo}</h2>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h2 className="font-serif text-2xl font-semibold">{sub.titulo}</h2>
+        {onExpandir && (
+          <button onClick={onExpandir} className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted">
+            ⛶ Pantalla completa
+          </button>
+        )}
+      </div>
       <p className="mb-3 text-sm text-muted-foreground">Swimlane BPMN · carril = puesto responsable. Clic en un paso para su ficha.</p>
       <div className="overflow-auto rounded-lg border border-border">
         <svg width={W} height={H} className="block">

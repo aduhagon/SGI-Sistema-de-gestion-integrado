@@ -300,3 +300,72 @@ export async function insertarPasoEntre(
   revalidatePath("/flujogramas");
   return { ok: true };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// paquete-067 · Subtipo de evento + gateway automático
+// ═══════════════════════════════════════════════════════════════
+
+// (13) Clasificar un evento (inicio/fin) según nomenclatura BPMN
+export async function editarSubtipoEvento(
+  nodoId: string,
+  subtipo: "ninguno" | "mensaje" | "temporizador" | "senial" | "condicional" | "error" | "terminacion"
+): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  const sb = createClient();
+  const { error } = await sb.from("flujo_nodo").update({ subtipo_evento: subtipo }).eq("id", nodoId).eq("nivel", "paso");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
+// (14) Insertar un gateway (decision) entre una tarea y sus múltiples destinos.
+// Toma las salidas actuales de la tarea, crea un nodo 'decision', reconecta:
+//   tarea → gateway, y gateway → cada destino (preservando etiquetas).
+export async function insertarGatewayEnSalidas(tareaId: string): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  const sb = createClient();
+
+  // datos de la tarea (para heredar padre y puesto)
+  const { data: tarea, error: eT } = await sb.from("flujo_nodo")
+    .select("padre_id,puesto_id,orden,titulo").eq("id", tareaId).single();
+  if (eT || !tarea) return { ok: false, error: eT?.message ?? "Tarea no encontrada." };
+  const t = tarea as { padre_id: string; puesto_id: string | null; orden: number; titulo: string };
+
+  // salidas actuales de la tarea
+  const { data: salidas, error: eS } = await sb.from("flujo_arista")
+    .select("id,destino_id,etiqueta,tipo").eq("origen_id", tareaId);
+  if (eS) return { ok: false, error: eS.message };
+  if (!salidas || salidas.length < 2) {
+    return { ok: false, error: "La tarea no tiene múltiples salidas; no hace falta gateway." };
+  }
+
+  // 1) crear el gateway (decision)
+  const { data: gw, error: eG } = await sb.from("flujo_nodo").insert({
+    nivel: "paso",
+    padre_id: t.padre_id,
+    titulo: "¿?",
+    tipo_bpmn: "decision",
+    marcador: "sin_marcador",
+    puesto_id: t.puesto_id,
+    orden: t.orden,
+    activo: true,
+  }).select("id").single();
+  if (eG || !gw) return { ok: false, error: eG?.message ?? "No se pudo crear el gateway." };
+  const gwId = (gw as { id: string }).id;
+
+  // 2) reconectar: borrar salidas de la tarea, crear tarea→gateway y gateway→cada destino
+  const sal = salidas as { id: string; destino_id: string; etiqueta: string | null; tipo: string }[];
+  const { error: eDel } = await sb.from("flujo_arista").delete().eq("origen_id", tareaId);
+  if (eDel) return { ok: false, error: eDel.message };
+
+  const nuevas = [
+    { origen_id: tareaId, destino_id: gwId, tipo: "secuencia", etiqueta: null as string | null },
+    ...sal.map((s) => ({ origen_id: gwId, destino_id: s.destino_id, tipo: "rama", etiqueta: s.etiqueta })),
+  ];
+  const { error: eIns } = await sb.from("flujo_arista").insert(nuevas);
+  if (eIns) return { ok: false, error: eIns.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}

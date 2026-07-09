@@ -13,7 +13,7 @@ export async function listarNodos(): Promise<NodoFlujo[]> {
   const sb = createClient();
   const { data, error } = await sb
     .from("flujo_nodo")
-    .select("id,nivel,padre_id,codigo,titulo,descripcion,tipo_bpmn,marcador,puesto_id,proceso_id,orden,normativa,cod_riesgo")
+    .select("id,nivel,padre_id,codigo,titulo,descripcion,tipo_bpmn,marcador,puesto_id,proceso_id,orden,normativa,cod_riesgo,subtipo_evento")
     .eq("activo", true)
     .order("orden", { ascending: true });
   if (error) throw error;
@@ -31,6 +31,7 @@ export async function listarNodos(): Promise<NodoFlujo[]> {
     orden: (r.orden as number) ?? 0,
     normativa: (r.normativa as string) ?? null,
     codRiesgo: (r.cod_riesgo as string) ?? null,
+    subtipoEvento: (r.subtipo_evento as import("@/lib/api/flujogramas-tipos").SubtipoEvento) ?? "ninguno",
   }));
 }
 
