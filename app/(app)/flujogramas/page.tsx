@@ -2,17 +2,28 @@ import { Suspense } from "react";
 import {
   listarNodos, listarAristas, listarDataObjects, listarPuestos, calcularGaps,
 } from "@/lib/api/flujogramas";
+import { obtenerContextoLayout } from "@/lib/api/contexto-layout";
+import { createClient } from "@/lib/supabase/server";
 import { FlujogramasVista } from "@/components/flujogramas/FlujogramasVista";
 import { TableroGaps } from "@/components/flujogramas/TableroGaps";
 
 export const dynamic = "force-dynamic";
 
+async function listarProcesosSgi(): Promise<{ id: string; nombre: string }[]> {
+  const sb = createClient();
+  const { data, error } = await sb.from("procesos").select("id,nombre").order("nombre", { ascending: true });
+  if (error) return [];
+  return (data ?? []).map((r: { id: string; nombre: string }) => ({ id: r.id, nombre: r.nombre }));
+}
+
 export default async function FlujogramasPage() {
-  const [nodos, aristas, dataObjects, puestos] = await Promise.all([
+  const [nodos, aristas, dataObjects, puestos, { esAdminSgi }, procesosSgi] = await Promise.all([
     listarNodos(),
     listarAristas(),
     listarDataObjects(),
     listarPuestos(),
+    obtenerContextoLayout(),
+    listarProcesosSgi(),
   ]);
   const gaps = calcularGaps(nodos);
 
@@ -37,6 +48,11 @@ export default async function FlujogramasPage() {
               {rojos} subproceso{rojos !== 1 ? "s" : ""} con riesgo sin control
             </span>
           )}
+          {esAdminSgi && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 font-medium text-blue-700">
+              Modo edición activo
+            </span>
+          )}
         </div>
       </header>
 
@@ -45,7 +61,10 @@ export default async function FlujogramasPage() {
       </div>
 
       <Suspense fallback={null}>
-        <FlujogramasVista nodos={nodos} aristas={aristas} dataObjects={dataObjects} puestos={puestos} gaps={gaps} />
+        <FlujogramasVista
+          nodos={nodos} aristas={aristas} dataObjects={dataObjects} puestos={puestos} gaps={gaps}
+          esAdminSgi={esAdminSgi} procesosSgi={procesosSgi}
+        />
       </Suspense>
     </div>
   );

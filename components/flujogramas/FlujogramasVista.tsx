@@ -5,6 +5,7 @@ import type {
   NodoFlujo, AristaFlujo, DataObject, PuestoRef, GapSubproceso, EstadoGap,
 } from "@/lib/api/flujogramas-tipos";
 import { agregarEstado } from "@/lib/api/flujogramas-tipos";
+import { EditorProceso, EditorPaso } from "@/components/flujogramas/EditorFlujo";
 
 type Nivel = 0 | 1 | 2 | 3;
 type Sel = { nivel: Nivel; procId: string | null; subId: string | null; pasoId: string | null };
@@ -15,13 +16,15 @@ const COLOR: Record<EstadoGap, string> = {
 const PUNTO: Record<EstadoGap, string> = { rojo: "🔴", amarillo: "🟡", verde: "🟢", sindatos: "⚪" };
 
 export function FlujogramasVista({
-  nodos, aristas, dataObjects, puestos, gaps,
+  nodos, aristas, dataObjects, puestos, gaps, esAdminSgi = false, procesosSgi = [],
 }: {
   nodos: NodoFlujo[];
   aristas: AristaFlujo[];
   dataObjects: DataObject[];
   puestos: PuestoRef[];
   gaps: GapSubproceso[];
+  esAdminSgi?: boolean;
+  procesosSgi?: { id: string; nombre: string }[];
 }) {
   const [sel, setSel] = useState<Sel>({ nivel: 0, procId: null, subId: null, pasoId: null });
   const [abierto, setAbierto] = useState<Record<string, boolean>>({});
@@ -128,10 +131,13 @@ export function FlujogramasVista({
             />
           )}
           {sel.nivel === 1 && sel.procId && (
-            <NivelSubprocesos
-              proc={porId.get(sel.procId)!} subs={subsDe.get(sel.procId) ?? []} gapDeSub={gapDeSub}
-              onPick={(id) => setSel({ nivel: 2, procId: sel.procId, subId: id, pasoId: null })}
-            />
+            <>
+              <NivelSubprocesos
+                proc={porId.get(sel.procId)!} subs={subsDe.get(sel.procId) ?? []} gapDeSub={gapDeSub}
+                onPick={(id) => setSel({ nivel: 2, procId: sel.procId, subId: id, pasoId: null })}
+              />
+              {esAdminSgi && <EditorProceso nodo={porId.get(sel.procId)!} procesos={procesosSgi} />}
+            </>
           )}
           {sel.nivel === 2 && sel.subId && (
             <NivelSwimlane
@@ -141,11 +147,21 @@ export function FlujogramasVista({
             />
           )}
           {sel.nivel === 3 && sel.pasoId && (
-            <FichaPaso
-              paso={porId.get(sel.pasoId)!} dataObjects={dataObjects.filter((d) => d.nodoId === sel.pasoId)}
-              puestoNombre={puestoNombre}
-              onClose={() => setSel({ ...sel, nivel: 2, pasoId: null })}
-            />
+            <>
+              <FichaPaso
+                paso={porId.get(sel.pasoId)!} dataObjects={dataObjects.filter((d) => d.nodoId === sel.pasoId)}
+                puestoNombre={puestoNombre}
+                onClose={() => setSel({ ...sel, nivel: 2, pasoId: null })}
+              />
+              {esAdminSgi && (
+                <EditorPaso
+                  paso={porId.get(sel.pasoId)!}
+                  puestos={puestos}
+                  pasosHermanos={(pasosDe.get(porId.get(sel.pasoId)!.padreId ?? "") ?? [])}
+                  aristasSalientes={aristas.filter((a) => a.origenId === sel.pasoId)}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
