@@ -6,6 +6,7 @@ import type {
 } from "@/lib/api/flujogramas-tipos";
 import { agregarEstado, evaluarEstiloNodo, formaDeNodo, puntoEnLado, pathOrtogonal, claseRama, asignarCanales, asignarLados, detectarSecuenciaRota } from "@/lib/api/flujogramas-tipos";
 import { EditorProceso, EditorPaso, EditorSubproceso } from "@/components/flujogramas/EditorFlujo";
+import { CrearProceso, CrearSubproceso, ImportarExcel } from "@/components/flujogramas/GestionFlujos";
 import { ModalFlujograma } from "@/components/flujogramas/ModalFlujograma";
 
 type Nivel = 0 | 1 | 2 | 3;
@@ -256,6 +257,7 @@ export function FlujogramasVista({
                 tipoDeProceso={tipoDeProceso}
                 onPick={(id) => setSel({ nivel: 1, procId: id, subId: null, pasoId: null })}
               />
+              {esAdminSgi && <div className="mt-6"><CrearProceso procesosSgi={procesosSgi} /></div>}
               {esAdminSgi && sueltos.length > 0 && (
                 <div className="mt-6 rounded-xl border border-red-200 bg-red-50/50 p-4">
                   <p className="mb-2 text-sm font-semibold text-red-700">{sueltos.length} elemento{sueltos.length !== 1 ? "s" : ""} sin conectar</p>
@@ -285,6 +287,12 @@ export function FlujogramasVista({
                 onPick={(id) => setSel({ nivel: 2, procId: sel.procId, subId: id, pasoId: null })}
               />
               {esAdminSgi && <EditorProceso nodo={porId.get(sel.procId)!} procesos={procesosSgi} />}
+              {esAdminSgi && (
+                <>
+                  <CrearSubproceso procesoFlujogramaId={sel.procId} />
+                  <SubprocesoParaImportar procId={sel.procId} subs={subsDe.get(sel.procId) ?? []} />
+                </>
+              )}
             </>
           )}
           {sel.nivel === 2 && sel.subId && (
@@ -634,6 +642,32 @@ function FichaPaso({ paso, dataObjects, puestoNombre, onClose }: {
           );
         })()}
       </div>
+    </div>
+  );
+}
+
+
+// Selector de subproceso destino para importar un Excel
+function SubprocesoParaImportar({ procId, subs }: { procId: string; subs: NodoFlujo[] }) {
+  const [subSel, setSubSel] = useState("");
+  void procId;
+  if (subs.length === 0) {
+    return (
+      <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+        Para importar un Excel, primero creá un subproceso arriba.
+      </div>
+    );
+  }
+  return (
+    <div className="mt-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">Importar Excel al subproceso:</span>
+        <select value={subSel} onChange={(e) => setSubSel(e.target.value)} className="rounded-md border border-border bg-background px-2 py-1 text-sm">
+          <option value="">— elegir subproceso —</option>
+          {subs.map((s) => <option key={s.id} value={s.id}>{s.titulo}</option>)}
+        </select>
+      </div>
+      {subSel && <ImportarExcel subprocesoId={subSel} />}
     </div>
   );
 }

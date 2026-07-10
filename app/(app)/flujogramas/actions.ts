@@ -470,3 +470,212 @@ export async function editarEtiquetaArista(aristaId: string, etiqueta: string): 
   revalidatePath("/flujogramas");
   return { ok: true };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// paquete-080 · Crear flujo desde la pantalla (proceso + subproceso)
+// ═══════════════════════════════════════════════════════════════
+
+const ADMIN_UUID = "4c662526-5091-4f07-af9f-7be14ff77864";
+
+// (19) Crear un proceso-flujograma nuevo, vinculado a un proceso del SGI.
+// nivel='proceso', sin padre, tipo_bpmn NULL (respeta los CHECK).
+export async function crearProcesoFlujograma(
+  titulo: string, procesoSgiId: string | null
+): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  if (!titulo.trim()) return { ok: false, error: "El título no puede estar vacío." };
+  const sb = createClient();
+
+  // orden = al final de los procesos existentes
+  const { data: procs } = await sb.from("flujo_nodo")
+    .select("orden").eq("nivel", "proceso").order("orden", { ascending: false }).limit(1);
+  const orden = procs && procs.length > 0 ? ((procs[0] as { orden: number }).orden ?? 0) + 1 : 1;
+
+  const { error } = await sb.from("flujo_nodo").insert({
+    nivel: "proceso",
+    padre_id: null,
+    titulo: titulo.trim(),
+    tipo_bpmn: null,
+    proceso_id: procesoSgiId || null,
+    orden,
+    activo: true,
+    creado_por: ADMIN_UUID,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
+// (20) Crear un subproceso dentro de un proceso-flujograma.
+export async function crearSubproceso(
+  procesoFlujogramaId: string, titulo: string
+): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  if (!titulo.trim()) return { ok: false, error: "El título no puede estar vacío." };
+  const sb = createClient();
+
+  // validar que el padre sea un proceso
+  const { data: padre, error: eP } = await sb.from("flujo_nodo")
+    .select("nivel").eq("id", procesoFlujogramaId).single();
+  if (eP || !padre) return { ok: false, error: "Proceso no encontrado." };
+  if ((padre as { nivel: string }).nivel !== "proceso") {
+    return { ok: false, error: "Solo se pueden crear subprocesos dentro de un proceso." };
+  }
+
+  const { data: subs } = await sb.from("flujo_nodo")
+    .select("orden").eq("padre_id", procesoFlujogramaId).eq("nivel", "subproceso")
+    .order("orden", { ascending: false }).limit(1);
+  const orden = subs && subs.length > 0 ? ((subs[0] as { orden: number }).orden ?? 0) + 1 : 1;
+
+  const { error } = await sb.from("flujo_nodo").insert({
+    nivel: "subproceso",
+    padre_id: procesoFlujogramaId,
+    titulo: titulo.trim(),
+    tipo_bpmn: null,
+    orden,
+    activo: true,
+    creado_por: ADMIN_UUID,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
+// (21) Renombrar un proceso o subproceso.
+export async function renombrarNodo(nodoId: string, titulo: string): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  if (!titulo.trim()) return { ok: false, error: "El título no puede estar vacío." };
+  const sb = createClient();
+  const { error } = await sb.from("flujo_nodo").update({ titulo: titulo.trim() }).eq("id", nodoId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// paquete-080 · Importador de Excel (relevamiento de un subproceso)
+// ═══════════════════════════════════════════════════════════════
+
+export type FilaImport = {
+  id_paso: string;        // identificador local en el Excel (ej. "1", "A")
+  titulo: string;
+  tipo_bpmn?: string;     // inicio/tarea/decision/fin (default tarea)
+  puesto?: string;        // nombre de puesto (se resuelve a puesto_id)
+  paso_siguiente?: string; // id_paso destino (o varios separados por coma)
+  rama_condicion?: string; // etiqueta de rama para paso_siguiente (Sí/No)
+  documento?: string;     // etiqueta de documento de salida (texto libre)
+};
+
+export type ResultadoImport =
+  | { ok: true; creados: { pasos: number; aristas: number; dataObjects: number } }
+  | { ok: false; error: string };
+
+// Valida y importa las filas a un subproceso existente. Todo en una transacción lógica:
+// si algo falla, no deja el subproceso a medias (borra lo insertado).
+export async function importarRelevamiento(
+  subprocesoId: string, filas: FilaImport[]
+): Promise<ResultadoImport> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  if (!filas || filas.length === 0) return { ok: false, error: "No hay filas para importar." };
+  const sb = createClient();
+
+  // 1) validar subproceso
+  const { data: sub, error: eSub } = await sb.from("flujo_nodo")
+    .select("id,nivel").eq("id", subprocesoId).single();
+  if (eSub || !sub) return { ok: false, error: "Subproceso no encontrado." };
+  if ((sub as { nivel: string }).nivel !== "subproceso") {
+    return { ok: false, error: "El destino debe ser un subproceso." };
+  }
+
+  // 2) validar filas: id_paso único y no vacío, titulo no vacío
+  const idsLocales = new Set<string>();
+  for (const [i, f] of filas.entries()) {
+    if (!f.id_paso?.toString().trim()) return { ok: false, error: `Fila ${i + 1}: falta id_paso.` };
+    if (!f.titulo?.toString().trim()) return { ok: false, error: `Fila ${i + 1}: falta título.` };
+    const id = f.id_paso.toString().trim();
+    if (idsLocales.has(id)) return { ok: false, error: `id_paso duplicado: "${id}".` };
+    idsLocales.add(id);
+  }
+  // validar que paso_siguiente referencie ids existentes
+  for (const f of filas) {
+    const sig = (f.paso_siguiente ?? "").toString().trim();
+    if (!sig) continue;
+    for (const destino of sig.split(",").map((s) => s.trim()).filter(Boolean)) {
+      if (!idsLocales.has(destino)) {
+        return { ok: false, error: `El paso "${f.id_paso}" apunta a "${destino}", que no existe en el Excel.` };
+      }
+    }
+  }
+
+  // 3) resolver puestos por nombre (los que existan)
+  const nombresPuesto = Array.from(new Set(filas.map((f) => (f.puesto ?? "").toString().trim()).filter(Boolean)));
+  const puestoIdPorNombre = new Map<string, string>();
+  if (nombresPuesto.length > 0) {
+    const { data: puestos } = await sb.from("puestos").select("id,nombre").in("nombre", nombresPuesto);
+    for (const p of (puestos ?? []) as { id: string; nombre: string }[]) {
+      puestoIdPorNombre.set(p.nombre, p.id);
+    }
+  }
+
+  // 4) insertar pasos (guardando el mapeo id_local → uuid real)
+  const tiposValidos = new Set(["inicio", "tarea", "decision", "fin"]);
+  const uuidPorLocal = new Map<string, string>();
+  const pasosInsertados: string[] = [];
+  let orden = 1;
+  for (const f of filas) {
+    const tipo = tiposValidos.has((f.tipo_bpmn ?? "").toString().trim().toLowerCase())
+      ? (f.tipo_bpmn as string).trim().toLowerCase() : "tarea";
+    const { data: nodo, error } = await sb.from("flujo_nodo").insert({
+      nivel: "paso",
+      padre_id: subprocesoId,
+      titulo: f.titulo.toString().trim(),
+      tipo_bpmn: tipo,
+      puesto_id: puestoIdPorNombre.get((f.puesto ?? "").toString().trim()) ?? null,
+      orden: orden++,
+      activo: true,
+      creado_por: ADMIN_UUID,
+    }).select("id").single();
+    if (error || !nodo) {
+      // rollback manual: borrar lo insertado
+      if (pasosInsertados.length > 0) await sb.from("flujo_nodo").delete().in("id", pasosInsertados);
+      return { ok: false, error: `Error al crear el paso "${f.titulo}": ${error?.message}` };
+    }
+    const uuid = (nodo as { id: string }).id;
+    uuidPorLocal.set(f.id_paso.toString().trim(), uuid);
+    pasosInsertados.push(uuid);
+  }
+
+  // 5) insertar aristas (paso_siguiente) y data objects (documento)
+  let nAristas = 0, nData = 0;
+  for (const f of filas) {
+    const origen = uuidPorLocal.get(f.id_paso.toString().trim())!;
+    const sig = (f.paso_siguiente ?? "").toString().trim();
+    if (sig) {
+      const destinos = sig.split(",").map((s) => s.trim()).filter(Boolean);
+      const etiqueta = (f.rama_condicion ?? "").toString().trim() || null;
+      for (const dLocal of destinos) {
+        const destino = uuidPorLocal.get(dLocal);
+        if (!destino || destino === origen) continue;
+        const { error } = await sb.from("flujo_arista").insert({
+          origen_id: origen, destino_id: destino,
+          tipo: etiqueta ? "rama" : "secuencia", etiqueta,
+        });
+        if (!error) nAristas++;
+      }
+    }
+    const doc = (f.documento ?? "").toString().trim();
+    if (doc) {
+      const { error } = await sb.from("flujo_data_object").insert({
+        nodo_id: origen, direccion: "salida", etiqueta: doc, documento_id: null,
+      });
+      if (!error) nData++;
+    }
+  }
+
+  revalidatePath("/flujogramas");
+  return { ok: true, creados: { pasos: pasosInsertados.length, aristas: nAristas, dataObjects: nData } };
+}
