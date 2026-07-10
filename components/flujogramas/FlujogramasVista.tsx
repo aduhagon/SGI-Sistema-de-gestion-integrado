@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import type {
   NodoFlujo, AristaFlujo, DataObject, PuestoRef, GapSubproceso, EstadoGap,
 } from "@/lib/api/flujogramas-tipos";
@@ -60,6 +60,7 @@ export function FlujogramasVista({
   });
   const [abierto, setAbierto] = useState<Record<string, boolean>>({});
   const [modalSubId, setModalSubId] = useState<string | null>(null);
+  const [arbolAbierto, setArbolAbierto] = useState(false); // panel de árbol en mobile
 
   const porId = useMemo(() => new Map(nodos.map((n) => [n.id, n])), [nodos]);
   const procesos = useMemo(() => nodos.filter((n) => n.nivel === "proceso").sort((a, b) => a.orden - b.orden), [nodos]);
@@ -157,9 +158,24 @@ export function FlujogramasVista({
   }, [sel, porId]);
 
   return (
-    <div className="flex min-h-[70vh] gap-0 rounded-xl border border-border overflow-hidden bg-card">
-      {/* Árbol lateral · 4 niveles: proceso SGI › flujograma › subproceso › paso */}
-      <aside className="w-64 shrink-0 border-r border-border bg-muted/30 p-3 overflow-auto max-h-[80vh]">
+    <div className="relative flex min-h-[70vh] gap-0 rounded-xl border border-border overflow-hidden bg-card">
+      {/* Botón para abrir el árbol en mobile */}
+      <button
+        onClick={() => setArbolAbierto(true)}
+        className="absolute left-2 top-2 z-20 flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-sm shadow-sm md:hidden"
+      >
+        ☰ Procesos
+      </button>
+      {/* Backdrop cuando el árbol está abierto en mobile */}
+      {arbolAbierto && (
+        <div className="absolute inset-0 z-20 bg-black/30 md:hidden" onClick={() => setArbolAbierto(false)} />
+      )}
+      {/* Árbol lateral · 4 niveles: proceso SGI › flujograma › subproceso › paso.
+          En mobile: panel deslizable (oculto por defecto). En desktop: fijo. */}
+      <aside className={`${arbolAbierto ? "absolute inset-y-0 left-0 z-30 w-72 shadow-xl" : "hidden"} shrink-0 border-r border-border bg-muted/30 p-3 overflow-auto max-h-[80vh] md:relative md:z-auto md:flex md:w-64 md:flex-col md:shadow-none`}>
+        {arbolAbierto && (
+          <button onClick={() => setArbolAbierto(false)} className="mb-2 self-end rounded-md border border-border px-2 py-1 text-xs md:hidden">Cerrar ✕</button>
+        )}
         <p className="px-2 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Mapa de procesos</p>
         {seccionesPorTipo.map(([tipo, grupos]) => (
           <div key={tipo} className="mb-3">
@@ -197,7 +213,7 @@ export function FlujogramasVista({
                       return (
                         <button
                           key={s.id}
-                          onClick={() => setSel({ nivel: 2, procId: p.id, subId: s.id, pasoId: null })}
+                          onClick={() => { setSel({ nivel: 2, procId: p.id, subId: s.id, pasoId: null }); setArbolAbierto(false); }}
                           className={`flex w-full items-center gap-2 rounded-md py-1.5 pl-9 pr-2 text-left text-[13px] hover:bg-muted ${sel.subId === s.id ? "bg-muted text-foreground" : "text-muted-foreground"}`}
                         >
                           <span className="text-[10px]">{PUNTO[est2]}</span>
@@ -425,6 +441,21 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
   sub: NodoFlujo; pasos: NodoFlujo[]; aristas: AristaFlujo[];
   puestoNombre: Map<string, string>; onPaso: (id: string) => void; onExpandir?: () => void;
 }) {
+  // Fit-to-width (hooks al inicio, antes de cualquier return condicional)
+  const contRef = useRef<HTMLDivElement>(null);
+  const [escala, setEscala] = useState(1);
+  const COL_W0 = 210, HEAD0 = 160;
+  const anchoTotal = HEAD0 + pasos.length * COL_W0 + 20;
+  useEffect(() => {
+    const medir = () => {
+      if (!contRef.current) return;
+      const disp = contRef.current.clientWidth - 4;
+      setEscala(anchoTotal > disp ? Math.max(0.35, disp / anchoTotal) : 1);
+    };
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, [anchoTotal]);
   if (pasos.length === 0) {
     return (
       <div>
@@ -464,8 +495,8 @@ function NivelSwimlane({ sub, pasos, aristas, puestoNombre, onPaso, onExpandir }
         )}
       </div>
       <p className="mb-3 text-sm text-muted-foreground">Swimlane BPMN · carril = puesto responsable. Clic en un paso para su ficha.</p>
-      <div className="overflow-auto rounded-lg border border-border">
-        <svg width={W} height={H} className="block">
+      <div ref={contRef} className="overflow-auto rounded-lg border border-border">
+        <svg width={W * escala} height={H * escala} viewBox={`0 0 ${W} ${H}`} className="block">
           <defs>
             <marker id="fl-ar" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
               <path d="M0,0 L9,4.5 L0,9 z" fill="#64748b" />
