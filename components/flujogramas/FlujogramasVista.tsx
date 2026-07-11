@@ -169,11 +169,11 @@ export function FlujogramasVista({
       </button>
       {/* Backdrop cuando el árbol está abierto en mobile */}
       {arbolAbierto && (
-        <div className="absolute inset-0 z-20 bg-black/30 md:hidden" onClick={() => setArbolAbierto(false)} />
+        <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setArbolAbierto(false)} />
       )}
       {/* Árbol lateral · 4 niveles: proceso SGI › flujograma › subproceso › paso.
           En mobile: panel deslizable (oculto por defecto). En desktop: fijo. */}
-      <aside className={`${arbolAbierto ? "absolute inset-y-0 left-0 z-30 w-72 shadow-xl" : "hidden"} shrink-0 border-r border-border bg-muted/30 p-3 overflow-auto max-h-[80vh] md:relative md:z-auto md:flex md:w-64 md:flex-col md:shadow-none`}>
+      <aside className={`${arbolAbierto ? "fixed inset-y-0 left-0 z-50 flex w-[85vw] max-w-xs flex-col bg-card shadow-2xl" : "hidden"} shrink-0 border-r border-border p-3 overflow-auto md:relative md:z-auto md:flex md:max-h-[80vh] md:w-64 md:flex-col md:bg-muted/30 md:shadow-none`}>
         {arbolAbierto && (
           <button onClick={() => setArbolAbierto(false)} className="mb-2 self-end rounded-md border border-border px-2 py-1 text-xs md:hidden">Cerrar ✕</button>
         )}
