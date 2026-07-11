@@ -49,7 +49,7 @@ export function FlujogramasVista({
   puestos: PuestoRef[];
   gaps: GapSubproceso[];
   esAdminSgi?: boolean;
-  procesosSgi?: { id: string; nombre: string; tipo?: string }[];
+  procesosSgi?: { id: string; nombre: string; tipo?: string; ordenVis?: number }[];
   procesoInicial?: string | null;
   documentos?: { id: string; codigo: string; titulo: string }[];
 }) {
@@ -107,6 +107,16 @@ export function FlujogramasVista({
     return m;
   }, [procesos, procSgiInfo]);
 
+  // Orden del proceso SGI (cadena de valor) para cada flujograma
+  const ordenDeProceso = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of procesos) {
+      const info = p.procesoId ? procSgiInfo.get(p.procesoId) : undefined;
+      m.set(p.id, info?.ordenVis ?? 999);
+    }
+    return m;
+  }, [procesos, procSgiInfo]);
+
   // Elementos sueltos (sin conexiones) para el panel de acceso rápido
   const sueltos = useMemo(() => {
     const rotos = detectarSecuenciaRota(nodos, aristas);
@@ -125,16 +135,24 @@ export function FlujogramasVista({
 
   // Nivel raíz agrupado por proceso SGI, y estos a su vez por TIPO (estratégico/operativo/apoyo)
   const gruposSgi = useMemo(() => {
-    const m = new Map<string, { nombre: string; tipo: string; procesos: NodoFlujo[] }>();
+    const m = new Map<string, { nombre: string; tipo: string; ordenVis?: number; procesos: NodoFlujo[] }>();
     for (const p of procesos) {
       const key = p.procesoId ?? "__sin__";
       const info = p.procesoId ? procSgiInfo.get(p.procesoId) : undefined;
       const nombre = info?.nombre ?? (p.procesoId ? "Proceso SGI" : "Sin vincular al SGI");
       const tipo = info?.tipo ?? "sin_tipo";
-      if (!m.has(key)) m.set(key, { nombre, tipo, procesos: [] });
+      const ordenVis = info?.ordenVis;
+      if (!m.has(key)) m.set(key, { nombre, tipo, ordenVis, procesos: [] });
       m.get(key)!.procesos.push(p);
     }
-    return Array.from(m.entries()).map(([id, v]) => ({ id, ...v })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+    // Orden del mapa de procesos (cadena de valor), no alfabético.
+    return Array.from(m.entries())
+      .map(([id, v]) => ({ id, ...v }))
+      .sort((a, b) => {
+        const oa = a.ordenVis ?? 999, ob = b.ordenVis ?? 999;
+        if (oa !== ob) return oa - ob;
+        return a.nombre.localeCompare(b.nombre);
+      });
   }, [procesos, procSgiInfo]);
 
   const TIPO_ORDEN: Record<string, number> = { estrategico: 0, operativo: 1, apoyo: 2, sin_tipo: 3 };
@@ -256,6 +274,7 @@ export function FlujogramasVista({
               <NivelProcesos
                 procesos={procesos} subsDe={subsDe} gapDeSub={gapDeSub} estadoDeProc={estadoDeProc}
                 tipoDeProceso={tipoDeProceso}
+                ordenDeProceso={ordenDeProceso}
                 onPick={(id) => setSel({ nivel: 1, procId: id, subId: null, pasoId: null })}
               />
               {esAdminSgi && <div className="mt-6"><CrearProceso procesosSgi={procesosSgi} /></div>}
@@ -351,12 +370,13 @@ export function FlujogramasVista({
 }
 
 // ── Nivel 0 ──
-function NivelProcesos({ procesos, subsDe, gapDeSub, estadoDeProc, tipoDeProceso, onPick }: {
+function NivelProcesos({ procesos, subsDe, gapDeSub, estadoDeProc, tipoDeProceso, ordenDeProceso, onPick }: {
   procesos: NodoFlujo[];
   subsDe: Map<string, NodoFlujo[]>;
   gapDeSub: Map<string, GapSubproceso>;
   estadoDeProc: Map<string, EstadoGap>;
   tipoDeProceso: Map<string, string>;
+  ordenDeProceso: Map<string, number>;
   onPick: (id: string) => void;
 }) {
   const TIPO_ORDEN: Record<string, number> = { estrategico: 0, operativo: 1, apoyo: 2, sin_tipo: 3 };
@@ -370,6 +390,14 @@ function NivelProcesos({ procesos, subsDe, gapDeSub, estadoDeProc, tipoDeProceso
       const t = tipoDeProceso.get(p.id) ?? "sin_tipo";
       if (!m.has(t)) m.set(t, []);
       m.get(t)!.push(p);
+    }
+    // Dentro de cada tipo, ordenar por la secuencia del mapa de procesos (cadena de valor)
+    for (const arr of m.values()) {
+      arr.sort((a, b) => {
+        const oa = ordenDeProceso.get(a.id) ?? 999, ob = ordenDeProceso.get(b.id) ?? 999;
+        if (oa !== ob) return oa - ob;
+        return a.titulo.localeCompare(b.titulo);
+      });
     }
     return Array.from(m.entries()).sort((a, b) => (TIPO_ORDEN[a[0]] ?? 9) - (TIPO_ORDEN[b[0]] ?? 9));
   })();

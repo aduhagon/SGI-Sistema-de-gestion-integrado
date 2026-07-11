@@ -10,11 +10,19 @@ import { PanelObservaciones } from "@/components/flujogramas/PanelObservaciones"
 
 export const dynamic = "force-dynamic";
 
-async function listarProcesosSgi(): Promise<{ id: string; nombre: string; tipo?: string }[]> {
+async function listarProcesosSgi(): Promise<{ id: string; nombre: string; tipo?: string; ordenVis?: number }[]> {
   const sb = createClient();
-  const { data, error } = await sb.from("procesos").select("id,nombre,tipo").order("nombre", { ascending: true });
+  // Ordena por la secuencia del mapa de procesos (cadena de valor), no alfabético.
+  const { data, error } = await sb.from("procesos")
+    .select("id,nombre,tipo,orden_visualizacion")
+    .order("orden_visualizacion", { ascending: true, nullsFirst: false });
   if (error) return [];
-  return (data ?? []).map((r: { id: string; nombre: string; tipo: string | null }) => ({ id: r.id, nombre: r.nombre, tipo: r.tipo ?? undefined }));
+  return (data ?? []).map((r: { id: string; nombre: string; tipo: string | null; orden_visualizacion: number | null }) => ({
+    id: r.id,
+    nombre: r.nombre,
+    tipo: r.tipo ?? undefined,
+    ordenVis: r.orden_visualizacion ?? undefined,
+  }));
 }
 
 export default async function FlujogramasPage({ searchParams }: { searchParams: { proceso?: string } }) {
