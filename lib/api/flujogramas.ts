@@ -39,7 +39,8 @@ export async function listarAristas(): Promise<AristaFlujo[]> {
   const sb = createClient();
   const { data, error } = await sb
     .from("flujo_arista")
-    .select("id,origen_id,destino_id,tipo,etiqueta");
+    .select("id,origen_id,destino_id,tipo,etiqueta")
+    .eq("activo", true);
   if (error) throw error;
   return map(data, (r) => ({
     id: r.id as string,
@@ -54,7 +55,8 @@ export async function listarDataObjects(): Promise<DataObject[]> {
   const sb = createClient();
   const { data, error } = await sb
     .from("flujo_data_object")
-    .select("id,nodo_id,direccion,etiqueta,documento_id");
+    .select("id,nodo_id,direccion,etiqueta,documento_id")
+    .eq("activo", true);
   if (error) throw error;
   return map(data, (r) => ({
     id: r.id as string,

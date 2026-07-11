@@ -107,7 +107,7 @@ export async function eliminarArista(aristaId: string): Promise<ResultadoAccion>
   const g = await exigirAdmin();
   if (!g.ok) return g;
   const sb = createClient();
-  const { error } = await sb.from("flujo_arista").delete().eq("id", aristaId);
+  const { error } = await sb.from("flujo_arista").update({ activo: false }).eq("id", aristaId);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/flujogramas");
   return { ok: true };
@@ -158,8 +158,8 @@ export async function borrarPasoCosiendo(nodoId: string): Promise<ResultadoAccio
 
   // aristas entrantes y salientes del paso a borrar
   const [{ data: entrantes }, { data: salientes }] = await Promise.all([
-    sb.from("flujo_arista").select("id,origen_id,tipo,etiqueta").eq("destino_id", nodoId),
-    sb.from("flujo_arista").select("id,destino_id").eq("origen_id", nodoId),
+    sb.from("flujo_arista").select("id,origen_id,tipo,etiqueta").eq("destino_id", nodoId).eq("activo", true),
+    sb.from("flujo_arista").select("id,destino_id").eq("origen_id", nodoId).eq("activo", true),
   ]);
 
   // coser: por cada (origen → nodo) y (nodo → destino), crear (origen → destino)
@@ -177,7 +177,11 @@ export async function borrarPasoCosiendo(nodoId: string): Promise<ResultadoAccio
   }
 
   // borrar el nodo (CASCADE limpia sus aristas y data objects)
-  const { error } = await sb.from("flujo_nodo").delete().eq("id", nodoId).eq("nivel", "paso");
+  // Soft delete: marca inactivo (queda auditado como eliminar_logico) en vez de borrar físico.
+  // Las aristas del paso también se marcan inactivas (antes lo hacía el CASCADE).
+  await sb.from("flujo_arista").update({ activo: false }).or(`origen_id.eq.${nodoId},destino_id.eq.${nodoId}`);
+  await sb.from("flujo_data_object").update({ activo: false }).eq("nodo_id", nodoId);
+  const { error } = await sb.from("flujo_nodo").update({ activo: false }).eq("id", nodoId).eq("nivel", "paso");
   if (error) return { ok: false, error: error.message };
   revalidatePath("/flujogramas");
   return { ok: true };
@@ -231,7 +235,7 @@ export async function eliminarDataObject(id: string): Promise<ResultadoAccion> {
   const g = await exigirAdmin();
   if (!g.ok) return g;
   const sb = createClient();
-  const { error } = await sb.from("flujo_data_object").delete().eq("id", id);
+  const { error } = await sb.from("flujo_data_object").update({ activo: false }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/flujogramas");
   return { ok: true };
@@ -288,7 +292,7 @@ export async function insertarPasoEntre(
 
   // 1) borrar la(s) arista(s) directa(s) origen→destino
   const { error: eDel } = await sb.from("flujo_arista")
-    .delete().eq("origen_id", origenId).eq("destino_id", destinoId);
+    .update({ activo: false }).eq("origen_id", origenId).eq("destino_id", destinoId).eq("activo", true);
   if (eDel) return { ok: false, error: eDel.message };
 
   // 2) crear origen→paso y paso→destino
@@ -335,7 +339,7 @@ export async function insertarGatewayEnSalidas(tareaId: string): Promise<Resulta
 
   // salidas actuales de la tarea
   const { data: salidas, error: eS } = await sb.from("flujo_arista")
-    .select("id,destino_id,etiqueta,tipo").eq("origen_id", tareaId);
+    .select("id,destino_id,etiqueta,tipo").eq("origen_id", tareaId).eq("activo", true);
   if (eS) return { ok: false, error: eS.message };
   if (!salidas || salidas.length < 2) {
     return { ok: false, error: "La tarea no tiene múltiples salidas; no hace falta gateway." };
@@ -357,7 +361,7 @@ export async function insertarGatewayEnSalidas(tareaId: string): Promise<Resulta
 
   // 2) reconectar: borrar salidas de la tarea, crear tarea→gateway y gateway→cada destino
   const sal = salidas as { id: string; destino_id: string; etiqueta: string | null; tipo: string }[];
-  const { error: eDel } = await sb.from("flujo_arista").delete().eq("origen_id", tareaId);
+  const { error: eDel } = await sb.from("flujo_arista").update({ activo: false }).eq("origen_id", tareaId).eq("activo", true);
   if (eDel) return { ok: false, error: eDel.message };
 
   const nuevas = [
@@ -436,7 +440,7 @@ export async function limpiarAristasDuplicadas(nodoId: string): Promise<Resultad
   if (!g.ok) return g;
   const sb = createClient();
   const { data: aristas, error } = await sb.from("flujo_arista")
-    .select("id,destino_id,etiqueta").eq("origen_id", nodoId).order("id", { ascending: true });
+    .select("id,destino_id,etiqueta").eq("origen_id", nodoId).eq("activo", true).order("id", { ascending: true });
   if (error) return { ok: false, error: error.message };
   const vistos = new Set<string>();
   const aBorrar: string[] = [];
@@ -446,7 +450,7 @@ export async function limpiarAristasDuplicadas(nodoId: string): Promise<Resultad
     else vistos.add(clave);
   }
   if (aBorrar.length === 0) return { ok: true };
-  const { error: eDel } = await sb.from("flujo_arista").delete().in("id", aBorrar);
+  const { error: eDel } = await sb.from("flujo_arista").update({ activo: false }).in("id", aBorrar);
   if (eDel) return { ok: false, error: eDel.message };
   revalidatePath("/flujogramas");
   return { ok: true };
@@ -641,6 +645,7 @@ export async function importarRelevamiento(
     }).select("id").single();
     if (error || !nodo) {
       // rollback manual: borrar lo insertado
+      // Rollback del import: borrado físico intencional (deshace algo que nunca debió existir)
       if (pasosInsertados.length > 0) await sb.from("flujo_nodo").delete().in("id", pasosInsertados);
       return { ok: false, error: `Error al crear el paso "${f.titulo}": ${error?.message}` };
     }
