@@ -14,7 +14,9 @@ import { getProcessIcon } from "@/components/procesos/icons";
 import { DocumentRow } from "@/components/documentos/DocumentRow";
 import { PerfilesProceso } from "@/components/procesos/PerfilesProceso";
 import { SenalesProceso } from "@/components/procesos/SenalesProceso";
+import { IntegracionErpProceso } from "@/components/procesos/IntegracionErpProceso";
 import { obtenerParticipacionesDeProceso } from "@/lib/api/participaciones";
+import { listarFormulariosErpDeProceso } from "@/lib/api/integracionErp";
 
 const TIPO_LABEL: Record<string, string> = {
   estrategico: "Proceso estratégico",
@@ -59,11 +61,12 @@ export default async function ProcesoDetallePage({ params }: Props) {
     notFound();
   }
 
-  const [participaciones, ncs, riesgos, indicadores] = await Promise.all([
+  const [participaciones, ncs, riesgos, indicadores, formulariosErp] = await Promise.all([
     obtenerParticipacionesDeProceso(proceso.id),
     listarNCsPorProceso(proceso.id),
     listarRiesgos(proceso.id),
     listarIndicadores(proceso.id),
+    listarFormulariosErpDeProceso(proceso.id),
   ]);
 
   // ¿Este proceso del SGI tiene un flujograma vinculado?
@@ -170,6 +173,8 @@ export default async function ProcesoDetallePage({ params }: Props) {
       )}
 
       <SenalesProceso ncs={ncs} riesgos={riesgos} indicadores={indicadores} />
+
+      <IntegracionErpProceso codigoProceso={proceso.codigo} formularios={formulariosErp} />
 
       <section className="mb-10">
         <div className="flex items-center justify-between mb-4">
