@@ -684,3 +684,210 @@ export async function importarRelevamiento(
   revalidatePath("/flujogramas");
   return { ok: true, creados: { pasos: pasosInsertados.length, aristas: nAristas, dataObjects: nData } };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// paquete-084 · T3: Versionado del flujo vía Ficha de Proceso
+// El flujo se congela en una versión y genera un documento tipo FP en el
+// maestro documental, que sigue el ciclo de aprobación YA EXISTENTE.
+// No se duplica lógica de aprobación.
+// ═══════════════════════════════════════════════════════════════
+
+const TIPO_FP_ID = "e408ad2c-8879-480d-b8b8-03a27f535c31"; // tipo documental "FP · Ficha de Proceso"
+
+// Hash simple y estable del snapshot (para detectar cambios sin publicar)
+function hashSnapshot(obj: unknown): string {
+  const s = JSON.stringify(obj);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h).toString(16);
+}
+
+// Arma el snapshot del flujo (nodos + aristas + data objects de ese proceso)
+async function armarSnapshot(procesoFlujoId: string) {
+  const sb = createClient();
+  const { data: nodos } = await sb.from("flujo_nodo")
+    .select("id,nivel,padre_id,codigo,titulo,tipo_bpmn,marcador,puesto_id,orden,cod_riesgo,subtipo_evento")
+    .eq("activo", true);
+  const todos = (nodos ?? []) as { id: string; nivel: string; padre_id: string | null }[];
+
+  // descendientes del proceso (subprocesos y sus pasos)
+  const hijos = new Map<string, string[]>();
+  for (const n of todos) {
+    if (!n.padre_id) continue;
+    const arr = hijos.get(n.padre_id) ?? [];
+    arr.push(n.id);
+    hijos.set(n.padre_id, arr);
+  }
+  const incluidos = new Set<string>([procesoFlujoId]);
+  const pila = [procesoFlujoId];
+  while (pila.length) {
+    const actual = pila.pop()!;
+    for (const h of hijos.get(actual) ?? []) {
+      if (!incluidos.has(h)) { incluidos.add(h); pila.push(h); }
+    }
+  }
+  const nodosDelFlujo = (nodos ?? []).filter((n: { id: string }) => incluidos.has(n.id));
+  const ids = Array.from(incluidos);
+
+  const [{ data: aristas }, { data: dataObjs }] = await Promise.all([
+    sb.from("flujo_arista").select("id,origen_id,destino_id,tipo,etiqueta").eq("activo", true).in("origen_id", ids),
+    sb.from("flujo_data_object").select("id,nodo_id,direccion,etiqueta,documento_id").eq("activo", true).in("nodo_id", ids),
+  ]);
+
+  return {
+    nodos: nodosDelFlujo,
+    aristas: aristas ?? [],
+    dataObjects: dataObjs ?? [],
+    congelado_en: new Date().toISOString(),
+  };
+}
+
+export type ResultadoPublicar =
+  | { ok: true; numeroVersion: string; documentoId: string; documentoCodigo: string }
+  | { ok: false; error: string };
+
+// (22) Publicar una versión del flujo → genera/actualiza la Ficha de Proceso en el maestro documental.
+export async function publicarVersionFlujo(
+  procesoFlujoId: string, motivoCambio: string
+): Promise<ResultadoPublicar> {
+  const g = await exigirAdmin();
+  if (!g.ok) return { ok: false, error: g.error };
+  const sb = createClient();
+
+  // 1) datos del proceso-flujograma
+  const { data: proc, error: eP } = await sb.from("flujo_nodo")
+    .select("id,titulo,proceso_id,nivel").eq("id", procesoFlujoId).single();
+  if (eP || !proc) return { ok: false, error: "Flujograma no encontrado." };
+  const p = proc as { id: string; titulo: string; proceso_id: string | null; nivel: string };
+  if (p.nivel !== "proceso") return { ok: false, error: "Solo se versionan flujogramas completos (nivel proceso)." };
+  if (!p.proceso_id) {
+    return { ok: false, error: "El flujograma debe estar vinculado a un proceso del SGI antes de publicarlo." };
+  }
+
+  // 2) snapshot + hash
+  const snapshot = await armarSnapshot(procesoFlujoId);
+  const hash = hashSnapshot(snapshot);
+
+  // 3) ¿ya hay versiones? (para numerar y detectar si no hubo cambios)
+  const { data: versionesPrevias } = await sb.from("flujo_version")
+    .select("id,numero_orden,hash_snapshot,documento_id")
+    .eq("proceso_flujo_id", procesoFlujoId).eq("activo", true)
+    .order("numero_orden", { ascending: false });
+  const previas = (versionesPrevias ?? []) as { id: string; numero_orden: number; hash_snapshot: string; documento_id: string | null }[];
+
+  if (previas.length > 0 && previas[0].hash_snapshot === hash) {
+    return { ok: false, error: "No hay cambios respecto de la última versión publicada." };
+  }
+
+  const nuevoOrden = previas.length > 0 ? previas[0].numero_orden + 1 : 1;
+  const numeroVersion = `${nuevoOrden}.0`;
+
+  // 4) documento Ficha de Proceso: reutilizar el de versiones previas, o crear uno nuevo
+  let documentoId = previas.find((v) => v.documento_id)?.documento_id ?? null;
+  let documentoCodigo = "";
+
+  if (!documentoId) {
+    // Código con el formato de la nomenclatura documental: A-FP-NN-NNN
+    // (NN = numero_codigo del proceso; NNN = secuencia dentro de ese tipo+proceso)
+    const { data: procSgi } = await sb.from("procesos")
+      .select("codigo,nombre,numero_codigo").eq("id", p.proceso_id).single();
+    const ps = procSgi as { codigo: string; numero_codigo: number | null } | null;
+    if (!ps?.numero_codigo) {
+      return { ok: false, error: "El proceso no tiene número de codificación documental asignado." };
+    }
+    const nn = String(ps.numero_codigo).padStart(2, "0");
+
+    // secuencia: siguiente número libre para A-FP-NN-###
+    const { data: existentes } = await sb.from("documentos")
+      .select("codigo").like("codigo", `A-FP-${nn}-%`);
+    let seq = 1;
+    for (const e of (existentes ?? []) as { codigo: string }[]) {
+      const partes = e.codigo.split("-");
+      const n = parseInt(partes[3] ?? "0", 10);
+      if (!isNaN(n) && n >= seq) seq = n + 1;
+    }
+    documentoCodigo = `A-FP-${nn}-${String(seq).padStart(3, "0")}`;
+
+    const { data: doc, error: eDoc } = await sb.from("documentos").insert({
+      codigo: documentoCodigo,
+      titulo: `Ficha de Proceso — ${p.titulo}`,
+      descripcion_corta: `Flujograma del proceso ${p.titulo}. Generado desde el módulo Flujogramas.`,
+      tipo_documental_id: TIPO_FP_ID,
+      proceso_principal_id: p.proceso_id,
+      estado_actual: "borrador",
+      creado_por: ADMIN_UUID,
+    }).select("id,codigo").single();
+    if (eDoc || !doc) return { ok: false, error: `No se pudo crear la Ficha de Proceso: ${eDoc?.message}` };
+    documentoId = (doc as { id: string }).id;
+    documentoCodigo = (doc as { codigo: string }).codigo;
+  } else {
+    const { data: doc } = await sb.from("documentos").select("codigo").eq("id", documentoId).single();
+    documentoCodigo = (doc as { codigo: string } | null)?.codigo ?? "";
+  }
+
+  // 5) crear la versión del documento (entra al ciclo documental normal, en borrador)
+  const { data: versionDoc, error: eVer } = await sb.from("versiones").insert({
+    documento_id: documentoId,
+    numero_version: numeroVersion,
+    numero_orden: nuevoOrden,
+    motivo_cambio: motivoCambio || "Publicación de versión del flujograma",
+    resumen_cambios: `Flujo con ${snapshot.nodos.length} nodos y ${snapshot.aristas.length} conexiones.`,
+    creado_por: ADMIN_UUID,
+  }).select("id").single();
+  if (eVer || !versionDoc) return { ok: false, error: `No se pudo crear la versión del documento: ${eVer?.message}` };
+
+  // 6) guardar el snapshot del flujo, vinculado al documento y su versión
+  const { error: eSnap } = await sb.from("flujo_version").insert({
+    proceso_flujo_id: procesoFlujoId,
+    numero_version: numeroVersion,
+    numero_orden: nuevoOrden,
+    snapshot,
+    hash_snapshot: hash,
+    motivo_cambio: motivoCambio || null,
+    documento_id: documentoId,
+    version_documento_id: (versionDoc as { id: string }).id,
+    creado_por: ADMIN_UUID,
+  });
+  if (eSnap) return { ok: false, error: `No se pudo guardar el snapshot: ${eSnap.message}` };
+
+  revalidatePath("/flujogramas");
+  revalidatePath("/documentos");
+  return { ok: true, numeroVersion, documentoId, documentoCodigo };
+}
+
+// (23) Estado de versionado de un flujo: última versión y si hay cambios sin publicar.
+export type EstadoVersionado = {
+  tieneVersiones: boolean;
+  ultimaVersion: string | null;
+  documentoId: string | null;
+  documentoCodigo: string | null;
+  hayCambiosSinPublicar: boolean;
+};
+
+export async function obtenerEstadoVersionado(procesoFlujoId: string): Promise<EstadoVersionado> {
+  const sb = createClient();
+  const { data: vs } = await sb.from("flujo_version")
+    .select("numero_version,hash_snapshot,documento_id")
+    .eq("proceso_flujo_id", procesoFlujoId).eq("activo", true)
+    .order("numero_orden", { ascending: false }).limit(1);
+  const ultima = (vs ?? [])[0] as { numero_version: string; hash_snapshot: string; documento_id: string | null } | undefined;
+  if (!ultima) {
+    return { tieneVersiones: false, ultimaVersion: null, documentoId: null, documentoCodigo: null, hayCambiosSinPublicar: false };
+  }
+  const snapshot = await armarSnapshot(procesoFlujoId);
+  const hashActual = hashSnapshot(snapshot);
+  let codigo: string | null = null;
+  if (ultima.documento_id) {
+    const { data: doc } = await sb.from("documentos").select("codigo").eq("id", ultima.documento_id).single();
+    codigo = (doc as { codigo: string } | null)?.codigo ?? null;
+  }
+  return {
+    tieneVersiones: true,
+    ultimaVersion: ultima.numero_version,
+    documentoId: ultima.documento_id,
+    documentoCodigo: codigo,
+    hayCambiosSinPublicar: hashActual !== ultima.hash_snapshot,
+  };
+}

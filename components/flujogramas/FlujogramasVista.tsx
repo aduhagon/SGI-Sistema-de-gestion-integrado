@@ -7,6 +7,7 @@ import type {
 import { agregarEstado, evaluarEstiloNodo, formaDeNodo, puntoEnLado, pathOrtogonal, claseRama, asignarCanales, asignarLados, detectarSecuenciaRota } from "@/lib/api/flujogramas-tipos";
 import { EditorProceso, EditorPaso, EditorSubproceso } from "@/components/flujogramas/EditorFlujo";
 import { CrearProceso, CrearSubproceso, ImportarExcel } from "@/components/flujogramas/GestionFlujos";
+import { PanelVersionado } from "@/components/flujogramas/PanelVersionado";
 import { ModalFlujograma } from "@/components/flujogramas/ModalFlujograma";
 
 type Nivel = 0 | 1 | 2 | 3;
@@ -286,6 +287,7 @@ export function FlujogramasVista({
                 proc={porId.get(sel.procId)!} subs={subsDe.get(sel.procId) ?? []} gapDeSub={gapDeSub}
                 onPick={(id) => setSel({ nivel: 2, procId: sel.procId, subId: id, pasoId: null })}
               />
+              <PanelVersionado procesoFlujoId={sel.procId} />
               {esAdminSgi && <EditorProceso nodo={porId.get(sel.procId)!} procesos={procesosSgi} />}
               {esAdminSgi && (
                 <>
