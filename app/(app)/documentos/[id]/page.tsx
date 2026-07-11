@@ -28,6 +28,8 @@ import { GestionCoberturas } from "@/components/coberturas/GestionCoberturas";
 import { obtenerCoberturasDeDocumento, obtenerRequisitosDeNorma } from "@/lib/api/coberturas";
 import { obtenerNormasConRequisitos } from "@/lib/api/matriz";
 import { cn } from "@/lib/utils";
+import { obtenerFlujoDeDocumento } from "@/lib/api/flujo-snapshot";
+import { FlujogramaDelDocumento } from "@/components/flujogramas/FlujogramaDelDocumento";
 
 type Props = {
   params: { id: string };
@@ -244,6 +246,9 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
     ? `${doc.dueno.persona.nombre} ${doc.dueno.persona.apellido}`.trim()
     : doc.dueno?.username ?? "—";
 
+  // Flujograma congelado asociado a este documento (si es una Ficha de Proceso publicada)
+  const flujoDoc = await obtenerFlujoDeDocumento(doc.id, versionActual?.id ?? null);
+
   return (
     <div className="mx-auto max-w-5xl p-6 sm:p-8 lg:p-10">
       {searchParams.creado === "1" && (
@@ -327,6 +332,22 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8">
         <div className="space-y-8">
+          {flujoDoc && (
+            <section>
+              <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
+                Flujograma del proceso
+              </h2>
+              <FlujogramaDelDocumento
+                numeroVersion={flujoDoc.numeroVersion}
+                flujoNodoId={flujoDoc.flujoNodoId}
+                nodos={flujoDoc.nodos}
+                aristas={flujoDoc.aristas}
+                puestos={flujoDoc.puestos}
+                congeladoEn={flujoDoc.congeladoEn}
+              />
+            </section>
+          )}
+
           <section>
             <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4">
               Archivo principal {versionActual && `· Versión ${versionActual.numero_version}`}
