@@ -37,8 +37,9 @@ export async function marcarOrigenErp(
     return { ok: false, error: `No se pudo guardar la marca: ${error.message}` };
   }
 
-  revalidatePath(`/procesos/${codigoProceso}`);
+  if (codigoProceso) revalidatePath(`/procesos/${codigoProceso}`);
   revalidatePath("/procesos");
+  revalidatePath("/flujogramas");
   revalidatePath("/dashboard");
   return { ok: true };
 }

@@ -9,6 +9,7 @@ import { EditorProceso, EditorPaso, EditorSubproceso } from "@/components/flujog
 import { CrearProceso, CrearSubproceso, ImportarExcel } from "@/components/flujogramas/GestionFlujos";
 import { PanelVersionado } from "@/components/flujogramas/PanelVersionado";
 import { ModalFlujograma } from "@/components/flujogramas/ModalFlujograma";
+import { PanelCoberturaErp } from "@/components/flujogramas/PanelCoberturaErp";
 
 type Nivel = 0 | 1 | 2 | 3;
 type Sel = { nivel: Nivel; procId: string | null; subId: string | null; pasoId: string | null };
@@ -306,6 +307,7 @@ export function FlujogramasVista({
                 proc={porId.get(sel.procId)!} subs={subsDe.get(sel.procId) ?? []} gapDeSub={gapDeSub}
                 onPick={(id) => setSel({ nivel: 2, procId: sel.procId, subId: id, pasoId: null })}
               />
+              <PanelCoberturaErp procesoId={porId.get(sel.procId)!.procesoId ?? null} />
               <PanelVersionado procesoFlujoId={sel.procId} />
               {esAdminSgi && <EditorProceso nodo={porId.get(sel.procId)!} procesos={procesosSgi} />}
               {esAdminSgi && (
