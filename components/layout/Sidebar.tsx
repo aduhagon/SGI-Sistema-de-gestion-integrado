@@ -50,6 +50,7 @@ const navItems: NavItem[] = [
   // Gestión del SGI — registros que se mantienen
   { href: "/documentos",         label: "Documentos",         icon: FileText,       section: "gestion", modulo: "documentos" },
   { href: "/procesos",           label: "Procesos",           icon: Network,        section: "gestion", modulo: "procesos" },
+  { href: "/flujogramas",        label: "Flujogramas",        icon: Workflow,       section: "gestion", modulo: "flujogramas" },
   { href: "/cumplimiento",       label: "Cumplimiento",       icon: Grid3x3,        section: "gestion", modulo: "cumplimiento" },
   { href: "/requisitos-legales", label: "Requisitos legales", icon: Scale,          section: "gestion" },
   { href: "/riesgos",            label: "Riesgos",            icon: ShieldAlert,    section: "gestion", modulo: "riesgos" },
@@ -58,7 +59,6 @@ const navItems: NavItem[] = [
 
   // Análisis — lectura / reporte
   { href: "/indicadores",   label: "Indicadores",        icon: Gauge,      section: "analisis", modulo: "indicadores" },
-  { href: "/flujogramas",   label: "Flujogramas",        icon: Workflow,   section: "analisis", modulo: "flujogramas" },
   { href: "/tablero",       label: "Tablero de control", icon: LineChart,  section: "analisis" },
   { href: "/reportes/raci", label: "Matriz RACI",        icon: Table2,     section: "analisis", soloAdminSgi: true },
   { href: "/reportes/personas", label: "Perfil por persona", icon: Users,  section: "analisis", soloAdminSgi: true },
