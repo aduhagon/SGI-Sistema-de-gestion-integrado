@@ -38,14 +38,32 @@ type NavItem = {
   soloSuperadmin?: boolean;
   soloAdminSgi?: boolean;
   modulo?: string; // código en modulos_sistema; si está, solo se muestra si el módulo está habilitado
+  /** Sub-items que cuelgan de este item (un solo nivel de anidamiento). */
+  children?: NavHijo[];
+};
+
+type NavHijo = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  modulo?: string;
 };
 
 const navItems: NavItem[] = [
-  // Inicio — el trabajo pendiente del usuario
-  { href: "/mis-pendientes", label: "Mis pendientes",    icon: ListChecks,     section: "inicio" },
-  { href: "/dashboard",     label: "Dashboard",        icon: LayoutDashboard, section: "inicio" },
-  { href: "/aprobaciones",  label: "Aprobaciones",     icon: CheckSquare,     section: "inicio" },
-  { href: "/acuses",        label: "Acuses",           icon: PenSquare,       section: "inicio" },
+  // Inicio — el trabajo pendiente del usuario.
+  // Aprobaciones y Acuses cuelgan de Mis pendientes: son las dos bandejas
+  // donde el usuario resuelve lo que Mis pendientes le muestra.
+  {
+    href: "/mis-pendientes",
+    label: "Mis pendientes",
+    icon: ListChecks,
+    section: "inicio",
+    children: [
+      { href: "/aprobaciones", label: "Aprobaciones", icon: CheckSquare },
+      { href: "/acuses",       label: "Acuses",       icon: PenSquare },
+    ],
+  },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, section: "inicio" },
 
   // Gestión del SGI — registros que se mantienen
   { href: "/documentos",         label: "Documentos",         icon: FileText,       section: "gestion", modulo: "documentos" },
@@ -185,6 +203,17 @@ function MenuContenido({
           );
           if (items.length === 0) return null;
 
+          // El contador del grupo incluye los sub-items visibles.
+          const count = items.reduce(
+            (n, i) =>
+              n +
+              1 +
+              (i.children ?? []).filter(
+                (h) => !h.modulo || modulosHabilitados.includes(h.modulo),
+              ).length,
+            0,
+          );
+
           const abierto = abiertos[key];
           return (
             <NavGroup
@@ -192,16 +221,34 @@ function MenuContenido({
               title={title}
               abierto={abierto}
               onToggle={() => toggle(key)}
-              count={items.length}
+              count={count}
             >
-              {items.map((item) => (
-                <NavLink
-                  key={item.href}
-                  item={item}
-                  active={isActive(pathname, item.href)}
-                  onClick={onNavegar}
-                />
-              ))}
+              {items.map((item) => {
+                const hijos = (item.children ?? []).filter(
+                  (h) => !h.modulo || modulosHabilitados.includes(h.modulo),
+                );
+
+                if (hijos.length === 0) {
+                  return (
+                    <NavLink
+                      key={item.href}
+                      item={item}
+                      active={isActive(pathname, item.href)}
+                      onClick={onNavegar}
+                    />
+                  );
+                }
+
+                return (
+                  <NavItemConHijos
+                    key={item.href}
+                    item={item}
+                    hijos={hijos}
+                    pathname={pathname}
+                    onNavegar={onNavegar}
+                  />
+                );
+              })}
             </NavGroup>
           );
         })}
@@ -261,6 +308,125 @@ function NavGroup({
   );
 }
 
+/**
+ * Item padre con sub-items. El padre sigue siendo un link navegable (a
+ * /mis-pendientes); el chevron es un botón aparte para abrir/cerrar los hijos,
+ * de modo que hacer click en el label no obligue a desplegar.
+ * Arranca abierto si la ruta actual es el padre o alguno de sus hijos.
+ */
+function NavItemConHijos({
+  item,
+  hijos,
+  pathname,
+  onNavegar,
+}: {
+  item: NavItem;
+  hijos: NavHijo[];
+  pathname: string;
+  onNavegar?: () => void;
+}) {
+  const padreActivo = isActive(pathname, item.href);
+  const algunHijoActivo = hijos.some((h) => isActive(pathname, h.href));
+
+  const [abierto, setAbierto] = useState(padreActivo || algunHijoActivo);
+
+  const Icon = item.icon;
+
+  return (
+    <div>
+      <div
+        className={cn(
+          "group relative flex items-center rounded-md pr-1 transition-all duration-150",
+          padreActivo
+            ? "bg-primary/[0.09] text-primary"
+            : "text-foreground/70 hover:bg-primary/[0.05] hover:text-foreground",
+        )}
+      >
+        {/* Barra de acento del item activo */}
+        <span
+          className={cn(
+            "absolute left-2.5 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-primary transition-opacity duration-150",
+            padreActivo ? "opacity-100" : "opacity-0",
+          )}
+          aria-hidden="true"
+        />
+
+        <Link
+          href={item.href}
+          onClick={onNavegar}
+          className="flex flex-1 items-center gap-3 py-2 pl-7 text-sm font-medium"
+        >
+          <Icon
+            className={cn(
+              "h-4 w-4 shrink-0 transition-colors",
+              padreActivo
+                ? "text-primary"
+                : "text-muted-foreground group-hover:text-foreground",
+            )}
+          />
+          <span className="truncate">{item.label}</span>
+        </Link>
+
+        <button
+          type="button"
+          onClick={() => setAbierto((v) => !v)}
+          aria-expanded={abierto}
+          aria-label={abierto ? `Contraer ${item.label}` : `Expandir ${item.label}`}
+          className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ChevronRight
+            className={cn(
+              "h-3.5 w-3.5 transition-transform duration-200 ease-out",
+              abierto && "rotate-90",
+            )}
+          />
+        </button>
+      </div>
+
+      {/* Sub-items */}
+      <div
+        className={cn(
+          "grid transition-all duration-200 ease-out",
+          abierto ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="space-y-0.5 pt-0.5">
+            {hijos.map((hijo) => {
+              const HijoIcon = hijo.icon;
+              const activo = isActive(pathname, hijo.href);
+              return (
+                <Link
+                  key={hijo.href}
+                  href={hijo.href}
+                  onClick={onNavegar}
+                  tabIndex={abierto ? undefined : -1}
+                  className={cn(
+                    "group relative ml-7 flex items-center gap-2.5 rounded-md border-l border-border py-1.5 pl-4 pr-3 text-[13px] font-medium transition-all duration-150",
+                    activo
+                      ? "border-l-primary bg-primary/[0.07] text-primary"
+                      : "text-foreground/60 hover:bg-primary/[0.04] hover:text-foreground",
+                  )}
+                >
+                  <HijoIcon
+                    className={cn(
+                      "h-3.5 w-3.5 shrink-0 transition-colors",
+                      activo
+                        ? "text-primary"
+                        : "text-muted-foreground group-hover:text-foreground",
+                    )}
+                  />
+                  <span className="truncate">{hijo.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NavLink({
   item,
   active,
@@ -302,9 +468,17 @@ function NavLink({
 }
 
 function obtenerSeccionActiva(pathname: string): Seccion | null {
-  const item = [...navItems]
+  // Aplanar padres e hijos: si estamos en /acuses (hijo), la sección activa
+  // debe seguir siendo la del padre (/mis-pendientes -> "inicio").
+  const planos: { href: string; section: Seccion }[] = navItems.flatMap((i) => [
+    { href: i.href, section: i.section },
+    ...(i.children ?? []).map((h) => ({ href: h.href, section: i.section })),
+  ]);
+
+  const item = planos
     .sort((a, b) => b.href.length - a.href.length)
     .find((i) => isActive(pathname, i.href));
+
   return item?.section ?? null;
 }
 
