@@ -11,6 +11,7 @@ import {
   cambiarOrigenArista, crearAristaEntrante, insertarPasoEntre,
   editarSubtipoEvento, insertarGatewayEnSalidas,
   moverPaso, limpiarAristasDuplicadas, editarEtiquetaArista,
+  moverSubproceso,
 } from "@/app/(app)/flujogramas/actions";
 
 type ProcesoOpc = { id: string; nombre: string };
@@ -425,16 +426,23 @@ function ConfirmarBorrado({
 
 // ── Alta de pasos en un subproceso (nivel 2) ──
 export function EditorSubproceso({
-  subprocesoId, puestos,
+  subprocesoId, puestos, flujogramas = [], padreId = null,
 }: {
   subprocesoId: string;
   puestos: PuestoRef[];
+  flujogramas?: { id: string; titulo: string }[];
+  padreId?: string | null;
 }) {
   const { pending, msg, correr } = useAccion();
   const [titulo, setTitulo] = useState("");
   const [tipo, setTipo] = useState<"inicio" | "tarea" | "decision" | "fin">("tarea");
   const [puesto, setPuesto] = useState("");
   return (
+    <>
+    <MoverSubproceso
+      subprocesoId={subprocesoId}
+      flujogramas={flujogramas.filter((f) => f.id !== padreId)}
+    />
     <div className="mt-4 rounded-xl border border-dashed border-border bg-muted/30 p-4">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Agregar paso al subproceso</p>
       <div className="flex flex-wrap items-end gap-2">
@@ -468,6 +476,71 @@ export function EditorSubproceso({
       </div>
       <p className="mt-2 text-xs text-muted-foreground">El paso se crea suelto. Después entrá a su ficha para conectarlo en la secuencia.</p>
       <Aviso msg={msg} />
+    </div>
+    </>
+  );
+}
+
+// Mover el subproceso completo (con sus pasos y conexiones) a otro flujograma.
+function MoverSubproceso({
+  subprocesoId, flujogramas,
+}: {
+  subprocesoId: string;
+  flujogramas: { id: string; titulo: string }[];
+}) {
+  const { pending, msg, correr } = useAccion();
+  const [destino, setDestino] = useState("");
+  const [abierto, setAbierto] = useState(false);
+
+  if (flujogramas.length === 0) return null;
+
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
+      <button
+        onClick={() => setAbierto((v) => !v)}
+        className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+      >
+        <span>Mover subproceso a otro flujograma</span>
+        <span className="text-sm">{abierto ? "−" : "+"}</span>
+      </button>
+
+      {abierto && (
+        <div className="mt-3">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex-1 min-w-[220px]">
+              <label className="text-xs text-muted-foreground">Flujograma destino</label>
+              <select
+                value={destino}
+                onChange={(e) => setDestino(e.target.value)}
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm"
+              >
+                <option value="">— elegir flujograma —</option>
+                {flujogramas.map((f) => (
+                  <option key={f.id} value={f.id}>{f.titulo}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              disabled={pending || !destino}
+              onClick={() => {
+                correr(
+                  () => moverSubproceso(subprocesoId, destino),
+                  "Subproceso movido. Se mudaron todos sus pasos y conexiones."
+                );
+                setDestino("");
+              }}
+              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+            >
+              {pending ? "Moviendo…" : "Mover"}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Se mueve el subproceso completo: sus pasos y las conexiones entre ellos viajan con él.
+            Queda al final del flujograma destino.
+          </p>
+          <Aviso msg={msg} />
+        </div>
+      )}
     </div>
   );
 }

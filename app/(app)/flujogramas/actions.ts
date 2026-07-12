@@ -559,6 +559,49 @@ export async function renombrarNodo(nodoId: string, titulo: string): Promise<Res
   return { ok: true };
 }
 
+// (22) Mover un subproceso entero (con todos sus pasos y aristas) a otro flujograma.
+// Los pasos cuelgan del subproceso vía padre_id, así que se mudan solos: solo cambia
+// el padre del subproceso. Las aristas son internas al subproceso y no se tocan.
+export async function moverSubproceso(
+  subprocesoId: string, nuevoProcesoFlujogramaId: string
+): Promise<ResultadoAccion> {
+  const g = await exigirAdmin();
+  if (!g.ok) return g;
+  const sb = createClient();
+
+  const { data: sub, error: eS } = await sb.from("flujo_nodo")
+    .select("nivel, padre_id").eq("id", subprocesoId).single();
+  if (eS || !sub) return { ok: false, error: "Subproceso no encontrado." };
+  const s = sub as { nivel: string; padre_id: string | null };
+  if (s.nivel !== "subproceso") return { ok: false, error: "Solo se pueden mover subprocesos." };
+  if (s.padre_id === nuevoProcesoFlujogramaId) {
+    return { ok: false, error: "El subproceso ya pertenece a ese flujograma." };
+  }
+
+  const { data: destino, error: eD } = await sb.from("flujo_nodo")
+    .select("nivel").eq("id", nuevoProcesoFlujogramaId).single();
+  if (eD || !destino) return { ok: false, error: "Flujograma destino no encontrado." };
+  if ((destino as { nivel: string }).nivel !== "proceso") {
+    return { ok: false, error: "El destino debe ser un flujograma (nivel proceso)." };
+  }
+
+  // Ubicarlo al final del destino para no pisar el orden de los subprocesos existentes.
+  const { data: hermanos } = await sb.from("flujo_nodo")
+    .select("orden").eq("padre_id", nuevoProcesoFlujogramaId).eq("nivel", "subproceso")
+    .eq("activo", true).order("orden", { ascending: false }).limit(1);
+  const orden = hermanos && hermanos.length > 0
+    ? ((hermanos[0] as { orden: number }).orden ?? 0) + 1
+    : 1;
+
+  const { error } = await sb.from("flujo_nodo")
+    .update({ padre_id: nuevoProcesoFlujogramaId, orden })
+    .eq("id", subprocesoId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/flujogramas");
+  return { ok: true };
+}
+
 // ═══════════════════════════════════════════════════════════════
 // paquete-080 · Importador de Excel (relevamiento de un subproceso)
 // ═══════════════════════════════════════════════════════════════

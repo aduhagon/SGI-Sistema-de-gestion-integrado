@@ -326,7 +326,14 @@ export function FlujogramasVista({
                 onPaso={(id) => setSel({ ...sel, nivel: 3, pasoId: id })}
                 onExpandir={() => setModalSubId(sel.subId)}
               />
-              {esAdminSgi && <EditorSubproceso subprocesoId={sel.subId} puestos={puestos} />}
+              {esAdminSgi && (
+                <EditorSubproceso
+                  subprocesoId={sel.subId}
+                  puestos={puestos}
+                  flujogramas={procesos.map((p) => ({ id: p.id, titulo: p.titulo }))}
+                  padreId={porId.get(sel.subId)?.padreId ?? null}
+                />
+              )}
             </>
           )}
           {sel.nivel === 3 && sel.pasoId && (
