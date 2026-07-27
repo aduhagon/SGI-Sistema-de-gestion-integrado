@@ -20,6 +20,9 @@ import {
 import { obtenerChecklistDeAuditoria } from "@/lib/api/auditoria-checklist";
 import { obtenerAdjuntosDeHallazgos, type AdjuntoHallazgo } from "@/lib/api/adjuntos-hallazgo";
 import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
+import { obtenerTrazabilidadAuditoria } from "@/lib/api/trazabilidad";
+import { TrazabilidadCiclo } from "@/components/ncs/TrazabilidadCiclo";
+import { obtenerZonaHoraria } from "@/lib/api/ajustes";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +80,7 @@ export default async function AuditoriaDetallePage({ params, searchParams }: Pro
   const [
     hallazgos, requisitosVinc, procesosVinc,
     equipo, candidatos, permisos, checklist, usuarioId,
+    trazabilidad, zona,
   ] = await Promise.all([
     obtenerHallazgosDeAuditoria(params.id),
     obtenerRequisitosDeAuditoria(params.id),
@@ -86,6 +90,8 @@ export default async function AuditoriaDetallePage({ params, searchParams }: Pro
     obtenerPermisosAuditoria(params.id),
     obtenerChecklistDeAuditoria(params.id),
     obtenerUsuarioActualId(),
+    obtenerTrazabilidadAuditoria(params.id),
+    obtenerZonaHoraria(),
   ]);
 
   // Adjuntos de documentación por hallazgo.
@@ -265,6 +271,10 @@ export default async function AuditoriaDetallePage({ params, searchParams }: Pro
           <p className="text-sm leading-relaxed text-foreground">{aud.conclusiones}</p>
         </section>
       )}
+
+      <div className="mt-8">
+        <TrazabilidadCiclo pasos={trazabilidad} zona={zona} titulo="Trazabilidad de la auditoría" />
+      </div>
     </div>
   );
 }

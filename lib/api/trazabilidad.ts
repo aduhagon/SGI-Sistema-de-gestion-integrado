@@ -1,12 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Trazabilidad de actores del ciclo CAPA.
+ * Trazabilidad de actores del ciclo CAPA y del ciclo de auditoría.
  *
- * La fuente de verdad son las columnas `*_por_usuario_id` de
- * no_conformidades / hallazgos / acciones, que un trigger de base
- * (fn_registrar_actor_transicion) completa en cada transición terminal.
- * Por eso alcanza con leer: no hay lógica de resolución acá.
+ * La fuente de verdad son las columnas `*_por*` de no_conformidades /
+ * hallazgos / acciones / auditorias, que un trigger de base
+ * (fn_registrar_actor_transicion) completa en cada transición terminal, más
+ * la tabla append-only `decisiones_informe_auditoria` para el ciclo del
+ * informe (emitir → devolver → re-emitir → aprobar cierre).
  *
  * El puesto viene resuelto A LA FECHA DEL ACTO, no al día de hoy: si la
  * persona cambió de puesto después, la ficha sigue mostrando el que tenía
@@ -14,6 +15,7 @@ import { createClient } from "@/lib/supabase/server";
  */
 
 export type EtapaTrazabilidad =
+  // ciclo CAPA
   | "apertura"
   | "reapertura"
   | "verificacion"
@@ -21,7 +23,14 @@ export type EtapaTrazabilidad =
   | "aceptacion_riesgo"
   | "accion_completada"
   | "accion_cancelada"
-  | "deteccion";
+  | "deteccion"
+  // ciclo de auditoría
+  | "planificacion"
+  | "inicio"
+  | "emitido"
+  | "devuelto"
+  | "cierre_aprobado"
+  | "cancelacion";
 
 export type PasoTrazabilidad = {
   orden: number;
@@ -31,7 +40,11 @@ export type PasoTrazabilidad = {
   puesto: string | null;
   fecha: string | null;
   detalle: string | null;
-  /** 'eficaz' | 'parcialmente_eficaz' | 'no_eficaz' | 'forzado' | 'externo' */
+  /**
+   * Según la etapa: resultado de la verificación ('eficaz',
+   * 'parcialmente_eficaz', 'no_eficaz'), 'forzado', 'externo', o la vuelta
+   * del ciclo del informe ('vuelta 1', 'vuelta 2', …).
+   */
   marca: string | null;
   /** Código y título de la acción, cuando la etapa es de acción. */
   referencia: string | null;
@@ -68,6 +81,23 @@ export async function obtenerTrazabilidadHallazgo(
   const supabase = createClient();
   const { data, error } = await supabase.rpc("fn_trazabilidad_hallazgo", {
     p_hallazgo_id: hallazgoId,
+  });
+
+  if (error) return [];
+  return ((data ?? []) as any[]).map(mapear);
+}
+
+/**
+ * Recorrido de actores de una auditoría: planificación, inicio, y todas las
+ * vueltas del ciclo del informe. Cada emisión y cada devolución quedan como
+ * pasos separados, no sólo la última.
+ */
+export async function obtenerTrazabilidadAuditoria(
+  auditoriaId: string,
+): Promise<PasoTrazabilidad[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_trazabilidad_auditoria", {
+    p_auditoria_id: auditoriaId,
   });
 
   if (error) return [];

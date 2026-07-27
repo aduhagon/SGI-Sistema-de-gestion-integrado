@@ -1,28 +1,40 @@
-import { Route, ShieldAlert } from "lucide-react";
+import { Route, ShieldAlert, RotateCcw } from "lucide-react";
 import type { PasoTrazabilidad } from "@/lib/api/trazabilidad";
 import { formatearFechaLarga } from "@/lib/fechas";
 
 /**
- * Bloque de trazabilidad del ciclo: quién abrió, quién verificó la eficacia,
- * quién cerró, y quién completó o canceló cada acción.
+ * Bloque de trazabilidad: quién hizo cada acto del ciclo, con qué puesto y
+ * cuándo. Sirve para no conformidades, hallazgos y auditorías: las tres
+ * funciones de base devuelven la misma forma.
+ *
+ * Vive en components/ncs/ por el mismo motivo que BotonCerrar: nació ahí y lo
+ * usan los dos módulos. Si algún día se mueve a components/common/, hay que
+ * ajustar los imports de las dos fichas.
  *
  * Decisiones de diseño (validadas antes de implementar):
- * - Las acciones van resumidas al pie, no como pasos del recorrido, para que
- *   una NC con muchas acciones siga siendo legible.
- * - Los actos sin actor registrado (anteriores a la migración 044) muestran
- *   "No registrado" en gris: el hueco declarado es mejor evidencia que el
- *   hueco disimulado.
- * - El cierre forzado por el SGI (sin verificación de eficacia) lleva un aviso
- *   ámbar visible, porque es lo primero que va a buscar un auditor.
+ * - Las acciones van resumidas al pie, no como pasos del recorrido.
+ * - Los actos sin actor registrado muestran "No registrado" en gris: el hueco
+ *   declarado es mejor evidencia que el hueco disimulado.
+ * - El cierre forzado por el SGI lleva un aviso ámbar visible.
+ * - En auditorías, cada vuelta del ciclo emitir → devolver queda como un paso
+ *   propio, etiquetada con su número de vuelta.
  */
 
 const ETAPA_LABEL: Record<string, string> = {
+  // ciclo CAPA
   apertura: "Abrió",
   deteccion: "Detectó",
   reapertura: "Reabrió",
   verificacion: "Verificó eficacia",
   cierre: "Cerró",
   aceptacion_riesgo: "Aceptó el riesgo",
+  // ciclo de auditoría
+  planificacion: "Planificó",
+  inicio: "Inició",
+  emitido: "Emitió el informe",
+  devuelto: "Devolvió el informe",
+  cierre_aprobado: "Aprobó el cierre",
+  cancelacion: "Canceló",
 };
 
 const RESULTADO_LABEL: Record<string, string> = {
@@ -37,6 +49,9 @@ const RESULTADO_CLASE: Record<string, string> = {
   no_eficaz: "border-destructive/30 bg-destructive/10 text-destructive",
 };
 
+/** Etapas que marcan un retroceso del flujo: se resaltan en ámbar. */
+const ETAPAS_RETROCESO = new Set(["devuelto", "reapertura", "cancelacion"]);
+
 function iniciales(nombre: string | null): string {
   if (!nombre) return "—";
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
@@ -49,13 +64,19 @@ function Paso({ paso, zona }: { paso: PasoTrazabilidad; zona: string }) {
   const etiqueta = ETAPA_LABEL[paso.etapa] ?? paso.etapa;
   const sinActor = !paso.persona;
   const esForzado = paso.marca === "forzado";
+  const esRetroceso = ETAPAS_RETROCESO.has(paso.etapa);
   const resultado = paso.marca && RESULTADO_LABEL[paso.marca] ? paso.marca : null;
+  const vuelta = paso.marca && paso.marca.startsWith("vuelta ") ? paso.marca : null;
 
   return (
     <div className="flex gap-3 border-t border-border py-3 first:border-t-0">
       <div
         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-medium ${
-          sinActor ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
+          sinActor
+            ? "bg-muted text-muted-foreground"
+            : esRetroceso
+              ? "bg-amber-400/15 text-amber-800"
+              : "bg-primary/10 text-primary"
         }`}
         aria-hidden="true"
       >
@@ -63,16 +84,22 @@ function Paso({ paso, zona }: { paso: PasoTrazabilidad; zona: string }) {
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-          {etiqueta}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            {etiqueta}
+          </span>
+          {vuelta && (
+            <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              {esRetroceso && <RotateCcw className="h-3 w-3" aria-hidden="true" />}
+              {vuelta}
+            </span>
+          )}
         </div>
 
         {sinActor ? (
           <div className="text-sm text-muted-foreground">
             No registrado
-            <span className="ml-1.5 text-xs">
-              (anterior al registro de actores)
-            </span>
+            <span className="ml-1.5 text-xs">(anterior al registro de actores)</span>
           </div>
         ) : (
           <>
@@ -136,12 +163,21 @@ export function TrazabilidadCiclo({
     (p) => p.etapa === "accion_completada" || p.etapa === "accion_cancelada",
   );
 
+  const devoluciones = recorrido.filter((p) => p.etapa === "devuelto").length;
+
   return (
     <section className="rounded-lg border border-border bg-card p-4 sm:p-5">
       <h2 className="mb-3 flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
         <Route className="h-3.5 w-3.5" aria-hidden="true" />
         {titulo}
       </h2>
+
+      {devoluciones > 0 && (
+        <p className="mb-3 rounded border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-900">
+          El informe fue devuelto {devoluciones === 1 ? "una vez" : `${devoluciones} veces`} antes
+          de aprobarse el cierre.
+        </p>
+      )}
 
       {recorrido.map((paso, i) => (
         <Paso key={`${paso.etapa}-${paso.fecha ?? i}`} paso={paso} zona={zona} />
