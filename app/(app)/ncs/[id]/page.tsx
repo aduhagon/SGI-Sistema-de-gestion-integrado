@@ -5,6 +5,7 @@ import { obtenerNCDetalle } from "@/lib/api/ncs";
 import { obtenerAccionesDeNC, obtenerVerificacionesDeNC } from "@/lib/api/acciones";
 import { obtenerAdjuntosDeNC } from "@/lib/api/adjuntos-nc";
 import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
+import { obtenerTrazabilidadNC } from "@/lib/api/trazabilidad";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerUsuariosElegibles } from "@/lib/api/envio";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import { AnalisisCausaForm } from "@/components/ncs/AnalisisCausaForm";
 import { GestionAcciones } from "@/components/ncs/GestionAcciones";
 import { VerificacionEficaciaSection } from "@/components/ncs/VerificacionEficacia";
 import { AdjuntosNCSection } from "@/components/ncs/AdjuntosNC";
+import { TrazabilidadCiclo } from "@/components/ncs/TrazabilidadCiclo";
 import { obtenerZonaHoraria } from "@/lib/api/ajustes";
 import { formatearFechaLarga } from "@/lib/fechas";
 
@@ -41,11 +43,12 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
   const nc = await obtenerNCDetalle(params.id);
   if (!nc) notFound();
 
-  const [acciones, verificaciones, usuarios, zona] = await Promise.all([
+  const [acciones, verificaciones, usuarios, zona, trazabilidad] = await Promise.all([
     obtenerAccionesDeNC(params.id),
     obtenerVerificacionesDeNC(params.id),
     obtenerUsuariosElegibles(null),
     obtenerZonaHoraria(),
+    obtenerTrazabilidadNC(params.id),
   ]);
 
   const adjuntos = await obtenerAdjuntosDeNC(params.id);
@@ -136,6 +139,10 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
         verificaciones={verificaciones}
         acciones={acciones}
       />
+
+      <div className="mt-10">
+        <TrazabilidadCiclo pasos={trazabilidad} zona={zona} />
+      </div>
     </div>
   );
 }
