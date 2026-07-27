@@ -26,13 +26,30 @@ const MODULO_LABEL: Record<string, string> = {
   acuses: "Acuses de lectura",
   no_conformidades: "No conformidades",
   acciones: "Acciones de tratamiento",
+  hallazgos: "Hallazgos por tratar",
+  auditorias: "Auditorías programadas",
   riesgos: "Riesgos",
   indicadores: "Indicadores por medir",
   documentos: "Documentos por revisar",
 };
 
 // Orden de presentación de las secciones en la pantalla.
-const ORDEN_MODULO = ["aprobaciones", "acuses", "no_conformidades", "acciones", "riesgos", "indicadores", "documentos"];
+//
+// OJO: el agrupado de abajo itera sobre esta lista, así que un módulo que
+// fn_pendientes_usuario devuelva pero que no figure acá se descarta en
+// silencio. Al sumar un módulo nuevo en la función SQL hay que agregarlo
+// también en esta constante y en MODULO_LABEL.
+const ORDEN_MODULO = [
+  "aprobaciones",
+  "acuses",
+  "no_conformidades",
+  "acciones",
+  "hallazgos",
+  "auditorias",
+  "riesgos",
+  "indicadores",
+  "documentos",
+];
 
 /**
  * Devuelve los pendientes del usuario actual, agrupados por módulo.
