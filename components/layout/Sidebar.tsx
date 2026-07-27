@@ -11,6 +11,7 @@ import {
   CheckSquare,
   PenSquare,
   ListChecks,
+  CalendarDays,
   ClipboardCheck,
   AlertOctagon,
   Grid3x3,
@@ -79,6 +80,7 @@ const navItems: NavItem[] = [
     children: [
       { href: "/aprobaciones", label: "Aprobaciones", icon: CheckSquare },
       { href: "/acuses",       label: "Acuses",       icon: PenSquare },
+      { href: "/calendario",   label: "Calendario",   icon: CalendarDays },
     ],
   },
 
