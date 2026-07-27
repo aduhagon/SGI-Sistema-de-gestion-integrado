@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
+  Home,
+  LayoutGrid,
   Network,
   FileText,
   CheckSquare,
@@ -16,7 +17,6 @@ import {
   ShieldAlert,
   Gauge,
   Scale,
-  LineChart,
   Workflow,
   Table2,
   Users,
@@ -28,7 +28,13 @@ import {
 import { cn } from "@/lib/utils";
 import { useSidebarMobile } from "@/components/layout/SidebarMobileContext";
 
-type Seccion = "inicio" | "gestion" | "analisis" | "admin";
+type Seccion =
+  | "trabajo"
+  | "organizacion"
+  | "documentacion"
+  | "control"
+  | "analisis"
+  | "admin";
 
 type NavItem = {
   href: string;
@@ -49,37 +55,52 @@ type NavHijo = {
   modulo?: string;
 };
 
+// El menú se agrupa por NATURALEZA del módulo, no por tema:
+//   trabajo       -> lo que el usuario tiene que resolver hoy
+//   organizacion  -> cómo está estructurada la empresa (cambia poco, se consulta)
+//   documentacion -> lo que la organización declara por escrito
+//   control       -> operación del SGI: genera registros con ciclo de vida
+//   analisis      -> vistas agregadas de solo lectura
+//   admin         -> parametrización
+//
+// OJO con las rutas: /tablero es la pantalla de bienvenida ("Buenos días…")
+// y /dashboard es el mapa de calor cuyo propio <h1> dice "Tablero de control".
+// Los labels de acá reflejan lo que cada pantalla realmente muestra.
 const navItems: NavItem[] = [
-  // Inicio — el trabajo pendiente del usuario.
+  // Mi trabajo — lo pendiente del usuario.
   // Aprobaciones y Acuses cuelgan de Mis pendientes: son las dos bandejas
   // donde el usuario resuelve lo que Mis pendientes le muestra.
+  { href: "/tablero", label: "Inicio", icon: Home, section: "trabajo" },
   {
     href: "/mis-pendientes",
     label: "Mis pendientes",
     icon: ListChecks,
-    section: "inicio",
+    section: "trabajo",
     children: [
       { href: "/aprobaciones", label: "Aprobaciones", icon: CheckSquare },
       { href: "/acuses",       label: "Acuses",       icon: PenSquare },
     ],
   },
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, section: "inicio" },
 
-  // Gestión del SGI — registros que se mantienen
-  { href: "/documentos",         label: "Documentos",         icon: FileText,       section: "gestion", modulo: "documentos" },
-  { href: "/procesos",           label: "Procesos",           icon: Network,        section: "gestion", modulo: "procesos" },
-  { href: "/flujogramas",        label: "Flujogramas",        icon: Workflow,       section: "gestion", modulo: "flujogramas" },
-  { href: "/cumplimiento",       label: "Cumplimiento",       icon: Grid3x3,        section: "gestion", modulo: "cumplimiento" },
-  { href: "/requisitos-legales", label: "Requisitos legales", icon: Scale,          section: "gestion" },
-  { href: "/riesgos",            label: "Riesgos",            icon: ShieldAlert,    section: "gestion", modulo: "riesgos" },
-  { href: "/auditorias",         label: "Auditorías",         icon: ClipboardCheck, section: "gestion", modulo: "auditorias" },
-  { href: "/ncs",                label: "No conformidades",   icon: AlertOctagon,   section: "gestion", modulo: "no_conformidades" },
+  // Organización — estructura: quién hace qué y cómo
+  { href: "/procesos",          label: "Procesos",           icon: Network,  section: "organizacion", modulo: "procesos" },
+  { href: "/flujogramas",       label: "Flujogramas",        icon: Workflow, section: "organizacion", modulo: "flujogramas" },
+  { href: "/reportes/raci",     label: "Matriz RACI",        icon: Table2,   section: "organizacion", soloAdminSgi: true },
+  { href: "/reportes/personas", label: "Perfil por persona", icon: Users,    section: "organizacion", soloAdminSgi: true },
 
-  // Análisis — lectura / reporte
-  { href: "/indicadores",   label: "Indicadores",        icon: Gauge,      section: "analisis", modulo: "indicadores" },
-  { href: "/tablero",       label: "Tablero de control", icon: LineChart,  section: "analisis" },
-  { href: "/reportes/raci", label: "Matriz RACI",        icon: Table2,     section: "analisis", soloAdminSgi: true },
-  { href: "/reportes/personas", label: "Perfil por persona", icon: Users,  section: "analisis", soloAdminSgi: true },
+  // Documentación — lo que la organización declara por escrito
+  { href: "/documentos",         label: "Documentos",         icon: FileText, section: "documentacion", modulo: "documentos" },
+  { href: "/requisitos-legales", label: "Requisitos legales", icon: Scale,    section: "documentacion" },
+
+  // Control y mejora — operación diaria que genera registros
+  { href: "/riesgos",     label: "Riesgos",          icon: ShieldAlert,    section: "control", modulo: "riesgos" },
+  { href: "/auditorias",  label: "Auditorías",       icon: ClipboardCheck, section: "control", modulo: "auditorias" },
+  { href: "/ncs",         label: "No conformidades", icon: AlertOctagon,   section: "control", modulo: "no_conformidades" },
+  { href: "/indicadores", label: "Indicadores",      icon: Gauge,          section: "control", modulo: "indicadores" },
+
+  // Análisis — vistas agregadas, solo lectura
+  { href: "/cumplimiento", label: "Cumplimiento",       icon: Grid3x3,    section: "analisis", modulo: "cumplimiento" },
+  { href: "/dashboard",    label: "Tablero de control", icon: LayoutGrid, section: "analisis" },
 
   // Sistema
   { href: "/configuracion", label: "Configuración",             icon: Settings,           section: "admin" },
@@ -87,10 +108,12 @@ const navItems: NavItem[] = [
 ];
 
 const GRUPOS: { key: Seccion; title: string }[] = [
-  { key: "inicio",   title: "Inicio" },
-  { key: "gestion",  title: "Gestión del SGI" },
-  { key: "analisis", title: "Análisis" },
-  { key: "admin",    title: "Sistema" },
+  { key: "trabajo",       title: "Mi trabajo" },
+  { key: "organizacion",  title: "Organización" },
+  { key: "documentacion", title: "Documentación" },
+  { key: "control",       title: "Control y mejora" },
+  { key: "analisis",      title: "Análisis" },
+  { key: "admin",         title: "Sistema" },
 ];
 
 export function Sidebar({ esSuperadmin = false, esAdminSgi = false, modulosHabilitados = [] }: { esSuperadmin?: boolean; esAdminSgi?: boolean; modulosHabilitados?: string[] }) {
@@ -179,9 +202,13 @@ function MenuContenido({
   const pathname = usePathname();
 
   const seccionActiva = obtenerSeccionActiva(pathname);
+  // Con seis grupos conviene abrir solo el de la ruta actual: el menú entra
+  // completo en pantalla sin scroll y el usuario ve dónde está parado.
   const [abiertos, setAbiertos] = useState<Record<Seccion, boolean>>({
-    inicio: seccionActiva === "inicio",
-    gestion: seccionActiva === "gestion",
+    trabajo: seccionActiva === "trabajo",
+    organizacion: seccionActiva === "organizacion",
+    documentacion: seccionActiva === "documentacion",
+    control: seccionActiva === "control",
     analisis: seccionActiva === "analisis",
     admin: seccionActiva === "admin",
   });
@@ -469,7 +496,7 @@ function NavLink({
 
 function obtenerSeccionActiva(pathname: string): Seccion | null {
   // Aplanar padres e hijos: si estamos en /acuses (hijo), la sección activa
-  // debe seguir siendo la del padre (/mis-pendientes -> "inicio").
+  // debe seguir siendo la del padre (/mis-pendientes -> "trabajo").
   const planos: { href: string; section: Seccion }[] = navItems.flatMap((i) => [
     { href: i.href, section: i.section },
     ...(i.children ?? []).map((h) => ({ href: h.href, section: i.section })),
