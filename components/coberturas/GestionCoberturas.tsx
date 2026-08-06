@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X, Loader2, Link2 } from "lucide-react";
+import Link from "next/link";
+import { Plus, X, Loader2, Link2, ListTree } from "lucide-react";
 import type { CoberturaActual } from "@/lib/api/coberturas";
 import type { NormaOpcion } from "@/lib/api/matriz";
 import type { RequisitoOpcion } from "@/lib/api/coberturas";
@@ -53,12 +54,21 @@ export function GestionCoberturas({
         <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Requisitos que cubre
         </h2>
-        {normas.length > 0 && (
-          <Button size="sm" variant="outline" onClick={() => setAbierto(true)}>
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            Vincular requisito
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/documentos/${documentoId}/referencias`}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            <ListTree className="h-3.5 w-3.5" aria-hidden="true" />
+            Referencias por bloque
+          </Link>
+          {normas.length > 0 && (
+            <Button size="sm" variant="outline" onClick={() => setAbierto(true)}>
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              Vincular requisito
+            </Button>
+          )}
+        </div>
       </div>
 
       {coberturas.length > 0 ? (

@@ -25,6 +25,7 @@ import {
   SlidersHorizontal,
   ChevronRight,
   X,
+  FileSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebarMobile } from "@/components/layout/SidebarMobileContext";
@@ -102,6 +103,7 @@ const navItems: NavItem[] = [
 
   // Análisis — vistas agregadas, solo lectura
   { href: "/cumplimiento", label: "Cumplimiento",       icon: Grid3x3,    section: "analisis", modulo: "cumplimiento" },
+  { href: "/busqueda-normativa", label: "Búsqueda normativa", icon: FileSearch, section: "analisis", modulo: "documentos" },
   { href: "/dashboard",    label: "Tablero de control", icon: LayoutGrid, section: "analisis" },
 
   // Sistema
