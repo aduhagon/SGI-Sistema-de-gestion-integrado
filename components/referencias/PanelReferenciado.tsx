@@ -230,7 +230,7 @@ export function PanelReferenciado({
                   >
                     {normas.map((n) => (
                       <option key={n.versionNormaId} value={n.versionNormaId}>
-                        {n.codigo}
+                        {n.nombreCorto} · {n.version}
                       </option>
                     ))}
                   </select>

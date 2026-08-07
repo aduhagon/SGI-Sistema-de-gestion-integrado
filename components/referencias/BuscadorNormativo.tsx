@@ -164,6 +164,9 @@ export function BuscadorNormativo({
                   >
                     {r.documentoCodigo}
                   </Link>
+                  <span className="min-w-0 truncate text-xs text-muted-foreground">
+                    {r.documentoTitulo}
+                  </span>
                   <span className="font-mono text-xs text-muted-foreground">
                     {r.numeral ?? "—"}
                   </span>
@@ -199,7 +202,7 @@ export function BuscadorNormativo({
             >
               {normas.map((n) => (
                 <option key={n.versionNormaId} value={n.versionNormaId}>
-                  {n.codigo}
+                  {n.nombreCorto} · {n.version}
                 </option>
               ))}
             </select>
@@ -231,7 +234,11 @@ export function BuscadorNormativo({
 
           <div>
             {requisitoSeleccionado && (
-              <p className="mb-3 text-sm">
+              <p className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                  {normas.find((n) => n.versionNormaId === normaId)?.nombreCorto}{" "}
+                  · {normas.find((n) => n.versionNormaId === normaId)?.version}
+                </span>
                 <span className="font-mono text-xs font-medium">
                   {requisitoSeleccionado.clausula}
                 </span>{" "}
@@ -257,6 +264,9 @@ export function BuscadorNormativo({
                       >
                         {r.documentoCodigo}
                       </Link>
+                      <span className="min-w-0 truncate text-xs text-muted-foreground">
+                        {r.documentoTitulo}
+                      </span>
                       <span className="font-mono text-xs text-muted-foreground">
                         {r.numeral ?? "—"}
                       </span>
