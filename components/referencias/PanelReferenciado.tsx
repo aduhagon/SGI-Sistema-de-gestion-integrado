@@ -152,12 +152,17 @@ export function PanelReferenciado({
         {fragmento && (
           <>
             <div className="mb-4 rounded-md border border-border bg-card p-3">
-              <p className="mb-1 text-xs text-muted-foreground">
-                {fragmento.numeral ?? "—"}
-                {fragmento.titulo ? ` · ${fragmento.titulo}` : ""}
-                {fragmento.pagina ? ` · pág. ${fragmento.pagina}` : ""}
+              <p className="mb-1 flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+                <span>
+                  {fragmento.numeral ?? "—"}
+                  {fragmento.titulo ? ` · ${fragmento.titulo}` : ""}
+                  {fragmento.pagina ? ` · pág. ${fragmento.pagina}` : ""}
+                </span>
+                <span className="shrink-0">
+                  {fragmento.texto.length.toLocaleString("es-AR")} caracteres
+                </span>
               </p>
-              <p className="max-h-40 overflow-y-auto whitespace-pre-line text-sm leading-relaxed">
+              <p className="max-h-72 overflow-y-auto whitespace-pre-line text-sm leading-relaxed">
                 {fragmento.texto}
               </p>
             </div>
