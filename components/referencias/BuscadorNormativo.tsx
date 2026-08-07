@@ -20,6 +20,29 @@ type Props = {
   resultadosRequisito: FragmentoPorRequisito[];
 };
 
+function agruparPorDocumento(items: ResultadoBusquedaFragmento[]) {
+  const grupos: {
+    documentoId: string;
+    documentoCodigo: string;
+    documentoTitulo: string;
+    items: ResultadoBusquedaFragmento[];
+  }[] = [];
+  for (const r of items) {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.documentoId === r.documentoId) {
+      ultimo.items.push(r);
+    } else {
+      grupos.push({
+        documentoId: r.documentoId,
+        documentoCodigo: r.documentoCodigo,
+        documentoTitulo: r.documentoTitulo,
+        items: [r],
+      });
+    }
+  }
+  return grupos;
+}
+
 const ETIQUETA_TIPO: Record<string, string> = {
   cita_norma: "Cita norma",
   implementa: "Implementa",
@@ -147,50 +170,62 @@ export function BuscadorNormativo({
             </p>
           )}
 
-          <ul className="space-y-3">
-            {resultadosTexto.map((r) => (
-              <li
-                key={r.fragmentoId}
-                className="rounded-md border border-border bg-card p-4"
-              >
-                <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+          <div className="space-y-5">
+            {agruparPorDocumento(resultadosTexto).map((grupo) => (
+              <section key={grupo.documentoId}>
+                <div className="mb-2 flex flex-wrap items-baseline gap-x-2 text-sm">
                   <FileText
                     className="h-4 w-4 shrink-0 self-center text-muted-foreground"
                     aria-hidden="true"
                   />
                   <Link
-                    href={`/documentos/${r.documentoId}/referencias`}
-                    className="font-mono text-xs font-medium hover:underline"
+                    href={`/documentos/${grupo.documentoId}/referencias`}
+                    className="font-mono text-xs font-semibold hover:underline"
                   >
-                    {r.documentoCodigo}
+                    {grupo.documentoCodigo}
                   </Link>
-                  <span className="min-w-0 truncate text-xs text-muted-foreground">
-                    {r.documentoTitulo}
+                  <span className="min-w-0 truncate font-medium">
+                    {grupo.documentoTitulo}
                   </span>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {r.numeral ?? "—"}
+                  <span className="text-xs text-muted-foreground">
+                    {grupo.items.length}{" "}
+                    {grupo.items.length === 1 ? "bloque" : "bloques"}
                   </span>
-                  <span className="min-w-0 font-medium">
-                    {r.titulo ?? "(sin título)"}
-                  </span>
-                  {r.pagina != null && (
-                    <span className="text-xs text-muted-foreground">
-                      pág. {r.pagina}
-                    </span>
-                  )}
-                  {r.referenciasAceptadas > 0 && (
-                    <span className="rounded-full bg-primary/15 px-2 text-[11px] text-primary">
-                      {r.referenciasAceptadas} ref.
-                    </span>
-                  )}
                 </div>
-                <p
-                  className="text-sm leading-relaxed text-muted-foreground [&_mark]:rounded-sm [&_mark]:bg-yellow-200 [&_mark]:px-0.5 [&_mark]:text-foreground"
-                  dangerouslySetInnerHTML={{ __html: r.extracto }}
-                />
-              </li>
+                <ul className="space-y-2 border-l border-border pl-3">
+                  {grupo.items.map((r) => (
+                    <li
+                      key={r.fragmentoId}
+                      className="rounded-md border border-border bg-card p-3"
+                    >
+                      <div className="mb-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {r.numeral ?? "—"}
+                        </span>
+                        <span className="min-w-0 font-medium">
+                          {r.titulo ?? "(sin título)"}
+                        </span>
+                        {r.pagina != null && (
+                          <span className="text-xs text-muted-foreground">
+                            pág. {r.pagina}
+                          </span>
+                        )}
+                        {r.referenciasAceptadas > 0 && (
+                          <span className="rounded-full bg-primary/15 px-2 text-[11px] text-primary">
+                            {r.referenciasAceptadas} ref.
+                          </span>
+                        )}
+                      </div>
+                      <p
+                        className="text-sm leading-relaxed text-muted-foreground [&_mark]:rounded-sm [&_mark]:bg-yellow-200 [&_mark]:px-0.5 [&_mark]:text-foreground"
+                        dangerouslySetInnerHTML={{ __html: r.extracto }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         </>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-[280px_1fr]">
