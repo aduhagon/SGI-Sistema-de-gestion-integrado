@@ -25,6 +25,24 @@ export async function aprobarDocumentoAdmin(
   }
 
   const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "Sesion no valida. Volve a ingresar." };
+  }
+
+  const [{ data: esSgiOAdmin }, { data: esSuperadmin }] = await Promise.all([
+    supabase.rpc("fn_usuario_es_sgi_o_admin"),
+    supabase.rpc("fn_es_superadmin"),
+  ]);
+  if (!esSgiOAdmin && !esSuperadmin) {
+    return {
+      ok: false,
+      error: "Solo un administrador o responsable del SGI puede usar esta aprobacion.",
+    };
+  }
+
   const { data, error } = await supabase.rpc("fn_aprobar_documento_admin", {
     p_documento_id: documentoId,
     p_motivo: motivo.trim(),
