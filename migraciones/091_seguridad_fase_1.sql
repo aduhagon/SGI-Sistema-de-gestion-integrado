@@ -509,11 +509,72 @@ ALTER FUNCTION public.fn_auditoria_automatica()
 REVOKE INSERT ON public.eventos_auditoria FROM anon, authenticated;
 DROP POLICY IF EXISTS eventos_auditoria_insert_authenticated
   ON public.eventos_auditoria;
+DROP POLICY IF EXISTS eventos_auditoria_select_authenticated
+  ON public.eventos_auditoria;
+CREATE POLICY eventos_auditoria_select_control ON public.eventos_auditoria
+FOR SELECT TO authenticated
+USING (
+  public.fn_usuario_es_auditor_o_sgi()
+  OR public.fn_es_superadmin()
+);
 
 -- Las decisiones del informe se generan dentro de RPC transaccionales.
 REVOKE INSERT ON public.decisiones_informe_auditoria FROM anon, authenticated;
 DROP POLICY IF EXISTS decisiones_informe_auditoria_insert_authenticated
   ON public.decisiones_informe_auditoria;
+
+-- La evidencia de aprobacion debe coincidir con la decision que ya quedo
+-- registrada para el aprobador autenticado y la version correcta.
+DROP POLICY IF EXISTS decisiones_aprobacion_insert_authenticated
+  ON public.decisiones_aprobacion;
+CREATE POLICY decisiones_aprobacion_insert ON public.decisiones_aprobacion
+FOR INSERT TO authenticated
+WITH CHECK (
+  usuario_id = public.fn_usuario_id_actual()
+  AND metodo_autenticacion = 'supabase_password'
+  AND timestamp_decision >= now() - interval '5 minutes'
+  AND timestamp_decision <= now() + interval '1 minute'
+  AND EXISTS (
+    SELECT 1
+    FROM public.aprobaciones ap
+    WHERE ap.id = decisiones_aprobacion.aprobacion_id
+      AND ap.version_id = decisiones_aprobacion.version_id
+      AND (
+        (
+          decisiones_aprobacion.nivel = 1
+          AND ap.aprobador_n1_id = public.fn_usuario_id_actual()
+          AND ap.decision_n1 = decisiones_aprobacion.decision
+          AND ap.fecha_decision_n1 =
+              decisiones_aprobacion.timestamp_decision
+          AND ap.comentario_n1 IS NOT DISTINCT FROM
+              decisiones_aprobacion.comentario
+        )
+        OR (
+          decisiones_aprobacion.nivel = 2
+          AND ap.aprobador_n2_id = public.fn_usuario_id_actual()
+          AND ap.decision_n2 = decisiones_aprobacion.decision
+          AND ap.fecha_decision_n2 =
+              decisiones_aprobacion.timestamp_decision
+          AND ap.comentario_n2 IS NOT DISTINCT FROM
+              decisiones_aprobacion.comentario
+        )
+      )
+  )
+  AND (
+    hash_documento_firmado IS NULL
+    OR EXISTS (
+      SELECT 1
+      FROM public.archivos ar
+      WHERE ar.version_id = decisiones_aprobacion.version_id
+        AND ar.tipo_archivo = 'principal'
+        AND ar.contexto = 'documento'
+        AND ar.activo = true
+        AND ar.eliminado_en IS NULL
+        AND ar.hash_sha256 =
+            decisiones_aprobacion.hash_documento_firmado
+    )
+  )
+);
 
 -- Una verificacion no puede atribuirse a otro usuario ni referenciar acciones
 -- o evidencias pertenecientes a otra no conformidad.
