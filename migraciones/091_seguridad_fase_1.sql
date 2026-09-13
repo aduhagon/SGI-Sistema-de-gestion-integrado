@@ -282,6 +282,77 @@ REVOKE ALL ON FUNCTION public.fn_guardar_fragmentos_version(uuid, uuid, jsonb, u
 GRANT EXECUTE ON FUNCTION public.fn_guardar_fragmentos_version(uuid, uuid, jsonb, uuid)
   TO service_role;
 
+-- El trigger invoca la Edge Function con la service role guardada en Vault.
+-- Se elimina el JWT anonimo que estaba incrustado en la definicion SQL.
+CREATE OR REPLACE FUNCTION public.fn_procesar_fragmentos_al_vigente()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'vault', 'extensions', 'pg_temp'
+AS $function$
+DECLARE
+  v_es_mp boolean;
+  v_tiene_archivo boolean;
+  v_actor uuid;
+  v_service_role text;
+  v_req bigint;
+BEGIN
+  IF NOT NEW.es_vigente THEN RETURN NEW; END IF;
+  IF TG_OP = 'UPDATE' AND OLD.es_vigente THEN RETURN NEW; END IF;
+
+  SELECT td.codigo = 'MP' INTO v_es_mp
+  FROM public.documentos d
+  JOIN public.tipos_documentales td ON td.id = d.tipo_documental_id
+  WHERE d.id = NEW.documento_id;
+  IF NOT COALESCE(v_es_mp, false) THEN RETURN NEW; END IF;
+
+  SELECT EXISTS (
+    SELECT 1 FROM public.archivos a
+    WHERE a.version_id = NEW.id
+      AND a.tipo_archivo = 'principal'
+      AND a.contexto = 'documento'
+      AND a.extension IN ('docx', 'pdf')
+      AND a.activo = true
+      AND a.eliminado_en IS NULL
+  ) INTO v_tiene_archivo;
+  IF NOT v_tiene_archivo THEN RETURN NEW; END IF;
+
+  v_actor := COALESCE(
+    public.fn_usuario_id_actual(),
+    '4c662526-5091-4f07-af9f-7be14ff77864'::uuid
+  );
+  SELECT decrypted_secret INTO v_service_role
+  FROM vault.decrypted_secrets
+  WHERE name = 'service_role_key'
+  LIMIT 1;
+  IF v_service_role IS NULL THEN
+    RAISE WARNING 'fn_procesar_fragmentos_al_vigente: falta service_role_key en Vault';
+    RETURN NEW;
+  END IF;
+
+  SELECT net.http_post(
+    url := 'https://hghzpuvxggvpgwzpzaqw.supabase.co/functions/v1/procesar-fragmentos',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || v_service_role
+    ),
+    body := jsonb_build_object(
+      'version_ids', jsonb_build_array(NEW.id),
+      'actor_id', v_actor
+    ),
+    timeout_milliseconds := 120000
+  ) INTO v_req;
+
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'fn_procesar_fragmentos_al_vigente: % (la extraccion puede correrse manualmente)', SQLERRM;
+  RETURN NEW;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.fn_procesar_fragmentos_al_vigente()
+  FROM PUBLIC, anon, authenticated;
+
 -- El calendario deja de confiar en un usuario recibido desde el navegador.
 ALTER FUNCTION public.fn_calendario_eventos(uuid, date, date, text, text)
   RENAME TO fn_calendario_eventos_interno;
