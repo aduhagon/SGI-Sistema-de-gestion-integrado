@@ -4,8 +4,6 @@ import { strFromU8, unzipSync } from "fflate";
 import { extractText, getDocumentProxy } from "unpdf";
 import { type Linea, limpiarRepetidos, segmentar } from "./segmentar.ts";
 
-const ADMIN_FALLBACK = "4c662526-5091-4f07-af9f-7be14ff77864";
-
 function desescapar(s: string): string {
   return s
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
@@ -86,7 +84,13 @@ Deno.serve(async (req: Request) => {
     const soloVigentes: boolean = body.solo_vigentes ?? !versionIds;
     const limite: number = Math.min(body.limite ?? 25, 50);
     const seco: boolean = body.dry_run === true;
-    const actor: string = body.actor_id ?? ADMIN_FALLBACK;
+    const actor = body.actor_id ?? Deno.env.get("PROCESSOR_ACTOR_ID");
+    if (typeof actor !== "string" || actor.length === 0) {
+      return new Response(JSON.stringify({ ok: false, error: "Falta actor_id para registrar la trazabilidad." }), {
+        status: 400,
+        headers: cors,
+      });
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
