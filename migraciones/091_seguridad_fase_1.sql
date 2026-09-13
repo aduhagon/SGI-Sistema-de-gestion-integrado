@@ -633,6 +633,126 @@ WITH CHECK (
   )
 );
 
+-- Las firmas son evidencia legal: el actor solo puede firmar su propio acuse,
+-- con el hash vigente del archivo principal y sin fabricar otros tipos de acto.
+DROP POLICY IF EXISTS firmas_electronicas_select_authenticated
+  ON public.firmas_electronicas;
+DROP POLICY IF EXISTS firmas_electronicas_insert_authenticated
+  ON public.firmas_electronicas;
+
+CREATE POLICY firmas_electronicas_select ON public.firmas_electronicas
+FOR SELECT TO authenticated
+USING (
+  usuario_id = public.fn_usuario_id_actual()
+  OR public.fn_usuario_es_auditor_o_sgi()
+  OR public.fn_es_superadmin()
+  OR (
+    entidad_tipo = 'acuse_lectura'
+    AND EXISTS (
+      SELECT 1 FROM public.acuses_lectura al
+      WHERE al.id = firmas_electronicas.entidad_id
+    )
+  )
+  OR (
+    entidad_tipo = 'decision_aprobacion'
+    AND EXISTS (
+      SELECT 1 FROM public.decisiones_aprobacion da
+      WHERE da.id = firmas_electronicas.entidad_id
+    )
+  )
+  OR (
+    entidad_tipo = 'verificacion_eficacia'
+    AND EXISTS (
+      SELECT 1 FROM public.verificaciones_eficacia ve
+      WHERE ve.id = firmas_electronicas.entidad_id
+    )
+  )
+);
+
+CREATE POLICY firmas_electronicas_insert_acuse ON public.firmas_electronicas
+FOR INSERT TO authenticated
+WITH CHECK (
+  usuario_id = public.fn_usuario_id_actual()
+  AND tipo_firma = 'simple'
+  AND metodo_autenticacion = 'supabase_password'
+  AND firma_estado = 'vigente'
+  AND entidad_tipo = 'acuse_lectura'
+  AND firma_revoca_id IS NULL
+  AND motivo_revocacion IS NULL
+  AND timestamp_firma >= now() - interval '5 minutes'
+  AND timestamp_firma <= now() + interval '1 minute'
+  AND EXISTS (
+    SELECT 1
+    FROM public.acuses_lectura al
+    JOIN public.versiones v ON v.id = al.version_id
+    JOIN public.archivos ar ON ar.version_id = v.id
+    WHERE al.id = firmas_electronicas.entidad_id
+      AND al.usuario_id = public.fn_usuario_id_actual()
+      AND al.fecha_acuse IS NULL
+      AND ar.tipo_archivo = 'principal'
+      AND ar.contexto = 'documento'
+      AND ar.activo = true
+      AND ar.eliminado_en IS NULL
+      AND ar.hash_sha256 = firmas_electronicas.hash_documento_firmado
+  )
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_firmas_entidad_vigente
+  ON public.firmas_electronicas(entidad_tipo, entidad_id)
+  WHERE firma_estado = 'vigente';
+
+CREATE OR REPLACE FUNCTION private.fn_proteger_acuse_update()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'private', 'pg_temp'
+AS $function$
+BEGIN
+  IF NEW.version_id IS DISTINCT FROM OLD.version_id
+     OR NEW.usuario_id IS DISTINCT FROM OLD.usuario_id
+     OR NEW.origen IS DISTINCT FROM OLD.origen
+     OR NEW.fecha_generacion IS DISTINCT FROM OLD.fecha_generacion
+     OR NEW.creado_en IS DISTINCT FROM OLD.creado_en
+     OR NEW.creado_por IS DISTINCT FROM OLD.creado_por THEN
+    RAISE EXCEPTION 'Los datos de origen del acuse son inmutables.';
+  END IF;
+
+  IF NEW.fecha_acuse IS DISTINCT FROM OLD.fecha_acuse
+     OR NEW.firma_id IS DISTINCT FROM OLD.firma_id THEN
+    IF OLD.fecha_acuse IS NOT NULL OR OLD.firma_id IS NOT NULL THEN
+      RAISE EXCEPTION 'El acuse ya fue firmado y no puede modificarse.';
+    END IF;
+    IF NEW.fecha_acuse IS NULL OR NEW.firma_id IS NULL THEN
+      RAISE EXCEPTION 'La fecha y la firma del acuse deben registrarse juntas.';
+    END IF;
+    IF public.fn_usuario_id_actual() IS DISTINCT FROM OLD.usuario_id THEN
+      RAISE EXCEPTION 'Solo el destinatario puede firmar el acuse.';
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1
+      FROM public.firmas_electronicas f
+      WHERE f.id = NEW.firma_id
+        AND f.entidad_tipo = 'acuse_lectura'
+        AND f.entidad_id = OLD.id
+        AND f.usuario_id = OLD.usuario_id
+        AND f.firma_estado = 'vigente'
+        AND f.timestamp_firma = NEW.fecha_acuse
+    ) THEN
+      RAISE EXCEPTION 'La firma no corresponde al acuse y usuario indicados.';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION private.fn_proteger_acuse_update()
+  FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS trg_proteger_acuse_update ON public.acuses_lectura;
+CREATE TRIGGER trg_proteger_acuse_update
+BEFORE UPDATE ON public.acuses_lectura
+FOR EACH ROW EXECUTE FUNCTION private.fn_proteger_acuse_update();
+
 -- Jobs y operaciones internas no son acciones de cualquier usuario logueado.
 REVOKE EXECUTE ON FUNCTION public.fn_correo_conciliar() FROM authenticated;
 REVOKE EXECUTE ON FUNCTION public.fn_correo_despachar(text, text, text, text, public.origen_correo, uuid) FROM authenticated;
