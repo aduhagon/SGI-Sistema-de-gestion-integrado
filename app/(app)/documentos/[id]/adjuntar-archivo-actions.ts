@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { validarArchivo } from "@/lib/schemas/documento";
 import { calcularSha256, obtenerExtension, generarStoragePath } from "@/lib/upload/hash";
+import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
 
 export type EstadoAdjuntar =
   | { ok: true }
@@ -31,6 +32,11 @@ export async function adjuntarArchivo(
   } = await supabase.auth.getUser();
   if (!user) {
     return { ok: false, error: "Sesión no válida. Volvé a ingresar." };
+  }
+
+  const usuarioId = await obtenerUsuarioActualId();
+  if (!usuarioId) {
+    return { ok: false, error: "Tu cuenta no está vinculada a un usuario del SGI." };
   }
 
   const file = formData.get("archivo");
@@ -125,6 +131,7 @@ export async function adjuntarArchivo(
       storage_path: storagePath,
       hash_sha256: hash,
       estado_procesamiento: "completado",
+      creado_por: usuarioId,
     });
 
     if (errArchivo) {
