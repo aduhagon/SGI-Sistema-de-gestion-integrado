@@ -405,10 +405,85 @@ REVOKE ALL ON FUNCTION public.fn_calendario_eventos(uuid, date, date, text, text
 GRANT EXECUTE ON FUNCTION public.fn_calendario_eventos(uuid, date, date, text, text)
   TO authenticated, service_role;
 
--- Estas lecturas deben obedecer la RLS de la entidad de origen.
-ALTER FUNCTION public.fn_trazabilidad_nc(uuid) SECURITY INVOKER;
-ALTER FUNCTION public.fn_trazabilidad_hallazgo(uuid) SECURITY INVOKER;
-ALTER FUNCTION public.fn_trazabilidad_auditoria(uuid) SECURITY INVOKER;
+-- Las trazabilidades conservan su implementacion interna, pero solo se
+-- ejecutan despues de comprobar con RLS que el actor puede ver la entidad padre.
+ALTER FUNCTION public.fn_trazabilidad_nc(uuid)
+  RENAME TO fn_trazabilidad_nc_interno;
+ALTER FUNCTION public.fn_trazabilidad_hallazgo(uuid)
+  RENAME TO fn_trazabilidad_hallazgo_interno;
+ALTER FUNCTION public.fn_trazabilidad_auditoria(uuid)
+  RENAME TO fn_trazabilidad_auditoria_interno;
+
+REVOKE ALL ON FUNCTION public.fn_trazabilidad_nc_interno(uuid)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.fn_trazabilidad_hallazgo_interno(uuid)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.fn_trazabilidad_auditoria_interno(uuid)
+  FROM PUBLIC, anon, authenticated;
+
+CREATE FUNCTION public.fn_trazabilidad_nc(p_nc_id uuid)
+RETURNS TABLE(
+  orden integer, etapa text, usuario_id uuid, persona text, puesto text,
+  fecha timestamptz, detalle text, marca text, referencia text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.no_conformidades nc
+    WHERE nc.id = p_nc_id AND nc.activo = true AND nc.eliminado_en IS NULL
+  ) THEN
+    RAISE EXCEPTION 'No conformidad inexistente o no visible.';
+  END IF;
+  RETURN QUERY SELECT * FROM public.fn_trazabilidad_nc_interno(p_nc_id);
+END;
+$function$;
+
+CREATE FUNCTION public.fn_trazabilidad_hallazgo(p_hallazgo_id uuid)
+RETURNS TABLE(
+  orden integer, etapa text, usuario_id uuid, persona text, puesto text,
+  fecha timestamptz, detalle text, marca text, referencia text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.hallazgos h
+    WHERE h.id = p_hallazgo_id AND h.activo = true AND h.eliminado_en IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Hallazgo inexistente o no visible.';
+  END IF;
+  RETURN QUERY SELECT * FROM public.fn_trazabilidad_hallazgo_interno(p_hallazgo_id);
+END;
+$function$;
+
+CREATE FUNCTION public.fn_trazabilidad_auditoria(p_auditoria_id uuid)
+RETURNS TABLE(
+  orden integer, etapa text, usuario_id uuid, persona text, puesto text,
+  fecha timestamptz, detalle text, marca text, referencia text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.auditorias a
+    WHERE a.id = p_auditoria_id AND a.activo = true AND a.eliminado_en IS NULL
+  ) THEN
+    RAISE EXCEPTION 'Auditoria inexistente o no visible.';
+  END IF;
+  RETURN QUERY SELECT * FROM public.fn_trazabilidad_auditoria_interno(p_auditoria_id);
+END;
+$function$;
+
 REVOKE ALL ON FUNCTION public.fn_trazabilidad_nc(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.fn_trazabilidad_hallazgo(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.fn_trazabilidad_auditoria(uuid) FROM PUBLIC, anon;
@@ -424,6 +499,78 @@ REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM anon;
 REVOKE USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public FROM anon;
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM anon;
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC;
+
+-- La bitacora solo puede escribirse desde triggers y funciones controladas.
+-- El trigger pasa a ejecutarse con los permisos de su propietario para no
+-- depender de INSERT directo del usuario final.
+ALTER FUNCTION public.fn_auditoria_automatica() SECURITY DEFINER;
+ALTER FUNCTION public.fn_auditoria_automatica()
+  SET search_path TO 'public', 'pg_temp';
+REVOKE INSERT ON public.eventos_auditoria FROM anon, authenticated;
+DROP POLICY IF EXISTS eventos_auditoria_insert_authenticated
+  ON public.eventos_auditoria;
+
+-- Las decisiones del informe se generan dentro de RPC transaccionales.
+REVOKE INSERT ON public.decisiones_informe_auditoria FROM anon, authenticated;
+DROP POLICY IF EXISTS decisiones_informe_auditoria_insert_authenticated
+  ON public.decisiones_informe_auditoria;
+
+-- Una verificacion no puede atribuirse a otro usuario ni referenciar acciones
+-- o evidencias pertenecientes a otra no conformidad.
+DROP POLICY IF EXISTS verificaciones_eficacia_select_authenticated
+  ON public.verificaciones_eficacia;
+DROP POLICY IF EXISTS verificaciones_eficacia_insert_authenticated
+  ON public.verificaciones_eficacia;
+
+CREATE POLICY verificaciones_eficacia_select ON public.verificaciones_eficacia
+FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.no_conformidades nc
+    WHERE nc.id = verificaciones_eficacia.no_conformidad_id
+      AND nc.activo = true
+      AND nc.eliminado_en IS NULL
+  )
+);
+
+CREATE POLICY verificaciones_eficacia_insert ON public.verificaciones_eficacia
+FOR INSERT TO authenticated
+WITH CHECK (
+  verificador_usuario_id = public.fn_usuario_id_actual()
+  AND private.fn_usuario_es_gestor_sgi()
+  AND EXISTS (
+    SELECT 1
+    FROM public.no_conformidades nc
+    WHERE nc.id = verificaciones_eficacia.no_conformidad_id
+      AND nc.activo = true
+      AND nc.eliminado_en IS NULL
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM unnest(
+      COALESCE(verificaciones_eficacia.acciones_verificadas, ARRAY[]::uuid[])
+    ) AS ids(accion_id)
+    LEFT JOIN public.acciones ac ON ac.id = ids.accion_id
+    WHERE ac.id IS NULL
+       OR ac.no_conformidad_id IS DISTINCT FROM
+          verificaciones_eficacia.no_conformidad_id
+  )
+  AND (
+    evidencia_archivo_id IS NULL
+    OR EXISTS (
+      SELECT 1
+      FROM public.archivos ar
+      WHERE ar.id = verificaciones_eficacia.evidencia_archivo_id
+        AND ar.no_conformidad_id =
+            verificaciones_eficacia.no_conformidad_id
+        AND ar.contexto = 'evidencia_nc'
+        AND ar.creado_por = public.fn_usuario_id_actual()
+        AND ar.activo = true
+        AND ar.eliminado_en IS NULL
+    )
+  )
+);
 
 -- Jobs y operaciones internas no son acciones de cualquier usuario logueado.
 REVOKE EXECUTE ON FUNCTION public.fn_correo_conciliar() FROM authenticated;
@@ -667,6 +814,17 @@ BEGIN
   END IF;
   IF has_function_privilege('authenticated', 'public.fn_correo_despachar(text,text,text,text,public.origen_correo,uuid)', 'EXECUTE') THEN
     RAISE EXCEPTION 'Fallo de seguridad: authenticated conserva fn_correo_despachar';
+  END IF;
+  IF has_table_privilege('authenticated', 'public.eventos_auditoria', 'INSERT') THEN
+    RAISE EXCEPTION 'Fallo de seguridad: authenticated puede insertar eventos de auditoria';
+  END IF;
+  IF has_table_privilege('authenticated', 'public.decisiones_informe_auditoria', 'INSERT') THEN
+    RAISE EXCEPTION 'Fallo de seguridad: authenticated puede insertar decisiones de informe';
+  END IF;
+  IF has_function_privilege('authenticated', 'public.fn_trazabilidad_nc_interno(uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.fn_trazabilidad_hallazgo_interno(uuid)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.fn_trazabilidad_auditoria_interno(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'Fallo de seguridad: una trazabilidad interna sigue expuesta';
   END IF;
   IF EXISTS (
     SELECT 1 FROM pg_policies
