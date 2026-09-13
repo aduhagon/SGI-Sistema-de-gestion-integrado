@@ -29,7 +29,7 @@ export async function aprobarDocumentoAdmin(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return { ok: false, error: "Sesion no valida. Volve a ingresar." };
+    return { ok: false, error: "Sesión no válida. Volvé a ingresar." };
   }
 
   const [{ data: esSgiOAdmin }, { data: esSuperadmin }] = await Promise.all([
@@ -39,7 +39,7 @@ export async function aprobarDocumentoAdmin(
   if (!esSgiOAdmin && !esSuperadmin) {
     return {
       ok: false,
-      error: "Solo un administrador o responsable del SGI puede usar esta aprobacion.",
+      error: "Solo un administrador o responsable del SGI puede usar esta aprobación.",
     };
   }
 
