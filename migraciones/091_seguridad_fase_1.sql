@@ -295,6 +295,7 @@ DECLARE
   v_tiene_archivo boolean;
   v_actor uuid;
   v_service_role text;
+  v_edge_url text;
   v_req bigint;
 BEGIN
   IF NOT NEW.es_vigente THEN RETURN NEW; END IF;
@@ -325,13 +326,17 @@ BEGIN
   FROM vault.decrypted_secrets
   WHERE name = 'service_role_key'
   LIMIT 1;
-  IF v_service_role IS NULL THEN
-    RAISE WARNING 'fn_procesar_fragmentos_al_vigente: falta service_role_key en Vault';
+  SELECT decrypted_secret INTO v_edge_url
+  FROM vault.decrypted_secrets
+  WHERE name = 'edge_url_procesar_fragmentos'
+  LIMIT 1;
+  IF v_service_role IS NULL OR v_edge_url IS NULL THEN
+    RAISE WARNING 'fn_procesar_fragmentos_al_vigente: falta service_role_key o edge_url_procesar_fragmentos en Vault';
     RETURN NEW;
   END IF;
 
   SELECT net.http_post(
-    url := 'https://hghzpuvxggvpgwzpzaqw.supabase.co/functions/v1/procesar-fragmentos',
+    url := v_edge_url,
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'Authorization', 'Bearer ' || v_service_role
