@@ -318,10 +318,11 @@ BEGIN
   ) INTO v_tiene_archivo;
   IF NOT v_tiene_archivo THEN RETURN NEW; END IF;
 
-  v_actor := COALESCE(
-    public.fn_usuario_id_actual(),
-    '4c662526-5091-4f07-af9f-7be14ff77864'::uuid
-  );
+  v_actor := COALESCE(public.fn_usuario_id_actual(), NEW.creado_por);
+  IF v_actor IS NULL THEN
+    RAISE WARNING 'fn_procesar_fragmentos_al_vigente: no se pudo determinar el actor';
+    RETURN NEW;
+  END IF;
   SELECT decrypted_secret INTO v_service_role
   FROM vault.decrypted_secrets
   WHERE name = 'service_role_key'
