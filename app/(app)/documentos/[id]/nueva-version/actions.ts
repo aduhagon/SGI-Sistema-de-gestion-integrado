@@ -26,6 +26,18 @@ export async function crearNuevaVersion(
     return { ok: false, error: "Sesión no válida. Volvé a ingresar." };
   }
 
+  const { data: usuarioFila } = await supabase
+    .from("usuarios")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+  if (!usuarioFila) {
+    return {
+      ok: false,
+      error: "Tu cuenta de autenticación no está vinculada a un usuario del SGI.",
+    };
+  }
+
   const parsed = nuevaVersionSchema.safeParse({
     motivo_cambio: formData.get("motivo_cambio"),
   });
@@ -129,6 +141,7 @@ export async function crearNuevaVersion(
       storage_path: storagePath,
       hash_sha256: hash,
       estado_procesamiento: "completado",
+      creado_por: usuarioFila.id,
     });
 
     if (errArchivo) {
