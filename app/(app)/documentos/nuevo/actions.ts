@@ -202,6 +202,7 @@ export async function crearDocumento(
       storage_path: storagePath,
       hash_sha256: hash,
       estado_procesamiento: "completado",
+      creado_por: usuarioFila.id,
     });
 
     if (errArchivo) {
