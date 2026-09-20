@@ -31,6 +31,7 @@ const MODULO_LABEL: Record<string, string> = {
   riesgos: "Riesgos",
   indicadores: "Indicadores por medir",
   documentos: "Documentos por revisar",
+  controles: "Controles por ejecutar",
 };
 
 // Orden de presentación de las secciones en la pantalla.
@@ -46,6 +47,7 @@ const ORDEN_MODULO = [
   "acciones",
   "hallazgos",
   "auditorias",
+  "controles",
   "riesgos",
   "indicadores",
   "documentos",
@@ -70,7 +72,6 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
 
   if (error) {
     console.error("[SGI:pendientes] obtenerMisPendientes", error);
-    return [];
   }
 
   const filas = (data ?? []) as Array<{
@@ -99,6 +100,8 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
       urlDestino: f.url_destino,
     }));
 
+  items.push(...(await obtenerPendientesControles(supabase, usuarioId, zona)));
+
   // Agrupar por módulo respetando el orden de presentación.
   const grupos: GrupoPendientes[] = [];
   for (const modulo of ORDEN_MODULO) {
@@ -113,4 +116,89 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
   }
 
   return grupos;
+}
+
+async function obtenerPendientesControles(
+  supabase: ReturnType<typeof createClient>,
+  usuarioId: string,
+  zona: string,
+): Promise<Pendiente[]> {
+  const { data: usuario, error: errorUsuario } = await supabase
+    .from("usuarios")
+    .select("persona_id")
+    .eq("id", usuarioId)
+    .eq("activo", true)
+    .maybeSingle();
+  if (errorUsuario || !usuario?.persona_id) return [];
+
+  const { data: asignaciones, error: errorAsignaciones } = await supabase
+    .from("persona_puesto")
+    .select("puesto_id")
+    .eq("persona_id", usuario.persona_id)
+    .is("vigente_hasta", null);
+  if (errorAsignaciones) return [];
+
+  const puestos = Array.from(new Set((asignaciones ?? []).map((fila) => fila.puesto_id)));
+  if (puestos.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("controles")
+    .select(
+      `id, codigo, nombre, proxima_ejecucion, anticipacion_dias,
+       proceso:procesos!controles_proceso_id_fkey (codigo, nombre)`,
+    )
+    .in("responsable_puesto_id", puestos)
+    .eq("estado", "activo")
+    .eq("activo", true)
+    .is("eliminado_en", null)
+    .not("proxima_ejecucion", "is", null)
+    .order("proxima_ejecucion");
+  if (error) {
+    console.error("[SGI:pendientes] controles", error);
+    return [];
+  }
+
+  const hoy = fechaCalendarioEnZona(zona);
+  const pendientes: Pendiente[] = [];
+  for (const control of (data ?? []) as any[]) {
+    const diasRestantes = diferenciaDias(hoy, control.proxima_ejecucion);
+    if (diasRestantes > control.anticipacion_dias) continue;
+    const nivel: NivelPendiente = diasRestantes < 0
+      ? "vencido"
+      : diasRestantes === 0
+        ? "vencido_hoy"
+        : diasRestantes <= Math.max(1, Math.ceil(control.anticipacion_dias / 2))
+          ? "advertencia"
+          : "recordatorio";
+    pendientes.push({
+      modulo: "controles",
+      entidadId: control.id,
+      codigo: control.codigo,
+      titulo: `${control.nombre} · ${control.proceso?.nombre ?? "Proceso"}`,
+      fechaLimite: control.proxima_ejecucion,
+      diasRestantes,
+      nivel,
+      urlDestino: `/controles?control=${control.id}`,
+    });
+  }
+  return pendientes;
+}
+
+function fechaCalendarioEnZona(zona: string): string {
+  const partes = new Intl.DateTimeFormat("en", {
+    timeZone: zona,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const valor = (tipo: Intl.DateTimeFormatPartTypes) => partes.find((parte) => parte.type === tipo)?.value ?? "";
+  return `${valor("year")}-${valor("month")}-${valor("day")}`;
+}
+
+function diferenciaDias(desde: string, hasta: string): number {
+  const aNumero = (fecha: string) => {
+    const [anio, mes, dia] = fecha.split("-").map(Number);
+    return Date.UTC(anio, mes - 1, dia);
+  };
+  return Math.round((aNumero(hasta) - aNumero(desde)) / 86_400_000);
 }

@@ -16,6 +16,7 @@ import {
   AlertOctagon,
   Grid3x3,
   ShieldAlert,
+  ShieldCheck,
   Gauge,
   Scale,
   Workflow,
@@ -97,6 +98,7 @@ const navItems: NavItem[] = [
 
   // Control y mejora — operación diaria que genera registros
   { href: "/riesgos",     label: "Riesgos",          icon: ShieldAlert,    section: "control", modulo: "riesgos" },
+  { href: "/controles",   label: "Controles",        icon: ShieldCheck,    section: "control", modulo: "riesgos" },
   { href: "/auditorias",  label: "Auditorías",       icon: ClipboardCheck, section: "control", modulo: "auditorias" },
   { href: "/ncs",         label: "No conformidades", icon: AlertOctagon,   section: "control", modulo: "no_conformidades" },
   { href: "/indicadores", label: "Indicadores",      icon: Gauge,          section: "control", modulo: "indicadores" },

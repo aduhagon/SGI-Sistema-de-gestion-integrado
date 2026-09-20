@@ -9,9 +9,10 @@ import {
 } from "lucide-react";
 import type {
   Riesgo, ProcesoOpcion, PuestoOpcion,
-  MitiganteRiesgo, DocumentoOpcion, IndicadorOpcion, NormaOpcion, NormaRiesgo,
+  NormaOpcion, NormaRiesgo,
 } from "@/lib/api/riesgos";
-import { MitigantesEditor } from "@/components/riesgos/MitigantesEditor";
+import type { ControlRiesgoResumen } from "@/lib/api/controles";
+import { ControlLinkEditor } from "@/components/riesgos/ControlLinkEditor";
 import {
   clasificarNivel, residual, type NivelRiesgo,
   GRADOS_CONTROL, GRADO_CONTROL_LABEL, MADUREZ_CONTROL, MADUREZ_CONTROL_LABEL, factorControl, type GradoControl,
@@ -60,13 +61,12 @@ function celdaColor(nivel: NivelRiesgo): string {
   return "bg-red-300";
 }
 
-export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo, documentosOpc, indicadoresOpc, normasOpc, normasPorRiesgo }: {
+export function GestionRiesgos({ riesgos, procesos, puestos, controlesPorRiesgo, controlesOpc, normasOpc, normasPorRiesgo }: {
   riesgos: Riesgo[];
   procesos: ProcesoOpcion[];
   puestos: PuestoOpcion[];
-  mitigantesPorRiesgo: Record<string, MitiganteRiesgo[]>;
-  documentosOpc: DocumentoOpcion[];
-  indicadoresOpc: IndicadorOpcion[];
+  controlesPorRiesgo: Record<string, ControlRiesgoResumen[]>;
+  controlesOpc: ControlRiesgoResumen[];
   normasOpc: NormaOpcion[];
   normasPorRiesgo: Record<string, NormaRiesgo[]>;
 }) {
@@ -190,7 +190,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo
             <tbody>
               {filtrados.map((r) => {
                 const nivel = clasificarNivel(r.probabilidad, r.impacto);
-                const nMitigantes = mitigantesPorRiesgo[r.id]?.length ?? 0;
+                const nControles = controlesPorRiesgo[r.id]?.length ?? 0;
                 return (
                   <tr key={r.id} className="border-b border-border last:border-0">
                     <td className="px-4 py-2.5 font-mono text-xs align-top">{r.codigo}</td>
@@ -201,10 +201,10 @@ export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo
                           : <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                         <span className="font-medium">{r.titulo}</span>
                       </div>
-                      {nMitigantes > 0 && (
+                      {nControles > 0 && (
                         <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                           <Link2 className="h-3 w-3" aria-hidden="true" />
-                          {nMitigantes} mitigante{nMitigantes !== 1 ? "s" : ""} vinculado{nMitigantes !== 1 ? "s" : ""}
+                          {nControles} control{nControles !== 1 ? "es" : ""} vinculado{nControles !== 1 ? "s" : ""}
                         </span>
                       )}
                     </td>
@@ -490,17 +490,17 @@ export function GestionRiesgos({ riesgos, procesos, puestos, mitigantesPorRiesgo
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="tratamientoPlanificado" className="text-sm font-medium">Plan de tratamiento / Mitigante <span className="text-muted-foreground">(opc.)</span></label>
+                    <label htmlFor="tratamientoPlanificado" className="text-sm font-medium">Plan de tratamiento <span className="text-muted-foreground">(opc.)</span></label>
                     <textarea id="tratamientoPlanificado" name="tratamientoPlanificado" rows={5} defaultValue={editando?.tratamientoPlanificado ?? ""} placeholder="Acciones para abordar este riesgo…" className={INPUT} />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Controles / Mitigantes vinculados <span className="text-muted-foreground">(opc.)</span></label>
-                    <MitigantesEditor
+                    <label className="text-sm font-medium">Controles vinculados <span className="text-muted-foreground">(opc.)</span></label>
+                    <ControlLinkEditor
                       key={editando?.id ?? "nuevo"}
-                      inicial={editando ? (mitigantesPorRiesgo[editando.id] ?? []) : []}
-                      documentos={documentosOpc}
-                      indicadores={indicadoresOpc}
+                      inicial={editando ? (controlesPorRiesgo[editando.id] ?? []) : []}
+                      opciones={controlesOpc}
+                      procesoId={procesoId}
                     />
                   </div>
                 </div>

@@ -6,6 +6,7 @@ import { listarDocumentosPorProceso } from "@/lib/api/documentos";
 import { listarNCsPorProceso } from "@/lib/api/ncs";
 import { listarRiesgos } from "@/lib/api/riesgos";
 import { listarIndicadores } from "@/lib/api/indicadores";
+import { listarControles, listarRequisitosAplicables } from "@/lib/api/controles";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { DocumentRow } from "@/components/documentos/DocumentRow";
 import { PerfilesProceso } from "@/components/procesos/PerfilesProceso";
 import { SenalesProceso } from "@/components/procesos/SenalesProceso";
 import { IntegracionErpProceso } from "@/components/procesos/IntegracionErpProceso";
+import { TrazabilidadProceso } from "@/components/procesos/TrazabilidadProceso";
 import { obtenerParticipacionesDeProceso } from "@/lib/api/participaciones";
 import { listarFormulariosErpDeProceso } from "@/lib/api/integracionErp";
 
@@ -61,12 +63,14 @@ export default async function ProcesoDetallePage({ params }: Props) {
     notFound();
   }
 
-  const [participaciones, ncs, riesgos, indicadores, formulariosErp] = await Promise.all([
+  const [participaciones, ncs, riesgos, indicadores, formulariosErp, controles, requisitosAplicables] = await Promise.all([
     obtenerParticipacionesDeProceso(proceso.id),
     listarNCsPorProceso(proceso.id),
     listarRiesgos(proceso.id),
     listarIndicadores(proceso.id),
     listarFormulariosErpDeProceso(proceso.id),
+    listarControles(proceso.id),
+    listarRequisitosAplicables(proceso.id),
   ]);
 
   // ¿Este proceso del SGI tiene un flujograma vinculado?
@@ -173,6 +177,13 @@ export default async function ProcesoDetallePage({ params }: Props) {
       )}
 
       <SenalesProceso ncs={ncs} riesgos={riesgos} indicadores={indicadores} />
+
+      <TrazabilidadProceso
+        procesoId={proceso.id}
+        controles={controles}
+        requisitos={requisitosAplicables}
+        riesgos={riesgos}
+      />
 
       <IntegracionErpProceso codigoProceso={proceso.codigo} formularios={formulariosErp} />
 

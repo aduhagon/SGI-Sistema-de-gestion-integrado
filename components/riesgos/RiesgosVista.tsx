@@ -4,8 +4,9 @@ import { useState } from "react";
 import { Table2, Network, Grid3x3 } from "lucide-react";
 import type {
   Riesgo, ProcesoOpcion, PuestoOpcion, NodoProcesoRiesgo,
-  MitiganteRiesgo, DocumentoOpcion, IndicadorOpcion, NormaOpcion, NormaRiesgo,
+  NormaOpcion, NormaRiesgo,
 } from "@/lib/api/riesgos";
+import type { ControlRiesgoResumen } from "@/lib/api/controles";
 import { GestionRiesgos } from "@/components/riesgos/GestionRiesgos";
 import ArbolRiesgos from "@/components/riesgos/ArbolRiesgos";
 import MapaCalorRiesgos from "@/components/riesgos/MapaCalorRiesgos";
@@ -17,9 +18,8 @@ export function RiesgosVista({
   procesos,
   puestos,
   arbol,
-  mitigantesPorRiesgo,
-  documentosOpc,
-  indicadoresOpc,
+  controlesPorRiesgo,
+  controlesOpc,
   normasOpc,
   normasPorRiesgo,
 }: {
@@ -27,9 +27,8 @@ export function RiesgosVista({
   procesos: ProcesoOpcion[];
   puestos: PuestoOpcion[];
   arbol: NodoProcesoRiesgo[];
-  mitigantesPorRiesgo: Record<string, MitiganteRiesgo[]>;
-  documentosOpc: DocumentoOpcion[];
-  indicadoresOpc: IndicadorOpcion[];
+  controlesPorRiesgo: Record<string, ControlRiesgoResumen[]>;
+  controlesOpc: ControlRiesgoResumen[];
   normasOpc: NormaOpcion[];
   normasPorRiesgo: Record<string, NormaRiesgo[]>;
 }) {
@@ -58,8 +57,8 @@ export function RiesgosVista({
         </button>
       </div>
 
-      {vista === "tabla" && <GestionRiesgos riesgos={riesgos} procesos={procesos} puestos={puestos} mitigantesPorRiesgo={mitigantesPorRiesgo} documentosOpc={documentosOpc} indicadoresOpc={indicadoresOpc} normasOpc={normasOpc} normasPorRiesgo={normasPorRiesgo} />}
-      {vista === "proceso" && <ArbolRiesgos raices={arbol} mitigantesPorRiesgo={mitigantesPorRiesgo} normasPorRiesgo={normasPorRiesgo} />}
+      {vista === "tabla" && <GestionRiesgos riesgos={riesgos} procesos={procesos} puestos={puestos} controlesPorRiesgo={controlesPorRiesgo} controlesOpc={controlesOpc} normasOpc={normasOpc} normasPorRiesgo={normasPorRiesgo} />}
+      {vista === "proceso" && <ArbolRiesgos raices={arbol} controlesPorRiesgo={controlesPorRiesgo} normasPorRiesgo={normasPorRiesgo} />}
       {vista === "calor" && <MapaCalorRiesgos riesgos={riesgos} />}
     </div>
   );

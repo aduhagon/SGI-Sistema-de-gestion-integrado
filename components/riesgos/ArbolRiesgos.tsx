@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, Pencil, AlertTriangle, Paperclip, FileText, Activity, Lightbulb, Shield, ShieldCheck, ShieldHalf, Link2, Minus } from "lucide-react";
-import type { NodoProcesoRiesgo, RiesgoArbol, MitiganteRiesgo, NormaRiesgo } from "@/lib/api/riesgos";
+import { ChevronRight, Pencil, AlertTriangle, Lightbulb, Shield, ShieldCheck, ShieldHalf, Link2, Minus } from "lucide-react";
+import type { NodoProcesoRiesgo, RiesgoArbol, NormaRiesgo } from "@/lib/api/riesgos";
+import type { ControlRiesgoResumen } from "@/lib/api/controles";
 import {
   clasificarNumerico,
   GRADO_CONTROL_LABEL,
@@ -107,24 +108,24 @@ function IconoMadurez({ m }: { m: MadurezControl }) {
 
 // Indicador de si el riesgo tiene mitigante (texto de tratamiento o vínculo
 // estructurado): chip con la palabra, para que se lea sin interpretar un ícono.
-function IndicadorMitigante({ tiene }: { tiene: boolean }) {
+function IndicadorControl({ tiene }: { tiene: boolean }) {
   return tiene ? (
     <span
       className="hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
       style={{ backgroundColor: "#e1f5ee", color: "#0f6e56" }}
-      title="Tiene mitigante (tratamiento planificado o vínculo)"
+      title="Tiene un control o tratamiento definido"
     >
       <Link2 className="h-3 w-3 shrink-0" aria-hidden="true" />
-      Con mitigante
+      Con control
     </span>
   ) : (
     <span
       className="hidden shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium sm:inline-flex"
       style={{ backgroundColor: "#f1efe8", color: "#888780" }}
-      title="Sin mitigante"
+      title="Sin control vinculado"
     >
       <Minus className="h-3 w-3 shrink-0" aria-hidden="true" />
-      Sin mitigante
+      Sin control
     </span>
   );
 }
@@ -154,51 +155,25 @@ function BadgeResidual({ r }: { r: RiesgoArbol }) {
   );
 }
 
-function ListaVinculos({ items }: { items: MitiganteRiesgo[] }) {
+function ListaVinculos({ items }: { items: ControlRiesgoResumen[] }) {
   if (items.length === 0) return null;
   return (
     <div>
-      <span className="font-semibold uppercase tracking-wider text-muted-foreground/70">Vínculos</span>
+      <span className="font-semibold uppercase tracking-wider text-muted-foreground/70">Controles vinculados</span>
       <ul className="mt-1 space-y-1">
-        {items.map((m) => {
-          if (m.tipo === "documento" && m.documentoCodigo) {
-            return (
-              <li key={m.id}>
-                <a
-                  href={`/documentos/${m.documentoId}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1.5 text-primary hover:underline"
-                >
-                  <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span className="font-mono text-[11px]">{m.documentoCodigo}</span>
-                  {m.documentoTitulo && <span className="text-foreground/80">· {m.documentoTitulo}</span>}
-                </a>
-              </li>
-            );
-          }
-          if (m.tipo === "indicador" && m.indicadorCodigo) {
-            return (
-              <li key={m.id}>
-                <a
-                  href={`/indicadores/${m.indicadorId}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1.5 text-primary hover:underline"
-                >
-                  <Activity className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span className="font-mono text-[11px]">{m.indicadorCodigo}</span>
-                  {m.indicadorNombre && <span className="text-foreground/80">· {m.indicadorNombre}</span>}
-                </a>
-              </li>
-            );
-          }
-          // tipo "otro": control sin vínculo a documento/indicador
-          return (
-            <li key={m.id} className="inline-flex items-center gap-1.5 text-foreground/80">
-              <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-              {m.descripcion || "Control sin referencia"}
-            </li>
-          );
-        })}
+        {items.map((control) => (
+          <li key={control.id}>
+            <a
+              href={`/controles?control=${control.id}`}
+              onClick={(evento) => evento.stopPropagation()}
+              className="inline-flex items-center gap-1.5 text-primary hover:underline"
+            >
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span className="font-mono text-[11px]">{control.codigo}</span>
+              <span className="text-foreground/80">· {control.nombre}</span>
+            </a>
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -227,7 +202,7 @@ function ChipsNormas({ normas }: { normas: NormaRiesgo[] }) {
   );
 }
 
-function FilaRiesgo({ r, padLeft, forzarAbierto, vinculos, normas }: { r: RiesgoArbol; padLeft: number; forzarAbierto: boolean; vinculos: MitiganteRiesgo[]; normas: NormaRiesgo[] }) {
+function FilaRiesgo({ r, padLeft, forzarAbierto, vinculos, normas }: { r: RiesgoArbol; padLeft: number; forzarAbierto: boolean; vinculos: ControlRiesgoResumen[]; normas: NormaRiesgo[] }) {
   const [abierto, setAbierto] = useState(forzarAbierto);
   const nVinculos = vinculos.length;
   const tieneDetalle = !!(r.causa || r.consecuencia || r.mitigante) || nVinculos > 0 || normas.length > 0;
@@ -285,7 +260,7 @@ function FilaRiesgo({ r, padLeft, forzarAbierto, vinculos, normas }: { r: Riesgo
         <IconoMadurez m={r.madurezControl} />
 
         {/* Mitigante: chip "Con mitigante" / "Sin mitigante". */}
-        <IndicadorMitigante tiene={r.tieneMitigante} />
+        <IndicadorControl tiene={r.tieneMitigante || nVinculos > 0} />
 
         {/* Riesgo residual. */}
         <span className="flex w-[92px] shrink-0 justify-end">
@@ -352,7 +327,7 @@ function FilaRiesgo({ r, padLeft, forzarAbierto, vinculos, normas }: { r: Riesgo
 }
 
 // Fila de un proceso. Se despliega mostrando subprocesos (si los hay) y riesgos.
-function FilaProceso({ nodo, depth, forzarAbierto, mitigantesPorRiesgo, normasPorRiesgo }: { nodo: NodoProcesoRiesgo; depth: number; forzarAbierto: boolean; mitigantesPorRiesgo: Record<string, MitiganteRiesgo[]>; normasPorRiesgo: Record<string, NormaRiesgo[]> }) {
+function FilaProceso({ nodo, depth, forzarAbierto, controlesPorRiesgo, normasPorRiesgo }: { nodo: NodoProcesoRiesgo; depth: number; forzarAbierto: boolean; controlesPorRiesgo: Record<string, ControlRiesgoResumen[]>; normasPorRiesgo: Record<string, NormaRiesgo[]> }) {
   const tieneHijos = nodo.hijos.length > 0;
   const tieneRiesgos = nodo.riesgos.length > 0;
   const expandible = tieneHijos || tieneRiesgos;
@@ -419,7 +394,7 @@ function FilaProceso({ nodo, depth, forzarAbierto, mitigantesPorRiesgo, normasPo
       {abierto && tieneHijos && (
         <div>
           {nodo.hijos.map((h) => (
-            <FilaProceso key={h.procesoId} nodo={h} depth={depth + 1} forzarAbierto={forzarAbierto} mitigantesPorRiesgo={mitigantesPorRiesgo} normasPorRiesgo={normasPorRiesgo} />
+            <FilaProceso key={h.procesoId} nodo={h} depth={depth + 1} forzarAbierto={forzarAbierto} controlesPorRiesgo={controlesPorRiesgo} normasPorRiesgo={normasPorRiesgo} />
           ))}
         </div>
       )}
@@ -427,7 +402,7 @@ function FilaProceso({ nodo, depth, forzarAbierto, mitigantesPorRiesgo, normasPo
       {abierto && tieneRiesgos && (
         <div>
           {nodo.riesgos.map((r) => (
-            <FilaRiesgo key={r.id} r={r} padLeft={padLeft + 20} forzarAbierto={forzarAbierto} vinculos={mitigantesPorRiesgo[r.id] ?? []} normas={normasPorRiesgo[r.id] ?? []} />
+            <FilaRiesgo key={r.id} r={r} padLeft={padLeft + 20} forzarAbierto={forzarAbierto} vinculos={controlesPorRiesgo[r.id] ?? []} normas={normasPorRiesgo[r.id] ?? []} />
           ))}
         </div>
       )}
@@ -435,7 +410,7 @@ function FilaProceso({ nodo, depth, forzarAbierto, mitigantesPorRiesgo, normasPo
   );
 }
 
-export default function ArbolRiesgos({ raices, mitigantesPorRiesgo, normasPorRiesgo }: { raices: NodoProcesoRiesgo[]; mitigantesPorRiesgo: Record<string, MitiganteRiesgo[]>; normasPorRiesgo: Record<string, NormaRiesgo[]> }) {
+export default function ArbolRiesgos({ raices, controlesPorRiesgo, normasPorRiesgo }: { raices: NodoProcesoRiesgo[]; controlesPorRiesgo: Record<string, ControlRiesgoResumen[]>; normasPorRiesgo: Record<string, NormaRiesgo[]> }) {
   const [todoAbierto, setTodoAbierto] = useState(false);
 
   return (
@@ -454,7 +429,7 @@ export default function ArbolRiesgos({ raices, mitigantesPorRiesgo, normasPorRie
         {/* key fuerza re-montaje al togglear, para que cada fila relea su estado inicial */}
         <div key={todoAbierto ? "open" : "closed"}>
           {raices.map((n) => (
-            <FilaProceso key={n.procesoId} nodo={n} depth={0} forzarAbierto={todoAbierto} mitigantesPorRiesgo={mitigantesPorRiesgo} normasPorRiesgo={normasPorRiesgo} />
+            <FilaProceso key={n.procesoId} nodo={n} depth={0} forzarAbierto={todoAbierto} controlesPorRiesgo={controlesPorRiesgo} normasPorRiesgo={normasPorRiesgo} />
           ))}
         </div>
       </div>

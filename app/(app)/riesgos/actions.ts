@@ -11,21 +11,8 @@ export type EstadoRiesgo =
   | { ok: false; error: string; campo?: string }
   | null;
 
-// Mitigantes que llegan del formulario como JSON en un input oculto.
-// Solo viajan los datos de identidad; el resto vive en la base.
-const mitigantesSchema = z
-  .array(
-    z.discriminatedUnion("tipo", [
-      z.object({ tipo: z.literal("documento"), documentoId: z.string().uuid() }),
-      z.object({ tipo: z.literal("indicador"), indicadorId: z.string().uuid() }),
-      z.object({ tipo: z.literal("otro"), descripcion: z.string().trim().min(5, "Describí el control con al menos 5 caracteres.").max(2000) }),
-    ]),
-  )
-  .max(50);
-
-type MitiganteDeseado = z.infer<typeof mitigantesSchema>[number];
-
 const normasSchema = z.array(z.string().uuid()).max(20);
+const controlesSchema = z.array(z.string().uuid()).max(100);
 
 export async function guardarRiesgo(
   _prev: EstadoRiesgo,
@@ -59,22 +46,21 @@ export async function guardarRiesgo(
     return { ok: false, error: p.message, campo: p.path.join(".") };
   }
 
-  // Mitigantes: si el campo no viene (formularios viejos en caché), se ignora
-  // y no se toca nada. Si viene, se valida y se sincroniza tras guardar.
-  let mitigantes: MitiganteDeseado[] | null = null;
-  const mitigantesRaw = formData.get("mitigantes");
-  if (typeof mitigantesRaw === "string" && mitigantesRaw !== "") {
+  // Los controles se definen en su modulo y aca solo se vinculan al riesgo.
+  let controles: string[] | null = null;
+  const controlesRaw = formData.get("controles");
+  if (typeof controlesRaw === "string" && controlesRaw !== "") {
     let json: unknown;
     try {
-      json = JSON.parse(mitigantesRaw);
+      json = JSON.parse(controlesRaw);
     } catch {
-      return { ok: false, error: "Los mitigantes llegaron en un formato inválido. Recargá la página e intentá de nuevo." };
+      return { ok: false, error: "Los controles llegaron en un formato invalido. Recarga la pagina e intenta de nuevo." };
     }
-    const parsedMit = mitigantesSchema.safeParse(json);
-    if (!parsedMit.success) {
-      return { ok: false, error: parsedMit.error.issues[0].message, campo: "mitigantes" };
+    const parsedControles = controlesSchema.safeParse(json);
+    if (!parsedControles.success) {
+      return { ok: false, error: parsedControles.error.issues[0].message, campo: "controles" };
     }
-    mitigantes = parsedMit.data;
+    controles = Array.from(new Set(parsedControles.data));
   }
 
   // Normas asociadas (calificador opcional, N:M). Mismo criterio que mitigantes:
@@ -136,11 +122,10 @@ export async function guardarRiesgo(
     riesgoId = data.id as string;
   }
 
-  if (mitigantes !== null) {
-    const errorSync = await sincronizarMitigantes(supabase, riesgoId, mitigantes, usuarioId);
+  if (controles !== null) {
+    const errorSync = await sincronizarControles(supabase, riesgoId, controles);
     if (errorSync) {
-      // El riesgo ya se guardó; se informa el problema puntual de los vínculos.
-      return { ok: false, error: `El riesgo se guardó, pero falló el vínculo de mitigantes: ${traducir(errorSync)}` };
+      return { ok: false, error: `El riesgo se guardo, pero fallo el vinculo de controles: ${traducir(errorSync)}` };
     }
   }
 
@@ -152,69 +137,21 @@ export async function guardarRiesgo(
   }
 
   revalidatePath("/riesgos");
+  revalidatePath("/controles");
+  revalidatePath("/procesos");
   return { ok: true };
 }
 
-// Reconcilia los vínculos vivos contra lo que llegó del formulario:
-// alta de los nuevos, baja lógica de los quitados, sin tocar los que siguen.
-async function sincronizarMitigantes(
+async function sincronizarControles(
   supabase: ReturnType<typeof createClient>,
   riesgoId: string,
-  deseados: MitiganteDeseado[],
-  usuarioId: string,
+  deseados: string[],
 ): Promise<string | null> {
-  const { data: actuales, error } = await supabase
-    .from("riesgo_mitigante")
-    .select("id, tipo_mitigante, documento_id, indicador_id, descripcion")
-    .eq("riesgo_id", riesgoId)
-    .eq("activo", true)
-    .is("eliminado_en", null);
-  if (error) return error.message;
-
-  const claveActual = (a: { tipo_mitigante: string; documento_id: string | null; indicador_id: string | null; descripcion: string | null }) =>
-    a.tipo_mitigante === "documento"
-      ? `d:${a.documento_id}`
-      : a.tipo_mitigante === "indicador"
-        ? `i:${a.indicador_id}`
-        : `o:${(a.descripcion ?? "").trim().toLowerCase()}`;
-
-  const claveDeseada = (d: MitiganteDeseado) =>
-    d.tipo === "documento" ? `d:${d.documentoId}` : d.tipo === "indicador" ? `i:${d.indicadorId}` : `o:${d.descripcion.trim().toLowerCase()}`;
-
-  const clavesDeseadas = new Set(deseados.map(claveDeseada));
-  const clavesActuales = new Set((actuales ?? []).map(claveActual));
-
-  // Baja lógica de los que ya no están en el formulario.
-  const aQuitar = (actuales ?? []).filter((a) => !clavesDeseadas.has(claveActual(a)));
-  if (aQuitar.length > 0) {
-    const { error: eBaja } = await supabase
-      .from("riesgo_mitigante")
-      .update({
-        activo: false,
-        eliminado_en: new Date().toISOString(),
-        eliminado_por: usuarioId,
-        eliminado_motivo: "Quitado desde el formulario del riesgo",
-      })
-      .in("id", aQuitar.map((a) => a.id));
-    if (eBaja) return eBaja.message;
-  }
-
-  // Alta de los nuevos.
-  const nuevos = deseados.filter((d) => !clavesActuales.has(claveDeseada(d)));
-  if (nuevos.length > 0) {
-    const filas = nuevos.map((d) => ({
-      riesgo_id: riesgoId,
-      tipo_mitigante: d.tipo,
-      documento_id: d.tipo === "documento" ? d.documentoId : null,
-      indicador_id: d.tipo === "indicador" ? d.indicadorId : null,
-      descripcion: d.tipo === "otro" ? d.descripcion.trim() : null,
-      creado_por: usuarioId,
-    }));
-    const { error: eAlta } = await supabase.from("riesgo_mitigante").insert(filas);
-    if (eAlta) return eAlta.message;
-  }
-
-  return null;
+  const { error } = await supabase.rpc("fn_sincronizar_controles_riesgo", {
+    p_riesgo_id: riesgoId,
+    p_control_ids: deseados,
+  });
+  return error?.message ?? null;
 }
 
 // Reconcilia las normas asociadas al riesgo: alta de las nuevas, baja lógica de
@@ -269,6 +206,14 @@ export async function eliminarRiesgo(id: string): Promise<EstadoRiesgo> {
   const usuarioId = await obtenerUsuarioActualId();
   if (!usuarioId) return { ok: false, error: "Sesión no válida." };
 
+  const { error: errorVinculos } = await supabase.rpc("fn_sincronizar_controles_riesgo", {
+    p_riesgo_id: id,
+    p_control_ids: [],
+  });
+  if (errorVinculos) {
+    return { ok: false, error: `No se pudieron desvincular los controles: ${traducir(errorVinculos.message)}` };
+  }
+
   const { error } = await supabase
     .from("riesgos")
     .update({
@@ -281,14 +226,14 @@ export async function eliminarRiesgo(id: string): Promise<EstadoRiesgo> {
   if (error) return { ok: false, error: `No se pudo eliminar: ${error.message}` };
 
   revalidatePath("/riesgos");
+  revalidatePath("/controles");
+  revalidatePath("/procesos");
   return { ok: true };
 }
 
 function traducir(msg: string): string {
-  if (msg.includes("uq_riesgo_mitigante"))
-    return "Ese documento o indicador ya está vinculado a este riesgo.";
-  if (msg.includes("chk_riesgo_mitigante"))
-    return "El mitigante es incoherente (tipo y referencia no coinciden).";
+  if (msg.includes("mismo proceso"))
+    return "El control y el riesgo deben pertenecer al mismo proceso.";
   if (msg.includes("uq_riesgos_codigo") || msg.includes("duplicate") || msg.includes("unique"))
     return "Ya existe un riesgo con ese código.";
   if (msg.includes("chk_riesgos_codigo"))

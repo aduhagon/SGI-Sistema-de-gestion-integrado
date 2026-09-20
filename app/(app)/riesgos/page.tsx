@@ -1,19 +1,20 @@
 import { Suspense } from "react";
 import {
   listarRiesgos, obtenerDatosFormRiesgo, obtenerArbolRiesgos,
-  listarMitigantesPorRiesgo, obtenerOpcionesMitigantes, listarNormasPorRiesgo,
+  listarNormasPorRiesgo,
 } from "@/lib/api/riesgos";
+import { listarControlesComoOpcion, listarControlesPorRiesgo } from "@/lib/api/controles";
 import { RiesgosVista } from "@/components/riesgos/RiesgosVista";
 
 export const dynamic = "force-dynamic";
 
 export default async function RiesgosPage() {
-  const [riesgos, { procesos, puestos, normas }, arbol, mitigantesPorRiesgo, opcionesMitigantes, normasPorRiesgo] = await Promise.all([
+  const [riesgos, { procesos, puestos, normas }, arbol, controlesPorRiesgo, controlesOpc, normasPorRiesgo] = await Promise.all([
     listarRiesgos(),
     obtenerDatosFormRiesgo(),
     obtenerArbolRiesgos(),
-    listarMitigantesPorRiesgo(),
-    obtenerOpcionesMitigantes(),
+    listarControlesPorRiesgo(),
+    listarControlesComoOpcion(),
     listarNormasPorRiesgo(),
   ]);
 
@@ -37,7 +38,7 @@ export default async function RiesgosPage() {
         )}
       </header>
       <Suspense fallback={null}>
-        <RiesgosVista riesgos={riesgos} procesos={procesos} puestos={puestos} arbol={arbol} mitigantesPorRiesgo={mitigantesPorRiesgo} documentosOpc={opcionesMitigantes.documentos} indicadoresOpc={opcionesMitigantes.indicadores} normasOpc={normas} normasPorRiesgo={normasPorRiesgo} />
+        <RiesgosVista riesgos={riesgos} procesos={procesos} puestos={puestos} arbol={arbol} controlesPorRiesgo={controlesPorRiesgo} controlesOpc={controlesOpc} normasOpc={normas} normasPorRiesgo={normasPorRiesgo} />
       </Suspense>
     </div>
   );
