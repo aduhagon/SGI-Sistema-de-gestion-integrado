@@ -1,25 +1,21 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidarMejora } from "@/lib/revalidar-mejora";
+import { z } from "zod";
+import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
 import { createClient } from "@/lib/supabase/server";
 
 export type ResultadoCierre =
   | { ok: true; mensaje: string }
   | { ok: false; error: string; requiereForzar?: boolean };
 
-/**
- * Cierra una NC. La base (fn_cerrar_nc) exige una verificación de eficacia
- * con resultado 'eficaz'. Si no la hay, solo el SGI puede forzar el cierre
- * pasando forzar=true + justificación.
- *
- * Cuando el cierre se bloquea por falta de eficacia, devolvemos
- * requiereForzar=true para que la UI ofrezca el cierre forzado al SGI.
- */
+// El cierre requiere la última verificación eficaz sobre el tratamiento vigente.
 export async function cerrarNC(
   ncId: string,
   motivo: string,
   forzar = false,
 ): Promise<ResultadoCierre> {
+  if (!(await obtenerUsuarioActualId()) || !z.string().uuid().safeParse(ncId).success) return { ok: false, error: "Sesión o NC inválida." };
   if (motivo.trim().length < 5) {
     return { ok: false, error: "El motivo de cierre es obligatorio (mínimo 5 caracteres)." };
   }
@@ -36,13 +32,9 @@ export async function cerrarNC(
   const fila = Array.isArray(data) ? data[0] : data;
   if (!fila?.cerrada) {
     const msg = fila?.mensaje ?? "No se pudo cerrar la no conformidad.";
-    // Detectamos el caso "falta eficacia" para ofrecer el forzado.
-    const requiereForzar = msg.includes("verificación de eficacia");
-    return { ok: false, error: msg, requiereForzar };
+    return { ok: false, error: msg };
   }
 
-  revalidatePath(`/ncs/${ncId}`);
-  revalidatePath("/ncs");
-  revalidatePath("/dashboard");
+  revalidarMejora(ncId);
   return { ok: true, mensaje: fila.mensaje };
 }

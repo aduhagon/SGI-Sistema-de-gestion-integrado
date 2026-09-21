@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidarMejora } from "@/lib/revalidar-mejora";
 import { createClient } from "@/lib/supabase/server";
 import { analisisCausaSchema } from "@/lib/schemas/nc";
 import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
@@ -51,12 +51,12 @@ export async function guardarAnalisisCausa(
       actualizado_en: new Date().toISOString(),
       actualizado_por: usuarioId,
     })
-    .eq("id", ncId);
+    .eq("id", ncId).select("id").single();
 
   if (error) {
     return { ok: false, error: `No se pudo guardar el análisis: ${error.message}` };
   }
 
-  revalidatePath(`/ncs/${ncId}`);
+  revalidarMejora(ncId);
   return { ok: true };
 }

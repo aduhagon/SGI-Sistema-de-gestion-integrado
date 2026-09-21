@@ -13,6 +13,8 @@ type Props = {
   ncId: string;
   verificaciones: VerificacionEficacia[];
   acciones: Accion[];
+  puedeVerificar: boolean;
+  revisionTratamiento: number;
 };
 
 const RESULTADO_META: Record<string, { label: string; color: string }> = {
@@ -30,7 +32,7 @@ function SubmitButton() {
   );
 }
 
-export function VerificacionEficaciaSection({ ncId, verificaciones, acciones }: Props) {
+export function VerificacionEficaciaSection({ ncId, verificaciones, acciones, puedeVerificar, revisionTratamiento }: Props) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [estado, formAction] = useFormState<EstadoAccion, FormData>(registrarVerificacion, null);
@@ -54,14 +56,14 @@ export function VerificacionEficaciaSection({ ncId, verificaciones, acciones }: 
         <h2 className="flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
           <ShieldCheck className="h-3.5 w-3.5" />Verificación de eficacia
         </h2>
-        <Button size="sm" variant="outline" onClick={() => setAbierto(true)}>
+        {puedeVerificar && <Button size="sm" variant="outline" disabled={!accionesCompletadas.length} onClick={() => setAbierto(true)}>
           <Plus className="h-3.5 w-3.5" />Verificar
-        </Button>
+        </Button>}
       </div>
 
       {verificaciones.length > 0 ? (
         <div className="space-y-2">
-          {verificaciones.map((v) => {
+          {verificaciones.map((v, indice) => {
             const meta = RESULTADO_META[v.resultado] ?? RESULTADO_META.no_eficaz;
             return (
               <div key={v.id} className="rounded-md border border-border bg-card p-4">
@@ -72,6 +74,10 @@ export function VerificacionEficaciaSection({ ncId, verificaciones, acciones }: 
                   </span>
                 </div>
                 <p className="whitespace-pre-wrap text-sm">{v.conclusion}</p>
+                {v.evidenciaRevisada && <p className="mt-2 whitespace-pre-wrap break-words text-sm text-muted-foreground"><strong>Evidencia revisada:</strong> {v.evidenciaRevisada}</p>}
+                {v.revisionTratamiento === null ? <p className="mt-2 text-xs text-muted-foreground">Histórica: sin revisión del tratamiento registrada.</p>
+                  : v.revisionTratamiento !== revisionTratamiento ? <p className="mt-2 text-xs text-amber-700">Histórica: el tratamiento cambió después de esta verificación.</p>
+                  : indice > 0 ? <p className="mt-2 text-xs text-muted-foreground">Sustituida por una verificación posterior.</p> : null}
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span>Verificado por {v.verificadorNombre}</span>
                   {v.evidenciaArchivoId && (
@@ -122,14 +128,11 @@ export function VerificacionEficaciaSection({ ncId, verificaciones, acciones }: 
                     <div className="space-y-1.5">
                       {accionesCompletadas.map((a) => (
                         <label key={a.id} className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5">
-                          <input type="checkbox" name="accionesVerificadas" value={a.id} className="h-4 w-4" />
+                          <input type="checkbox" name="accionesVerificadas" value={a.id} defaultChecked className="h-4 w-4" />
                           <span><span className="font-mono text-xs">{a.codigo}</span> · {a.titulo}</span>
                         </label>
                       ))}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Marcá las acciones que estás verificando. La base impide que verifiques las tuyas.
-                    </p>
                   </div>
                 )}
 
@@ -139,8 +142,8 @@ export function VerificacionEficaciaSection({ ncId, verificaciones, acciones }: 
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="evidenciaRevisada" className="text-sm font-medium">Evidencia revisada <span className="text-muted-foreground">(opcional)</span></label>
-                  <textarea id="evidenciaRevisada" name="evidenciaRevisada" rows={2} placeholder="Descripción de la evidencia revisada." className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+                  <label htmlFor="evidenciaRevisada" className="text-sm font-medium">Evidencia revisada</label>
+                  <textarea id="evidenciaRevisada" name="evidenciaRevisada" rows={2} required minLength={5} maxLength={4000} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
                 </div>
 
                 <div className="space-y-2">

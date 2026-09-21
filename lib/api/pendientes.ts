@@ -32,6 +32,10 @@ const MODULO_LABEL: Record<string, string> = {
   indicadores: "Indicadores por medir",
   documentos: "Documentos por revisar",
   controles: "Controles por ejecutar",
+  controles_observados: "Resultados de controles por tratar",
+  tratamiento: "Tratamientos por planificar",
+  verificaciones: "Verificaciones de eficacia",
+  cierres: "No conformidades listas para cerrar",
 };
 
 // Orden de presentación de las secciones en la pantalla.
@@ -48,6 +52,10 @@ const ORDEN_MODULO = [
   "hallazgos",
   "auditorias",
   "controles",
+  "controles_observados",
+  "tratamiento",
+  "verificaciones",
+  "cierres",
   "riesgos",
   "indicadores",
   "documentos",
@@ -65,16 +73,19 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
   const supabase = createClient();
   const zona = await obtenerZonaHoraria();
 
-  const { data, error } = await supabase.rpc("fn_pendientes_usuario", {
-    p_usuario_id: usuarioId,
-    p_zona: zona,
-  });
+  const [{ data, error }, mejora] = await Promise.all([
+    supabase.rpc("fn_pendientes_usuario", { p_usuario_id: usuarioId, p_zona: zona }),
+    supabase.rpc("fn_pendientes_mejora", { p_zona: zona }),
+  ]);
+  if (mejora.error) throw new Error(`No se pudieron cargar los pendientes de mejora: ${mejora.error.message}`);
 
   if (error) {
     console.error("[SGI:pendientes] obtenerMisPendientes", error);
   }
 
-  const filas = (data ?? []) as Array<{
+  const mejoraFilas = mejora.data ?? [];
+  const ncsConEtapa = new Set(mejoraFilas.filter((f: { modulo: string }) => ["tratamiento", "cierres"].includes(f.modulo)).map((f: { entidad_id: string }) => f.entidad_id));
+  const filas = [...(data ?? []).filter((f: { modulo: string; entidad_id: string }) => f.modulo !== "no_conformidades" || !ncsConEtapa.has(f.entidad_id)), ...mejoraFilas] as Array<{
     modulo: string;
     entidad_id: string;
     codigo: string;

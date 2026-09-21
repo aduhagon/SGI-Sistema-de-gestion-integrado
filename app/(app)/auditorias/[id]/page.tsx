@@ -23,6 +23,7 @@ import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
 import { obtenerTrazabilidadAuditoria } from "@/lib/api/trazabilidad";
 import { TrazabilidadCiclo } from "@/components/ncs/TrazabilidadCiclo";
 import { obtenerZonaHoraria } from "@/lib/api/ajustes";
+import { obtenerEjecucionesAuditoria } from "@/lib/api/mejora";
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +81,7 @@ export default async function AuditoriaDetallePage({ params, searchParams }: Pro
   const [
     hallazgos, requisitosVinc, procesosVinc,
     equipo, candidatos, permisos, checklist, usuarioId,
-    trazabilidad, zona,
+    trazabilidad, zona, ejecuciones,
   ] = await Promise.all([
     obtenerHallazgosDeAuditoria(params.id),
     obtenerRequisitosDeAuditoria(params.id),
@@ -92,6 +93,7 @@ export default async function AuditoriaDetallePage({ params, searchParams }: Pro
     obtenerUsuarioActualId(),
     obtenerTrazabilidadAuditoria(params.id),
     obtenerZonaHoraria(),
+    obtenerEjecucionesAuditoria(params.id),
   ]);
 
   // Adjuntos de documentación por hallazgo.
@@ -251,6 +253,7 @@ export default async function AuditoriaDetallePage({ params, searchParams }: Pro
       />
 
       <SeccionHallazgos
+        ejecuciones={ejecuciones}
         auditoriaId={params.id}
         hallazgos={hallazgos}
         requisitos={requisitosVinc}

@@ -12,6 +12,7 @@ type ReqOpcion = { id: string; clausula: string; titulo: string; norma: string }
 type ProcOpcion = { id: string; codigo: string; nombre: string };
 
 type Props = {
+  ejecuciones: import("@/lib/api/mejora").EjecucionOpcion[];
   auditoriaId: string;
   requisitos: ReqOpcion[];
   procesos: ProcOpcion[];
@@ -53,6 +54,7 @@ export function AgregarHallazgoDialog({
   procesos,
   abierto,
   onClose,
+  ejecuciones,
 }: Props) {
   const router = useRouter();
   const [estado, formAction] = useFormState<EstadoHallazgo, FormData>(crearHallazgo, null);
@@ -222,6 +224,13 @@ export function AgregarHallazgoDialog({
 
             {/* Paso 2 — Dónde */}
             <div hidden={paso !== 1} className="space-y-5">
+              <div className="space-y-2"><label htmlFor="controlEjecucionId" className="text-sm font-medium">Ejecución de control relacionada</label>
+                <select id="controlEjecucionId" name="controlEjecucionId" className={INPUT_CLASS} onChange={(event) => {
+                  const ejecucion = ejecuciones.find((item) => item.id === event.target.value);
+                  const proceso = formRef.current?.elements.namedItem("procesoId");
+                  if (ejecucion && proceso instanceof HTMLSelectElement) proceso.value = ejecucion.procesoId;
+                }}><option value="">Sin ejecución vinculada</option>{ejecuciones.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}</select>
+              </div>
               {requisitos.length > 0 ? (
                 <div className="space-y-2">
                   <label htmlFor="requisitoId" className="text-sm font-medium">

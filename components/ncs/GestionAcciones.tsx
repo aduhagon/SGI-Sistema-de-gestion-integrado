@@ -14,6 +14,9 @@ type Props = {
   ncId: string;
   acciones: Accion[];
   usuarios: UsuarioElegible[];
+  puedeGestionar: boolean;
+  usuarioId: string | null;
+  cerrada: boolean;
 };
 
 const TIPO_LABEL: Record<string, string> = {
@@ -36,13 +39,14 @@ function SubmitButton() {
   );
 }
 
-export function GestionAcciones({ ncId, acciones, usuarios }: Props) {
+export function GestionAcciones({ ncId, acciones, usuarios, puedeGestionar, usuarioId, cerrada }: Props) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [estado, formAction] = useFormState<EstadoAccion, FormData>(crearAccion, null);
   const [completando, setCompletando] = useState<string | null>(null);
   const [accionACompletar, setAccionACompletar] = useState<Accion | null>(null);
   const [resultado, setResultado] = useState("");
+  const [evidencia, setEvidencia] = useState("");
   const [errorCompletar, setErrorCompletar] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,7 +61,7 @@ export function GestionAcciones({ ncId, acciones, usuarios }: Props) {
       return;
     }
     setCompletando(accionACompletar.id);
-    const r = await completarAccion(ncId, accionACompletar.id, resultado);
+    const r = await completarAccion(ncId, accionACompletar.id, resultado, evidencia);
     setCompletando(null);
     if (r?.ok) {
       setAccionACompletar(null);
@@ -74,16 +78,16 @@ export function GestionAcciones({ ncId, acciones, usuarios }: Props) {
         <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Acciones {acciones.length > 0 && `(${acciones.length})`}
         </h2>
-        <Button size="sm" variant="outline" onClick={() => setAbierto(true)}>
+        {puedeGestionar && <Button size="sm" variant="outline" onClick={() => setAbierto(true)}>
           <Plus className="h-3.5 w-3.5" />Agregar acción
-        </Button>
+        </Button>}
       </div>
 
       {acciones.length > 0 ? (
         <div className="space-y-2">
           {acciones.map((a) => {
             const meta = ESTADO_META[a.estado] ?? ESTADO_META.planificada;
-            const vencida = a.estado !== "completada" && new Date(a.fechaLimite) < new Date();
+            const vencida = !["completada", "cancelada"].includes(a.estado) && a.fechaLimite < new Date().toLocaleDateString("sv-SE");
             return (
               <div key={a.id} className="rounded-md border border-border bg-card p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -96,15 +100,17 @@ export function GestionAcciones({ ncId, acciones, usuarios }: Props) {
                     </div>
                     <h3 className="text-sm font-medium">{a.titulo}</h3>
                     <p className="mt-0.5 text-sm text-muted-foreground">{a.descripcion}</p>
+                    {a.resultadoObtenido && <p className="mt-2 whitespace-pre-wrap break-words text-sm"><strong>Resultado:</strong> {a.resultadoObtenido}</p>}
+                    {a.evidenciaDescripcion && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground"><strong>Evidencia:</strong> {a.evidenciaDescripcion}</p>}
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
                       <span>Responsable: {a.responsableNombre}</span>
                       <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Límite {new Date(a.fechaLimite).toLocaleDateString("es-AR")}</span>
                     </div>
                   </div>
-                  {a.estado !== "completada" && a.estado !== "cancelada" && (
+                  {!cerrada && (puedeGestionar || a.responsableId === usuarioId) && a.estado !== "completada" && a.estado !== "cancelada" && (
                     <button
                       type="button"
-                      onClick={() => { setAccionACompletar(a); setResultado(""); setErrorCompletar(null); }}
+                      onClick={() => { setAccionACompletar(a); setResultado(""); setEvidencia(""); setErrorCompletar(null); }}
                       className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted/50 disabled:opacity-50"
                     >
                       <CheckCircle2 className="h-3 w-3" />
@@ -147,6 +153,8 @@ export function GestionAcciones({ ncId, acciones, usuarios }: Props) {
                 placeholder="Describí qué se hizo y qué resultado se obtuvo con esta acción…"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
+              <label htmlFor="evidencia-accion" className="block text-sm font-medium">Evidencia de ejecución</label>
+              <textarea id="evidencia-accion" rows={3} required minLength={5} maxLength={4000} value={evidencia} onChange={(e) => setEvidencia(e.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
             </div>
           </ModalBody>
           <ModalFooter>
@@ -182,9 +190,9 @@ export function GestionAcciones({ ncId, acciones, usuarios }: Props) {
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="prioridad" className="text-sm font-medium">Prioridad</label>
-                    <select id="prioridad" name="prioridad" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                    <select id="prioridad" name="prioridad" defaultValue="media" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                       <option value="alta">Alta</option>
-                      <option value="media" selected>Media</option>
+                      <option value="media">Media</option>
                       <option value="baja">Baja</option>
                     </select>
                   </div>

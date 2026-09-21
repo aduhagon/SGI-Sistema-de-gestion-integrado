@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CirclePlay,
   FileCheck2,
+  History,
   Loader2,
   Pencil,
   Plus,
@@ -250,6 +251,7 @@ function ControlFila({
         </td>
         <td className="px-3 py-3 align-top">
           <div className="flex justify-end gap-1">
+            <Link href={`/controles/${control.id}/ejecuciones`} className="rounded p-1.5 text-muted-foreground hover:bg-muted" title="Ejecuciones y tratamiento" aria-label="Ejecuciones y tratamiento"><History className="h-4 w-4" /></Link>
             <button type="button" onClick={onEjecutar} disabled={control.estado !== "activo"} className="rounded p-1.5 text-muted-foreground hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40" title="Registrar ejecución" aria-label="Registrar ejecución"><CirclePlay className="h-4 w-4" /></button>
             <button type="button" onClick={onEditar} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Editar" aria-label="Editar"><Pencil className="h-4 w-4" /></button>
             <button type="button" onClick={onRetirar} disabled={eliminando} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title="Retirar" aria-label="Retirar">{eliminando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</button>

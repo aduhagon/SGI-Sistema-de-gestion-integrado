@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Plus, AlertOctagon, Eye, Lightbulb, Award, FileText, Network, BookOpen } from "lucide-react";
 import type { Hallazgo } from "@/lib/api/hallazgos";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ type ReqOpcion = { id: string; clausula: string; titulo: string; norma: string }
 type ProcOpcion = { id: string; codigo: string; nombre: string };
 
 type Props = {
+  ejecuciones: import("@/lib/api/mejora").EjecucionOpcion[];
   auditoriaId: string;
   hallazgos: Hallazgo[];
   requisitos: ReqOpcion[];
@@ -58,6 +60,7 @@ const TIPOS_NC = ["no_conformidad_mayor", "no_conformidad_menor"];
 export function SeccionHallazgos({
   auditoriaId, hallazgos, requisitos, procesos,
   puedeRegistrar, tratamientoHabilitado, adjuntosPorHallazgo, puedeAdjuntar,
+  ejecuciones,
 }: Props) {
   const [abierto, setAbierto] = useState(false);
 
@@ -125,6 +128,7 @@ export function SeccionHallazgos({
                       })()}
                     </div>
                     <h3 className="font-medium text-foreground">{h.titulo}</h3>
+                    {h.controlId && <Link href={`/controles/${h.controlId}/ejecuciones`} className="mt-1 block text-xs text-primary underline">Ejecución de control · {h.controlCodigo}</Link>}
                     <p className="mt-1 text-sm text-muted-foreground">{h.descripcion}</p>
                     {h.evidencia && (
                       <p className="mt-2 text-xs text-muted-foreground">
@@ -207,6 +211,7 @@ export function SeccionHallazgos({
       )}
 
       <AgregarHallazgoDialog
+        ejecuciones={ejecuciones}
         auditoriaId={auditoriaId}
         requisitos={requisitos}
         procesos={procesos}

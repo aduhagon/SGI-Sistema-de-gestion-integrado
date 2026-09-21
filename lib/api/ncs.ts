@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { ContextoControl } from "@/lib/api/mejora";
 
 export type NCLista = {
   id: string;
@@ -11,6 +12,7 @@ export type NCLista = {
   fechaApertura: string;
   fechaLimiteCierre: string | null;
   procesoNombre: string | null;
+  controlEjecucionId: string | null;
 };
 
 export type NCDetalle = NCLista & {
@@ -21,11 +23,18 @@ export type NCDetalle = NCLista & {
   requiereAccionInmediata: boolean;
   accionInmediataDescripcion: string | null;
   hallazgoCodigo: string | null;
+  auditoriaId: string | null;
+  hallazgosVinculados: Array<{ codigo: string; auditoria_id: string }>;
+  responsableId: string | null;
+  verificadorId: string | null;
+  fechaVerificacionPrevista: string | null;
+  revisionTratamiento: number;
+  ejecucion: { control_id: string; resultado: string; evidencia_descripcion: string | null; contexto: ContextoControl | null } | null;
 };
 
 const SELECT_LISTA = `
   id, codigo, titulo, tipo, severidad, origen, estado,
-  fecha_apertura, fecha_limite_cierre,
+  fecha_apertura, fecha_limite_cierre, control_ejecucion_id,
   procesos:procesos!no_conformidades_proceso_id_fkey (nombre)
 `;
 
@@ -41,6 +50,7 @@ function mapLista(n: any): NCLista {
     fechaApertura: n.fecha_apertura,
     fechaLimiteCierre: n.fecha_limite_cierre,
     procesoNombre: n.procesos?.nombre ?? null,
+    controlEjecucionId: n.control_ejecucion_id ?? null,
   };
 }
 
@@ -83,13 +93,17 @@ export async function obtenerNCDetalle(id: string): Promise<NCDetalle | null> {
     .select(
       `${SELECT_LISTA}, descripcion, origen_descripcion, analisis_causa_raiz,
        metodo_analisis, requiere_accion_inmediata, accion_inmediata_descripcion,
-       hallazgos:hallazgos!no_conformidades_hallazgo_id_fkey (codigo)`,
+       responsable_tratamiento_id, verificador_eficacia_id, fecha_verificacion_prevista, revision_tratamiento,
+       ejecucion:control_ejecuciones!no_conformidades_control_ejecucion_id_fkey(control_id,resultado,evidencia_descripcion,contexto),
+       hallazgos:hallazgos!no_conformidades_hallazgo_id_fkey (codigo,auditoria_id),
+       hallazgosVinculados:hallazgos!fk_hallazgos_no_conformidad(codigo,auditoria_id)`,
     )
     .eq("id", id)
     .is("eliminado_en", null)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) throw new Error(`No se pudo cargar la no conformidad: ${error.message}`);
+  if (!data) return null;
   const n = data as any;
   return {
     ...mapLista(n),
@@ -100,6 +114,13 @@ export async function obtenerNCDetalle(id: string): Promise<NCDetalle | null> {
     requiereAccionInmediata: n.requiere_accion_inmediata,
     accionInmediataDescripcion: n.accion_inmediata_descripcion,
     hallazgoCodigo: n.hallazgos?.codigo ?? null,
+    auditoriaId: n.hallazgos?.auditoria_id ?? null,
+    hallazgosVinculados: n.hallazgosVinculados ?? [],
+    responsableId: n.responsable_tratamiento_id,
+    verificadorId: n.verificador_eficacia_id,
+    fechaVerificacionPrevista: n.fecha_verificacion_prevista,
+    revisionTratamiento: n.revision_tratamiento,
+    ejecucion: n.ejecucion,
   };
 }
 
@@ -130,9 +151,10 @@ export async function obtenerHallazgosSinNC(): Promise<
   const supabase = createClient();
   const { data, error } = await supabase
     .from("hallazgos")
-    .select("id, codigo, titulo, tipo, no_conformidad_id")
+    .select("id, codigo, titulo, tipo, no_conformidad_id, auditoria:auditorias!inner(estado)")
     .in("tipo", ["no_conformidad_mayor", "no_conformidad_menor"])
     .is("no_conformidad_id", null)
+    .eq("auditoria.estado", "cerrada")
     .eq("activo", true)
     .is("eliminado_en", null);
 

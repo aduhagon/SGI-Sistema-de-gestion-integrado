@@ -179,6 +179,7 @@ export default async function ProcesoDetallePage({ params }: Props) {
       <SenalesProceso ncs={ncs} riesgos={riesgos} indicadores={indicadores} />
 
       <TrazabilidadProceso
+        ncs={ncs}
         procesoId={proceso.id}
         controles={controles}
         requisitos={requisitosAplicables}

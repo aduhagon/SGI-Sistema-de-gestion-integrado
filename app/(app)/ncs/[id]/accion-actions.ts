@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { revalidarMejora } from "@/lib/revalidar-mejora";
 import { createClient } from "@/lib/supabase/server";
 import { crearAccionSchema, verificacionEficaciaSchema } from "@/lib/schemas/accion";
 import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
@@ -61,19 +62,7 @@ export async function crearAccion(
     return { ok: false, error: msg };
   }
 
-  const { data: nc } = await supabase
-    .from("no_conformidades")
-    .select("estado")
-    .eq("id", input.noConformidadId)
-    .maybeSingle();
-  if (nc && ["abierta", "en_analisis"].includes(nc.estado as string)) {
-    await supabase
-      .from("no_conformidades")
-      .update({ estado: "en_tratamiento", actualizado_por: usuarioId, actualizado_en: new Date().toISOString() })
-      .eq("id", input.noConformidadId);
-  }
-
-  revalidatePath(`/ncs/${input.noConformidadId}`);
+  revalidarMejora(input.noConformidadId);
   return { ok: true };
 }
 
@@ -81,10 +70,14 @@ export async function completarAccion(
   ncId: string,
   accionId: string,
   resultado: string,
+  evidencia: string,
 ): Promise<EstadoAccion> {
   const supabase = createClient();
   const usuarioId = await obtenerUsuarioActualId();
   if (!usuarioId) return { ok: false, error: "Sesión no válida." };
+
+  if (!z.string().uuid().safeParse(ncId).success || !z.string().uuid().safeParse(accionId).success) return { ok: false, error: "Acción inválida." };
+  if (typeof evidencia !== "string" || evidencia.trim().length < 5 || evidencia.length > 4000) return { ok: false, error: "Describí la evidencia de la acción (entre 5 y 4000 caracteres)." };
 
   if (!resultado || resultado.trim().length < 3) {
     return {
@@ -99,13 +92,17 @@ export async function completarAccion(
       estado: "completada",
       fecha_completada: new Date().toISOString(),
       resultado_obtenido: resultado.trim(),
+      evidencia_descripcion: evidencia.trim(),
       actualizado_por: usuarioId,
       actualizado_en: new Date().toISOString(),
     })
-    .eq("id", accionId);
+    .eq("id", accionId)
+    .eq("no_conformidad_id", ncId)
+    .in("estado", ["planificada", "en_curso", "vencida"])
+    .select("id").single();
 
   if (error) return { ok: false, error: `No se pudo completar: ${error.message}` };
-  revalidatePath(`/ncs/${ncId}`);
+  revalidarMejora(ncId);
   return { ok: true };
 }
 
@@ -215,6 +212,6 @@ export async function registrarVerificacion(
   // El cierre por 'eficaz' lo gestiona el flujo de cierre (fn_cerrar_nc) y la
   // reapertura por 'no_eficaz' la gestiona el trigger. No cerramos acá.
 
-  revalidatePath(`/ncs/${input.noConformidadId}`);
+  revalidarMejora(input.noConformidadId);
   return { ok: true };
 }

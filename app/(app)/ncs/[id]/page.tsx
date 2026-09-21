@@ -16,6 +16,10 @@ import { AdjuntosNCSection } from "@/components/ncs/AdjuntosNC";
 import { TrazabilidadCiclo } from "@/components/ncs/TrazabilidadCiclo";
 import { obtenerZonaHoraria } from "@/lib/api/ajustes";
 import { formatearFechaLarga } from "@/lib/fechas";
+import { obtenerEstadoTratamiento, obtenerVerificadoresMejora } from "@/lib/api/mejora";
+import { PlanTratamiento } from "@/components/ncs/PlanTratamiento";
+import { BotonCerrar } from "@/components/ncs/BotonCerrar";
+import { cerrarNC } from "./cerrar-nc-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,12 +47,14 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
   const nc = await obtenerNCDetalle(params.id);
   if (!nc) notFound();
 
-  const [acciones, verificaciones, usuarios, zona, trazabilidad] = await Promise.all([
+  const [acciones, verificaciones, usuarios, zona, trazabilidad, permisos, verificadores] = await Promise.all([
     obtenerAccionesDeNC(params.id),
     obtenerVerificacionesDeNC(params.id),
     obtenerUsuariosElegibles(null),
     obtenerZonaHoraria(),
     obtenerTrazabilidadNC(params.id),
+    obtenerEstadoTratamiento(params.id),
+    obtenerVerificadoresMejora(),
   ]);
 
   const adjuntos = await obtenerAdjuntosDeNC(params.id);
@@ -97,6 +103,21 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
         </div>
       </header>
 
+      <PlanTratamiento nc={nc} usuarios={usuarios} verificadores={verificadores} puedeGestionar={permisos.puedeGestionar} />
+      {(nc.ejecucion || nc.hallazgosVinculados.length > 0) && <section className="mb-8 border-b border-border pb-5">
+        <h2 className="mb-3 text-sm font-semibold">Origen y evidencia</h2>
+        {nc.hallazgosVinculados.map((h) => <Link key={h.codigo} className="mb-2 block text-sm text-primary underline" href={`/auditorias/${h.auditoria_id}`}>Auditoría · {h.codigo}</Link>)}
+        {nc.ejecucion && <>
+          <Link className="text-sm text-primary underline" href={`/controles/${nc.ejecucion.control_id}/ejecuciones`}>{nc.ejecucion.contexto?.control.codigo ?? "Control"} · {nc.ejecucion.resultado}</Link>
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm">{nc.ejecucion.evidencia_descripcion}</p>
+          {nc.ejecucion.contexto && <div className="mt-3 grid gap-4 text-xs sm:grid-cols-3">
+            <div><h3 className="font-medium">Requisitos</h3>{nc.ejecucion.contexto.requisitos.map((r) => <p key={r.id} className="mt-1 break-words">{r.codigo} · {r.nombre}</p>)}</div>
+            <div><h3 className="font-medium">Riesgos</h3>{nc.ejecucion.contexto.riesgos.map((r) => <p key={r.id} className="mt-1 break-words">{r.codigo} · {r.nombre}</p>)}</div>
+            <div><h3 className="font-medium">Documentos</h3>{nc.ejecucion.contexto.documentos.map((r) => <Link key={r.id} href={`/documentos/${r.id}`} className="mt-1 block break-words text-primary underline">{r.codigo} · {r.nombre}</Link>)}</div>
+          </div>}
+        </>}
+      </section>}
+
       <section className="mb-8">
         <h2 className="mb-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">Descripción</h2>
         <p className="text-sm leading-relaxed text-foreground">{nc.descripcion}</p>
@@ -127,18 +148,24 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
             <p className="whitespace-pre-wrap text-sm leading-relaxed">{nc.analisisCausaRaiz}</p>
           </div>
         )}
-        <AnalisisCausaForm ncId={nc.id} metodoActual={nc.metodoAnalisis} analisisActual={nc.analisisCausaRaiz} />
+        {permisos.puedeGestionar && <AnalisisCausaForm ncId={nc.id} metodoActual={nc.metodoAnalisis} analisisActual={nc.analisisCausaRaiz} />}
       </section>
 
       <div className="mb-10">
-        <GestionAcciones ncId={nc.id} acciones={acciones} usuarios={usuarios} />
+        <GestionAcciones ncId={nc.id} acciones={acciones} usuarios={usuarios} puedeGestionar={permisos.puedeGestionar} usuarioId={usuarioActualId} cerrada={["cerrada", "aceptado_riesgo"].includes(nc.estado)} />
       </div>
 
       <VerificacionEficaciaSection
         ncId={nc.id}
         verificaciones={verificaciones}
         acciones={acciones}
+        puedeVerificar={permisos.puedeVerificar}
+        revisionTratamiento={nc.revisionTratamiento}
       />
+
+      {permisos.puedeGestionar && <div className="mt-8 flex flex-col items-start gap-3 border-t border-border pt-5">
+        {permisos.bloqueoCierre ? <p className="text-sm text-amber-700">{permisos.bloqueoCierre}</p> : <BotonCerrar entidadId={nc.id} accionCerrar={cerrarNC} etiqueta="NC" campoLabel="Motivo de cierre" placeholder="Conclusión del tratamiento" notaValidacion="Eficacia verificada para el tratamiento vigente." />}
+      </div>}
 
       <div className="mt-10">
         <TrazabilidadCiclo pasos={trazabilidad} zona={zona} />

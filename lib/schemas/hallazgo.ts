@@ -23,6 +23,7 @@ export const crearHallazgoSchema = z
     requisitoId: z.string().uuid().optional().or(z.literal("")),
     procesoId: z.string().uuid().optional().or(z.literal("")),
     documentoId: z.string().uuid().optional().or(z.literal("")),
+    controlEjecucionId: z.string().uuid().optional(),
   })
   .refine((d) => !TIPOS_NC.includes(d.tipo) || d.severidad !== undefined, {
     message: "Las no conformidades requieren un nivel de severidad.",

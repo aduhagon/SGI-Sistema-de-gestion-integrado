@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 
 export type Hallazgo = {
   id: string;
+  controlId: string | null;
+  controlCodigo: string | null;
   codigo: string;
   tipo: string;
   severidad: string | null;
@@ -32,6 +34,7 @@ export async function obtenerHallazgosDeAuditoria(
     .select(
       `id, codigo, tipo, severidad, titulo, descripcion, evidencia, estado, detectado_en, no_conformidad_id,
        fecha_cierre_real, responsable_tratamiento_id,
+       ejecucion:control_ejecuciones!hallazgos_control_ejecucion_id_fkey(control_id,contexto),
        requisitos:requisitos!hallazgos_requisito_id_fkey (clausula),
        procesos:procesos!hallazgos_proceso_id_fkey (nombre),
        documentos:documentos!hallazgos_documento_id_fkey (codigo),
@@ -46,6 +49,7 @@ export async function obtenerHallazgosDeAuditoria(
   if (error) throw new Error(`No se pudieron cargar los hallazgos: ${error.message}`);
 
   type Fila = {
+    ejecucion: { control_id: string; contexto: { control: { codigo: string } } | null } | null;
     id: string;
     codigo: string;
     tipo: string;
@@ -67,6 +71,8 @@ export async function obtenerHallazgosDeAuditoria(
 
   return ((data ?? []) as unknown as Fila[]).map((h) => ({
     id: h.id,
+    controlId: h.ejecucion?.control_id ?? null,
+    controlCodigo: h.ejecucion?.contexto?.control.codigo ?? null,
     codigo: h.codigo,
     tipo: h.tipo,
     severidad: h.severidad,

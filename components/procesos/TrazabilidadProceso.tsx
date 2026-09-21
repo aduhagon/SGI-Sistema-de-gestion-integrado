@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertCircle, CheckCircle2, FileCheck2, ShieldCheck } from "lucide-react";
 import type { Control, RequisitoAplicable } from "@/lib/api/controles";
 import type { Riesgo } from "@/lib/api/riesgos";
+import type { NCLista } from "@/lib/api/ncs";
 import { cn } from "@/lib/utils";
 
 const RESULTADO_LABEL: Record<string, string> = {
@@ -16,11 +17,13 @@ export function TrazabilidadProceso({
   controles,
   requisitos,
   riesgos,
+  ncs,
 }: {
   procesoId: string;
   controles: Control[];
   requisitos: RequisitoAplicable[];
   riesgos: Riesgo[];
+  ncs: NCLista[];
 }) {
   const riesgosCubiertos = new Set(controles.flatMap((control) => control.riesgos.map((riesgo) => riesgo.id)));
   const requisitosCubiertos = new Set(controles.flatMap((control) => control.requisitos.map((requisito) => requisito.id)));
@@ -34,7 +37,6 @@ export function TrazabilidadProceso({
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">Trazabilidad del proceso</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Requisitos, riesgos, controles y evidencia operativa en una sola vista.</p>
         </div>
         <Link href={`/controles?proceso=${procesoId}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
           <ShieldCheck className="h-4 w-4" aria-hidden="true" />
@@ -70,7 +72,7 @@ export function TrazabilidadProceso({
               {controles.map((control) => (
                 <tr key={control.id} className="border-b border-border last:border-b-0">
                   <td className="px-4 py-3">
-                    <Link href={`/controles?control=${control.id}`} className="font-medium hover:underline">{control.nombre}</Link>
+                    <Link href={`/controles/${control.id}/ejecuciones`} className="font-medium hover:underline">{control.nombre}</Link>
                     <p className="font-mono text-xs text-muted-foreground">{control.codigo}</p>
                   </td>
                   <td className="px-4 py-3 text-center">{control.riesgos.length}</td>
@@ -99,6 +101,9 @@ export function TrazabilidadProceso({
           {requisitosSinControl.length > 0 && <span className="inline-flex items-center gap-1.5"><FileCheck2 className="h-3.5 w-3.5 text-amber-600" />{requisitosSinControl.length} requisito{requisitosSinControl.length === 1 ? "" : "s"} aplicable{requisitosSinControl.length === 1 ? "" : "s"} sin control</span>}
         </div>
       )}
+      {ncs.length > 0 && <div className="mt-5 border-t border-border pt-4"><h3 className="mb-3 text-sm font-medium">Tratamiento y eficacia</h3><ul className="space-y-2">
+        {ncs.map((nc) => <li key={nc.id} className="flex flex-wrap items-baseline justify-between gap-2 text-sm"><Link href={`/ncs/${nc.id}`} className="text-primary hover:underline">{nc.codigo} · {nc.titulo}</Link><span className="text-xs text-muted-foreground">{nc.estado.replaceAll("_", " ")}{nc.fechaLimiteCierre ? ` · ${nc.fechaLimiteCierre}` : ""}</span></li>)}
+      </ul></div>}
     </section>
   );
 }

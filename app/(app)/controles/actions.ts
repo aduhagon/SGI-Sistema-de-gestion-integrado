@@ -30,6 +30,19 @@ function revalidarControles() {
   revalidatePath("/riesgos");
   revalidatePath("/procesos");
   revalidatePath("/mis-pendientes");
+  revalidatePath("/controles/[id]/ejecuciones", "page");
+  revalidatePath("/procesos/[codigo]", "page");
+}
+
+export async function crearNCDesdeControl(ejecucionId: string): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  if (!z.string().uuid().safeParse(ejecucionId).success) return { ok: false, error: "Ejecución inválida." };
+  if (!(await obtenerUsuarioActualId())) return { ok: false, error: "Sesión no válida." };
+  const { data, error } = await createClient().rpc("fn_crear_nc_desde_control", { p_ejecucion_id: ejecucionId });
+  if (error) return { ok: false, error: error.message };
+  revalidarControles();
+  revalidatePath("/ncs");
+  revalidatePath("/dashboard");
+  return { ok: true, id: data as string };
 }
 
 export async function guardarControl(

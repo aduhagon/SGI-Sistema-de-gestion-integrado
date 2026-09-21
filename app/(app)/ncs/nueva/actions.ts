@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidarMejora } from "@/lib/revalidar-mejora";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { crearNCSchema } from "@/lib/schemas/nc";
@@ -78,15 +78,7 @@ export async function crearNC(
     return { ok: false, error: msg };
   }
 
-  // Si viene de un hallazgo, vincular el hallazgo a esta NC.
-  if (hallazgoId) {
-    await supabase
-      .from("hallazgos")
-      .update({ no_conformidad_id: nc.id })
-      .eq("id", hallazgoId);
-  }
-
-  revalidatePath("/ncs");
-  revalidatePath("/dashboard");
+  // La base vincula el hallazgo en la misma transacción que crea la NC.
+  revalidarMejora(nc.id);
   redirect(`/ncs/${nc.id}?creada=1`);
 }

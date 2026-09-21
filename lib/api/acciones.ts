@@ -12,6 +12,8 @@ export type Accion = {
   responsableNombre: string;
   fechaLimite: string;
   fechaCompletada: string | null;
+  resultadoObtenido: string | null;
+  evidenciaDescripcion: string | null;
 };
 
 export type VerificacionEficacia = {
@@ -22,6 +24,8 @@ export type VerificacionEficacia = {
   verificadorNombre: string;
   evidenciaArchivoId: string | null;
   evidenciaNombre: string | null;
+  evidenciaRevisada: string | null;
+  revisionTratamiento: number | null;
 };
 
 export async function obtenerAccionesDeNC(ncId: string): Promise<Accion[]> {
@@ -30,7 +34,7 @@ export async function obtenerAccionesDeNC(ncId: string): Promise<Accion[]> {
     .from("acciones")
     .select(
       `id, codigo, titulo, descripcion, tipo, prioridad, estado, responsable_id,
-       fecha_limite, fecha_completada,
+       fecha_limite, fecha_completada, resultado_obtenido, evidencia_descripcion,
        responsable:usuarios!acciones_responsable_id_fkey (
          username, personas:personas!usuarios_persona_id_fkey (nombre, apellido)
        )`,
@@ -56,6 +60,8 @@ export async function obtenerAccionesDeNC(ncId: string): Promise<Accion[]> {
       : a.responsable?.username ?? "—",
     fechaLimite: a.fecha_limite,
     fechaCompletada: a.fecha_completada,
+    resultadoObtenido: a.resultado_obtenido,
+    evidenciaDescripcion: a.evidencia_descripcion,
   }));
 }
 
@@ -66,7 +72,7 @@ export async function obtenerVerificacionesDeNC(
   const { data, error } = await supabase
     .from("verificaciones_eficacia")
     .select(
-      `id, resultado, conclusion, fecha_verificacion, evidencia_archivo_id,
+      `id, resultado, conclusion, fecha_verificacion, evidencia_archivo_id, evidencia_revisada, revision_tratamiento,
        verificador:usuarios!verificaciones_eficacia_verificador_usuario_id_fkey (
          username, personas:personas!usuarios_persona_id_fkey (nombre, apellido)
        ),
@@ -75,9 +81,9 @@ export async function obtenerVerificacionesDeNC(
        )`,
     )
     .eq("no_conformidad_id", ncId)
-    .order("fecha_verificacion", { ascending: false });
+    .order("fecha_verificacion", { ascending: false }).order("id", { ascending: false });
 
-  if (error) return [];
+  if (error) throw new Error(`No se pudieron cargar las verificaciones: ${error.message}`);
 
   return ((data ?? []) as any[]).map((v) => ({
     id: v.id,
@@ -89,6 +95,8 @@ export async function obtenerVerificacionesDeNC(
       : v.verificador?.username ?? "—",
     evidenciaArchivoId: v.evidencia_archivo_id ?? null,
     evidenciaNombre: v.evidencia?.nombre_original ?? null,
+    evidenciaRevisada: v.evidencia_revisada,
+    revisionTratamiento: v.revision_tratamiento,
   }));
 }
 

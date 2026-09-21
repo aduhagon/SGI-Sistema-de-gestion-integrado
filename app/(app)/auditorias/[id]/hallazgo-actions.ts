@@ -37,6 +37,7 @@ export async function crearHallazgo(
     requisitoId: formData.get("requisitoId") || undefined,
     procesoId: formData.get("procesoId") || undefined,
     documentoId: formData.get("documentoId") || undefined,
+    controlEjecucionId: formData.get("controlEjecucionId") || undefined,
   });
 
   if (!parsed.success) {
@@ -70,6 +71,7 @@ export async function crearHallazgo(
     requisito_id: limpiarUuid(formData.get("requisitoId")) ?? null,
     proceso_id: limpiarUuid(formData.get("procesoId")) ?? null,
     documento_id: limpiarUuid(formData.get("documentoId")) ?? null,
+    control_ejecucion_id: input.controlEjecucionId ?? null,
     estado: "abierto",
     detectado_por_usuario_id: usuarioId,
     creado_por: usuarioId,

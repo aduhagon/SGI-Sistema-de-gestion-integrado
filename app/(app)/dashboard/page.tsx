@@ -7,9 +7,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { obtenerUsuarioActualId, contarAprobacionesPendientes } from "@/lib/api/aprobaciones";
 import { contarAcusesPendientes } from "@/lib/api/acuses";
+import { obtenerMisPendientes } from "@/lib/api/pendientes";
 
 export const dynamic = "force-dynamic";
 
@@ -46,16 +47,21 @@ export default async function DashboardPage() {
     acusesPend = acuses;
     misDocumentos = docsCount ?? 0;
 
-    // NCs asignadas al usuario (la tabla existe; el módulo de gestión llega en Fase 3).
+    // Solo NC pendientes de tratamiento.
     const { count: ncsCount } = await supabase
       .from("no_conformidades")
       .select("id", { count: "exact", head: true })
       .eq("responsable_tratamiento_id", usuarioId)
+      .eq("activo", true)
+      .not("estado", "in", "(cerrada,aceptado_riesgo)")
       .is("eliminado_en", null);
     ncsAsignadas = ncsCount ?? 0;
   }
 
   const greeting = getGreeting();
+  const pendientes = await obtenerMisPendientes();
+  const contar = (modulos: string[], soloVencidos = false) => pendientes.filter((g) => modulos.includes(g.modulo))
+    .flatMap((g) => g.items).filter((i) => !soloVencidos || i.nivel === "vencido").length;
   const userName = user.user?.email?.split("@")[0] ?? "Usuario";
 
   return (
@@ -145,19 +151,17 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <Card className="border-l-4 border-l-[#16367f] border-y-border border-r-border bg-[#16367f]/[0.04]">
-        <CardHeader>
-          <CardTitle className="text-base text-[#16367f]">
-            Módulo documental y de cumplimiento operativos
-          </CardTitle>
-          <CardDescription className="leading-relaxed">
-            Ya están disponibles la gestión documental completa (alta, versionado,
-            envío a aprobación), las bandejas de aprobación y acuses con firma
-            electrónica, y la matriz de cumplimiento multinorma. Los módulos de
-            auditorías y no conformidades se incorporan en la próxima fase.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <section className="border-y border-border py-6" aria-labelledby="mejora-heading">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><h2 id="mejora-heading" className="text-sm font-semibold">Seguimiento de mejora</h2><Link href="/mis-pendientes" className="text-sm text-primary underline">Mi trabajo</Link></div>
+        <dl className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+          {[
+            ["Controles vencidos", contar(["controles"], true)],
+            ["Acciones atrasadas", contar(["acciones"], true)],
+            ["Verificaciones pendientes", contar(["verificaciones"])],
+            ["Resultados por tratar", contar(["controles_observados"])],
+          ].map(([label, value]) => <div key={label} className="border-l-2 border-border pl-3"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 text-2xl font-semibold tabular-nums">{value}</dd></div>)}
+        </dl>
+      </section>
     </div>
   );
 }
