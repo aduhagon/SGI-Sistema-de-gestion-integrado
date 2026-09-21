@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, BookOpen } from "lucide-react";
-import { obtenerNorma, listarVersionesDeNorma } from "@/lib/api/normativa";
+import {
+  obtenerNorma,
+  listarVersionesDeNorma,
+  listarNormasParaRelacion,
+  listarRelacionesNorma,
+} from "@/lib/api/normativa";
 import { GestionVersionesNorma } from "@/components/configuracion/GestionVersionesNorma";
+import { GestionRelacionesNorma } from "@/components/configuracion/GestionRelacionesNorma";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +18,11 @@ export default async function NormaDetallePage({ params }: Props) {
   const norma = await obtenerNorma(params.id);
   if (!norma) notFound();
 
-  const versiones = await listarVersionesDeNorma(params.id);
+  const [versiones, relaciones, normasDisponibles] = await Promise.all([
+    listarVersionesDeNorma(params.id),
+    listarRelacionesNorma(params.id),
+    listarNormasParaRelacion(params.id),
+  ]);
 
   return (
     <div className="mx-auto max-w-3xl p-6 sm:p-8 lg:p-10">
@@ -42,6 +52,12 @@ export default async function NormaDetallePage({ params }: Props) {
         <h2 className="mb-4 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">Versiones de la norma</h2>
         <GestionVersionesNorma normaId={norma.id} versiones={versiones} />
       </section>
+
+      <GestionRelacionesNorma
+        normaId={norma.id}
+        normasDisponibles={normasDisponibles}
+        relaciones={relaciones}
+      />
     </div>
   );
 }
