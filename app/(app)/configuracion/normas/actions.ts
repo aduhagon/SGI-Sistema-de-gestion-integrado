@@ -103,3 +103,98 @@ function traducir(msg: string): string {
     return "No tenés permisos para gestionar normas.";
   return `No se pudo guardar: ${msg}`;
 }
+
+
+const TIPOS_RELACION = new Set([
+  "reglamenta",
+  "complementa",
+  "modifica",
+  "sustituye",
+  "deroga",
+  "depende_de",
+]);
+
+export async function guardarRelacionNorma(
+  _prev: EstadoConfig,
+  formData: FormData,
+): Promise<EstadoConfig> {
+  const supabase = createClient();
+  const usuarioId = await obtenerUsuarioActualId();
+  if (!usuarioId) return { ok: false, error: "Sesión no válida." };
+
+  const normaOrigenId = String(formData.get("normaOrigenId") ?? "");
+  const normaDestinoId = String(formData.get("normaDestinoId") ?? "");
+  const tipo = String(formData.get("tipo") ?? "");
+  const limpio = (nombre: string) => {
+    const valor = String(formData.get(nombre) ?? "").trim();
+    return valor === "" ? null : valor;
+  };
+
+  if (!normaOrigenId || !normaDestinoId || normaOrigenId === normaDestinoId)
+    return { ok: false, error: "Seleccioná una norma relacionada diferente." };
+  if (!TIPOS_RELACION.has(tipo))
+    return { ok: false, error: "Seleccioná un tipo de relación válido." };
+
+  const { error } = await supabase.from("normas_relaciones").insert({
+    norma_origen_id: normaOrigenId,
+    norma_destino_id: normaDestinoId,
+    tipo,
+    articulos_afectados: limpio("articulosAfectados"),
+    observacion: limpio("observacion"),
+    fuente_url: limpio("fuenteUrl"),
+    vigente_desde: limpio("vigenteDesde"),
+    vigente_hasta: limpio("vigenteHasta"),
+    creado_por: usuarioId,
+  });
+
+  if (error) {
+    if (error.message.includes("uq_normas_relaciones_activas") || error.message.includes("duplicate"))
+      return { ok: false, error: "Esta relación ya está registrada." };
+    if (error.message.includes("chk_normas_relaciones_vigencia"))
+      return { ok: false, error: "La fecha hasta no puede ser anterior a la fecha desde." };
+    if (error.message.includes("chk_normas_relaciones_fuente"))
+      return { ok: false, error: "La fuente debe comenzar con http:// o https://" };
+    if (error.message.includes("row-level security") || error.message.includes("policy"))
+      return { ok: false, error: "No tenés permisos para gestionar relaciones normativas." };
+    return { ok: false, error: `No se pudo guardar la relación: ${error.message}` };
+  }
+
+  revalidatePath(`/configuracion/normas/${normaOrigenId}`);
+  revalidatePath(`/configuracion/normas/${normaDestinoId}`);
+  return { ok: true };
+}
+
+export async function eliminarRelacionNorma(
+  relacionId: string,
+  normaActualId: string,
+): Promise<EstadoConfig> {
+  const supabase = createClient();
+  const usuarioId = await obtenerUsuarioActualId();
+  if (!usuarioId) return { ok: false, error: "Sesión no válida." };
+
+  const { data: relacion } = await supabase
+    .from("normas_relaciones")
+    .select("norma_origen_id,norma_destino_id")
+    .eq("id", relacionId)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("normas_relaciones")
+    .update({
+      activo: false,
+      eliminado_en: new Date().toISOString(),
+      eliminado_por: usuarioId,
+      eliminado_motivo: "Relación desactivada desde la ficha de norma",
+      actualizado_por: usuarioId,
+    })
+    .eq("id", relacionId);
+
+  if (error) return { ok: false, error: "No se pudo quitar la relación." };
+
+  revalidatePath(`/configuracion/normas/${normaActualId}`);
+  if (relacion?.norma_origen_id)
+    revalidatePath(`/configuracion/normas/${relacion.norma_origen_id}`);
+  if (relacion?.norma_destino_id)
+    revalidatePath(`/configuracion/normas/${relacion.norma_destino_id}`);
+  return { ok: true };
+}
