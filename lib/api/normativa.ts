@@ -158,3 +158,101 @@ export async function listarRequisitosDeVersion(versionId: string): Promise<Requ
     }))
     .sort((a, b) => compararClausula(a.clausula, b.clausula));
 }
+
+
+// ---- Relaciones entre normas ----
+export const TIPOS_RELACION_NORMA = [
+  "reglamenta",
+  "complementa",
+  "modifica",
+  "sustituye",
+  "deroga",
+  "depende_de",
+] as const;
+
+export type TipoRelacionNorma = (typeof TIPOS_RELACION_NORMA)[number];
+
+export type NormaRelacionable = {
+  id: string;
+  codigo: string;
+  nombreCorto: string;
+};
+
+export type RelacionNorma = {
+  id: string;
+  sentido: "saliente" | "entrante";
+  tipo: TipoRelacionNorma;
+  etiqueta: string;
+  normaRelacionada: NormaRelacionable;
+  articulosAfectados: string | null;
+  observacion: string | null;
+  fuenteUrl: string | null;
+  vigenteDesde: string | null;
+  vigenteHasta: string | null;
+};
+
+const ETIQUETAS_RELACION: Record<TipoRelacionNorma, { saliente: string; entrante: string }> = {
+  reglamenta: { saliente: "Reglamenta a", entrante: "Es reglamentada por" },
+  complementa: { saliente: "Complementa a", entrante: "Es complementada por" },
+  modifica: { saliente: "Modifica a", entrante: "Es modificada por" },
+  sustituye: { saliente: "Sustituye a", entrante: "Es sustituida por" },
+  deroga: { saliente: "Deroga a", entrante: "Es derogada por" },
+  depende_de: { saliente: "Depende de", entrante: "Es norma principal de" },
+};
+
+export async function listarNormasParaRelacion(excluirId: string): Promise<NormaRelacionable[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("normas")
+    .select("id, codigo, nombre_corto")
+    .neq("id", excluirId)
+    .eq("activo", true)
+    .is("eliminado_en", null)
+    .order("nombre_corto");
+  if (error) return [];
+  return (data ?? []).map((n: any) => ({
+    id: n.id,
+    codigo: n.codigo,
+    nombreCorto: n.nombre_corto,
+  }));
+}
+
+export async function listarRelacionesNorma(normaId: string): Promise<RelacionNorma[]> {
+  const supabase = createClient();
+  const campos = `
+    id, norma_origen_id, norma_destino_id, tipo, articulos_afectados,
+    observacion, fuente_url, vigente_desde, vigente_hasta,
+    norma_origen:normas!normas_relaciones_norma_origen_id_fkey(id,codigo,nombre_corto),
+    norma_destino:normas!normas_relaciones_norma_destino_id_fkey(id,codigo,nombre_corto)
+  `;
+  const { data, error } = await supabase
+    .from("normas_relaciones")
+    .select(campos)
+    .or(`norma_origen_id.eq.${normaId},norma_destino_id.eq.${normaId}`)
+    .eq("activo", true)
+    .is("eliminado_en", null)
+    .order("creado_en", { ascending: true });
+  if (error) return [];
+
+  return ((data ?? []) as any[]).map((r) => {
+    const saliente = r.norma_origen_id === normaId;
+    const relacionada = saliente ? r.norma_destino : r.norma_origen;
+    const tipo = r.tipo as TipoRelacionNorma;
+    return {
+      id: r.id,
+      sentido: saliente ? "saliente" : "entrante",
+      tipo,
+      etiqueta: ETIQUETAS_RELACION[tipo][saliente ? "saliente" : "entrante"],
+      normaRelacionada: {
+        id: relacionada.id,
+        codigo: relacionada.codigo,
+        nombreCorto: relacionada.nombre_corto,
+      },
+      articulosAfectados: r.articulos_afectados,
+      observacion: r.observacion,
+      fuenteUrl: r.fuente_url,
+      vigenteDesde: r.vigente_desde,
+      vigenteHasta: r.vigente_hasta,
+    };
+  });
+}
