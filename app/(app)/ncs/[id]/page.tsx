@@ -16,7 +16,7 @@ import { AdjuntosNCSection } from "@/components/ncs/AdjuntosNC";
 import { TrazabilidadCiclo } from "@/components/ncs/TrazabilidadCiclo";
 import { obtenerZonaHoraria } from "@/lib/api/ajustes";
 import { formatearFechaLarga } from "@/lib/fechas";
-import { obtenerEstadoTratamiento, obtenerVerificadoresMejora } from "@/lib/api/mejora";
+import { obtenerEstadoTratamiento, obtenerVerificadoresMejora, obtenerCambiosDocumentales } from "@/lib/api/mejora";
 import { PlanTratamiento } from "@/components/ncs/PlanTratamiento";
 import { BotonCerrar } from "@/components/ncs/BotonCerrar";
 import { cerrarNC } from "./cerrar-nc-actions";
@@ -47,7 +47,7 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
   const nc = await obtenerNCDetalle(params.id);
   if (!nc) notFound();
 
-  const [acciones, verificaciones, usuarios, zona, trazabilidad, permisos, verificadores] = await Promise.all([
+  const [acciones, verificaciones, usuarios, zona, trazabilidad, permisos, verificadores, cambiosDocumentales] = await Promise.all([
     obtenerAccionesDeNC(params.id),
     obtenerVerificacionesDeNC(params.id),
     obtenerUsuariosElegibles(null),
@@ -55,6 +55,7 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
     obtenerTrazabilidadNC(params.id),
     obtenerEstadoTratamiento(params.id),
     obtenerVerificadoresMejora(),
+    obtenerCambiosDocumentales(params.id),
   ]);
 
   const adjuntos = await obtenerAdjuntosDeNC(params.id);
@@ -152,7 +153,7 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
       </section>
 
       <div className="mb-10">
-        <GestionAcciones ncId={nc.id} acciones={acciones} usuarios={usuarios} puedeGestionar={permisos.puedeGestionar} usuarioId={usuarioActualId} cerrada={["cerrada", "aceptado_riesgo"].includes(nc.estado)} />
+        <GestionAcciones ncId={nc.id} acciones={acciones} usuarios={usuarios} puedeGestionar={permisos.puedeGestionar} usuarioId={usuarioActualId} cerrada={["cerrada", "aceptado_riesgo"].includes(nc.estado)} cambiosDocumentales={cambiosDocumentales} />
       </div>
 
       <VerificacionEficaciaSection

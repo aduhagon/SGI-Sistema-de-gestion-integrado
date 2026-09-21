@@ -1,4 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import type { EstadoDocumental } from "@/components/ncs/CambioDocumental";
+
+export async function obtenerCambiosDocumentales(ncId: string): Promise<EstadoDocumental[]> {
+  const { data, error } = await createClient().rpc("fn_cambios_documentales_nc", { p_nc: ncId });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
 
 type Referencia = { id: string; codigo: string; nombre: string };
 export type ContextoControl = {

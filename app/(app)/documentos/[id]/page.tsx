@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OrigenCambiosDocumento } from "@/components/documentos/OrigenCambiosDocumento";
 import { notFound } from "next/navigation";
 import {
   ChevronLeft,
@@ -336,6 +337,8 @@ export default async function DocumentoDetallePage({ params, searchParams }: Pro
           </p>
         )}
       </header>
+
+      <OrigenCambiosDocumento documentoId={doc.id} />
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8">
         <div className="space-y-8">

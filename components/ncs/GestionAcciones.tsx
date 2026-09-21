@@ -8,6 +8,7 @@ import type { Accion } from "@/lib/api/acciones";
 import type { UsuarioElegible } from "@/lib/api/envio";
 import { crearAccion, completarAccion, type EstadoAccion } from "@/app/(app)/ncs/[id]/accion-actions";
 import { Button } from "@/components/ui/button";
+import { CambioDocumental, type EstadoDocumental } from "@/components/ncs/CambioDocumental";
 import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
   puedeGestionar: boolean;
   usuarioId: string | null;
   cerrada: boolean;
+  cambiosDocumentales: EstadoDocumental[];
 };
 
 const TIPO_LABEL: Record<string, string> = {
@@ -39,7 +41,7 @@ function SubmitButton() {
   );
 }
 
-export function GestionAcciones({ ncId, acciones, usuarios, puedeGestionar, usuarioId, cerrada }: Props) {
+export function GestionAcciones({ ncId, acciones, usuarios, puedeGestionar, usuarioId, cerrada, cambiosDocumentales }: Props) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [estado, formAction] = useFormState<EstadoAccion, FormData>(crearAccion, null);
@@ -87,6 +89,7 @@ export function GestionAcciones({ ncId, acciones, usuarios, puedeGestionar, usua
         <div className="space-y-2">
           {acciones.map((a) => {
             const meta = ESTADO_META[a.estado] ?? ESTADO_META.planificada;
+            const documental = cambiosDocumentales.find((c) => c.accion_id === a.id);
             const vencida = !["completada", "cancelada"].includes(a.estado) && a.fechaLimite < new Date().toLocaleDateString("sv-SE");
             return (
               <div key={a.id} className="rounded-md border border-border bg-card p-4">
@@ -110,6 +113,8 @@ export function GestionAcciones({ ncId, acciones, usuarios, puedeGestionar, usua
                   {!cerrada && (puedeGestionar || a.responsableId === usuarioId) && a.estado !== "completada" && a.estado !== "cancelada" && (
                     <button
                       type="button"
+                      disabled={!!documental?.bloqueo_completar}
+                      title={documental?.bloqueo_completar ?? "Completar acción"}
                       onClick={() => { setAccionACompletar(a); setResultado(""); setEvidencia(""); setErrorCompletar(null); }}
                       className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted/50 disabled:opacity-50"
                     >
@@ -118,6 +123,7 @@ export function GestionAcciones({ ncId, acciones, usuarios, puedeGestionar, usua
                     </button>
                   )}
                 </div>
+                <CambioDocumental accion={a} ncId={ncId} editable={!cerrada && a.estado !== "cancelada" && (puedeGestionar || a.responsableId === usuarioId)} historico={cerrada || a.estado === "cancelada"} estado={documental} />
               </div>
             );
           })}

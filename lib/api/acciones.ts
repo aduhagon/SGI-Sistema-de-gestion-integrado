@@ -14,6 +14,9 @@ export type Accion = {
   fechaCompletada: string | null;
   resultadoObtenido: string | null;
   evidenciaDescripcion: string | null;
+  requiereCambioDocumental: boolean;
+  versionResultanteId: string | null;
+  versionResultante: { documento_id: string; numero_version: string; estado: string; documento: { codigo: string } | null } | null;
 };
 
 export type VerificacionEficacia = {
@@ -35,6 +38,8 @@ export async function obtenerAccionesDeNC(ncId: string): Promise<Accion[]> {
     .select(
       `id, codigo, titulo, descripcion, tipo, prioridad, estado, responsable_id,
        fecha_limite, fecha_completada, resultado_obtenido, evidencia_descripcion,
+       requiere_cambio_documental, version_documento_resultante_id,
+       version_resultante:versiones!acciones_version_documento_resultante_id_fkey(documento_id,numero_version,estado,documento:documentos!versiones_documento_id_fkey(codigo)),
        responsable:usuarios!acciones_responsable_id_fkey (
          username, personas:personas!usuarios_persona_id_fkey (nombre, apellido)
        )`,
@@ -62,6 +67,9 @@ export async function obtenerAccionesDeNC(ncId: string): Promise<Accion[]> {
     fechaCompletada: a.fecha_completada,
     resultadoObtenido: a.resultado_obtenido,
     evidenciaDescripcion: a.evidencia_descripcion,
+    requiereCambioDocumental: a.requiere_cambio_documental,
+    versionResultanteId: a.version_documento_resultante_id,
+    versionResultante: a.version_resultante,
   }));
 }
 
