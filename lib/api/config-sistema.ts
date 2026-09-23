@@ -74,6 +74,7 @@ export async function obtenerNormasDisponibles(): Promise<
   const { data, error } = await supabase
     .from("normas")
     .select("codigo, nombre_corto")
+    .or("ambito.is.null,ambito.not.like.Marco legal%")
     .is("eliminado_en", null)
     .order("codigo");
   if (error || !data) return [];

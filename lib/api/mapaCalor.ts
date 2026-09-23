@@ -56,6 +56,7 @@ export async function obtenerNormasParaTablero(): Promise<NormaOpcion[]> {
   const { data, error } = await supabase
     .from("normas")
     .select("id, nombre_corto")
+    .or("ambito.is.null,ambito.not.like.Marco legal%")
     .eq("activo", true)
     .order("nombre_corto", { ascending: true });
   if (error || !data) return [];

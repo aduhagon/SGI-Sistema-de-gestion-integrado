@@ -6,7 +6,7 @@ import type { NormaOpcion } from "@/lib/api/mapaCalor";
 
 /**
  * Selector de norma para tamizar el tablero. Cambia el query param ?norma=ID,
- * que la página lee para filtrar. "Todas las normas" = sin filtro.
+ * que la página lee para filtrar. "Todas las certificaciones" = sin filtro.
  */
 export function FiltroNorma({ normas }: { normas: NormaOpcion[] }) {
   const router = useRouter();
@@ -24,7 +24,7 @@ export function FiltroNorma({ normas }: { normas: NormaOpcion[] }) {
     <div className="flex items-center gap-2">
       <Filter className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
       <label htmlFor="filtro-norma" className="text-sm text-muted-foreground">
-        Norma:
+        Certificación:
       </label>
       <select
         id="filtro-norma"
@@ -32,7 +32,7 @@ export function FiltroNorma({ normas }: { normas: NormaOpcion[] }) {
         onChange={(e) => cambiar(e.target.value)}
         className="rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <option value="">Todas las normas</option>
+        <option value="">Todas las certificaciones</option>
         {normas.map((n) => (
           <option key={n.id} value={n.id}>{n.nombreCorto}</option>
         ))}
