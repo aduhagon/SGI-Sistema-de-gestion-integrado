@@ -266,7 +266,31 @@ export function GestionRequisitosLegales({
 
   function tablaRequisitos(items: RequisitoLegal[], mostrarProcesos: boolean) {
     return (
-      <div className="overflow-hidden rounded-lg border border-border">
+      <div>
+        <div className="space-y-3 md:hidden">
+          {items.map((r) => (
+            <article key={r.id} className="min-w-0 rounded-lg border border-border bg-card p-4">
+              <p className="break-all font-mono text-xs text-muted-foreground">{r.codigo}</p>
+              <h3 className="mt-1 break-words font-sans text-base font-semibold">{r.titulo}</h3>
+              {r.referencia && <p className="mt-1 break-words text-sm text-muted-foreground">{r.referencia}</p>}
+              <p className="mt-3 text-sm">
+                {r.ultimoEstado ? ETIQUETA_CUMPLIMIENTO[r.ultimoEstado] : "Sin evaluar"}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button type="button" variant="outline" className="min-h-11" onClick={() => abrirEdicion(r)}>
+                  <Pencil className="h-4 w-4" /> Editar
+                </Button>
+                <Button type="button" variant="outline" className="min-h-11" onClick={() => setEvaluando(r)}>
+                  <ClipboardCheck className="h-4 w-4" /> Evaluar
+                </Button>
+                <Button type="button" variant="outline" className="min-h-11" disabled={eliminando === r.id} onClick={() => setBorrarDe(r)}>
+                  <Trash2 className="h-4 w-4" /> Eliminar
+                </Button>
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-left">
@@ -288,6 +312,7 @@ export function GestionRequisitosLegales({
           </thead>
           <tbody>{items.map((r) => filaRequisito(r, mostrarProcesos))}</tbody>
         </table>
+        </div>
       </div>
     );
   }
