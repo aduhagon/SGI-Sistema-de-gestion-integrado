@@ -1,5 +1,6 @@
 import {
   listarRequisitosLegales,
+  listarMarcoLegal,
   listarProcesosParaSelector,
   listarNormasParaSelector,
   sugerirCodigoRequisitoLegal,
@@ -9,11 +10,12 @@ import { GestionRequisitosLegales } from "@/components/requisitos-legales/Gestio
 export const dynamic = "force-dynamic";
 
 export default async function RequisitosLegalesPage() {
-  const [requisitos, procesos, normas, codigoSugerido] = await Promise.all([
+  const [requisitos, procesos, normas, codigoSugerido, marcoLegal] = await Promise.all([
     listarRequisitosLegales(),
     listarProcesosParaSelector(),
     listarNormasParaSelector(),
     sugerirCodigoRequisitoLegal(),
+    listarMarcoLegal(),
   ]);
 
   return (
@@ -36,6 +38,7 @@ export default async function RequisitosLegalesPage() {
         requisitos={requisitos}
         procesos={procesos}
         normas={normas}
+        marcoLegal={marcoLegal}
         codigoSugerido={codigoSugerido}
       />
     </div>

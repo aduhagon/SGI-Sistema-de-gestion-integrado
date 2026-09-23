@@ -27,6 +27,7 @@ export const CRITICIDADES = ["critico", "alto", "medio", "bajo"] as const;
 
 export const requisitoLegalSchema = z.object({
   id: z.string().uuid().optional(),
+  normaLegalId: z.string().uuid().optional().or(z.literal("")),
   codigo: z
     .string()
     .trim()

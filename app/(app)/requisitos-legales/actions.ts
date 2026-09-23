@@ -46,6 +46,7 @@ export async function guardarRequisitoLegal(
 
   const parsed = requisitoLegalSchema.safeParse({
     id: formData.get("id") || undefined,
+    normaLegalId: formData.get("normaLegalId") || "",
     codigo: formData.get("codigo"),
     titulo: formData.get("titulo"),
     descripcion: formData.get("descripcion") || "",
@@ -70,6 +71,7 @@ export async function guardarRequisitoLegal(
   const esEdicion = !!(i.id && i.id !== "");
 
   const payload = {
+    norma_id: limpio(i.normaLegalId),
     codigo: i.codigo,
     titulo: i.titulo,
     descripcion: limpio(i.descripcion),
@@ -86,15 +88,16 @@ export async function guardarRequisitoLegal(
   let requisitoId: string;
 
   if (esEdicion) {
-    const { error } = await supabase
+    const { data: guardado, error } = await supabase
       .from("requisitos_legales")
       .update({
         ...payload,
         actualizado_en: new Date().toISOString(),
         actualizado_por: usuarioId,
       })
-      .eq("id", i.id!);
+      .eq("id", i.id!).select("id").maybeSingle();
     if (error) return { ok: false, error: traducir(error.message) };
+    if (!guardado) return { ok: false, error: "No se guardó el requisito. Revisá tus permisos o recargá la página." };
     requisitoId = i.id!;
   } else {
     const { data, error } = await supabase
@@ -107,12 +110,13 @@ export async function guardarRequisitoLegal(
   }
 
   // Sincronizar vínculos a procesos (soft-delete de los que ya no están + alta de nuevos).
-  const { data: actuales } = await supabase
+  const { data: actuales, error: errorProcesos } = await supabase
     .from("requisito_legal_proceso")
     .select("id, proceso_id")
     .eq("requisito_legal_id", requisitoId)
     .is("eliminado_en", null);
 
+  if (errorProcesos) return { ok: false, error: traducir(errorProcesos.message) };
   const actualesMap = new Map(
     ((actuales ?? []) as any[]).map((v) => [v.proceso_id as string, v.id as string]),
   );
@@ -121,7 +125,7 @@ export async function guardarRequisitoLegal(
   // Bajas: los que estaban y ya no se quieren.
   for (const [procId, vincId] of actualesMap) {
     if (!deseados.has(procId)) {
-      await supabase
+      const { data: baja, error: errorBaja } = await supabase
         .from("requisito_legal_proceso")
         .update({
           eliminado_en: new Date().toISOString(),
@@ -129,7 +133,8 @@ export async function guardarRequisitoLegal(
           eliminado_motivo: "Desvinculado al editar el requisito legal",
           activo: false,
         })
-        .eq("id", vincId);
+        .eq("id", vincId).select("id").maybeSingle();
+      if (errorBaja || !baja) return { ok: false, error: "El requisito se guardó, pero no se pudo quitar una asociación. Revisá tus permisos y volvé a intentar." };
     }
   }
 
@@ -147,12 +152,13 @@ export async function guardarRequisitoLegal(
   }
 
   // Sincronizar vínculos a normas (N:M). Mismo patrón: soft-delete + alta.
-  const { data: normasActuales } = await supabase
+  const { data: normasActuales, error: errorNormas } = await supabase
     .from("requisito_legal_norma")
     .select("id, version_norma_id")
     .eq("requisito_legal_id", requisitoId)
     .is("eliminado_en", null);
 
+  if (errorNormas) return { ok: false, error: traducir(errorNormas.message) };
   const normasActualesMap = new Map(
     ((normasActuales ?? []) as any[]).map((v) => [
       v.version_norma_id as string,
@@ -164,7 +170,7 @@ export async function guardarRequisitoLegal(
   // Bajas.
   for (const [verId, vincId] of normasActualesMap) {
     if (!normasDeseadas.has(verId)) {
-      await supabase
+      const { data: baja, error: errorBaja } = await supabase
         .from("requisito_legal_norma")
         .update({
           eliminado_en: new Date().toISOString(),
@@ -172,7 +178,8 @@ export async function guardarRequisitoLegal(
           eliminado_motivo: "Desvinculada al editar el requisito legal",
           activo: false,
         })
-        .eq("id", vincId);
+        .eq("id", vincId).select("id").maybeSingle();
+      if (errorBaja || !baja) return { ok: false, error: "El requisito se guardó, pero no se pudo quitar una asociación. Revisá tus permisos y volvé a intentar." };
     }
   }
 

@@ -32,22 +32,18 @@ import {
 import type { RequisitoLegal } from "@/lib/api/requisitos-legales";
 
 type Selector = { id: string; codigo?: string; nombre: string };
-type NormaSelector = {
+type NormaSelector = { id: string; nombre: string };
+type MarcoLegal = {
   id: string;
-  normaId: string;
   nombre: string;
-  dependencias: Array<{
-    id: string;
-    etiqueta: string;
-    normaRelacionadaId: string;
-    normaRelacionada: string;
-  }>;
+  relaciones: import("@/lib/api/normativa").RelacionNorma[];
 };
 
 type Props = {
   requisitos: RequisitoLegal[];
   procesos: Selector[];
   normas: NormaSelector[];
+  marcoLegal: MarcoLegal[];
   codigoSugerido: string | null;
 };
 
@@ -80,6 +76,7 @@ export function GestionRequisitosLegales({
   procesos,
   normas,
   codigoSugerido,
+  marcoLegal,
 }: Props) {
   const [abierto, setAbierto] = useState(false);
   const [editando, setEditando] = useState<RequisitoLegal | null>(null);
@@ -89,6 +86,7 @@ export function GestionRequisitosLegales({
   const [motivo, setMotivo] = useState("");
   const [procesosSel, setProcesosSel] = useState<string[]>([]);
   const [normasSel, setNormasSel] = useState<string[]>([]);
+  const [normaLegalId, setNormaLegalId] = useState("");
   const [busquedaNorma, setBusquedaNorma] = useState("");
   const [filtroNorma, setFiltroNorma] = useState<string>("__todas__");
   const [vista, setVista] = useState<"lista" | "proceso">("lista");
@@ -117,6 +115,7 @@ export function GestionRequisitosLegales({
 
   function abrirNuevo() {
     setEditando(null);
+    setNormaLegalId("");
     setBusquedaNorma("");
     setProcesosSel([]);
     setNormasSel([]);
@@ -124,6 +123,7 @@ export function GestionRequisitosLegales({
   }
   function abrirEdicion(r: RequisitoLegal) {
     setEditando(r);
+    setNormaLegalId(r.normaLegalId ?? "");
     setBusquedaNorma("");
     setProcesosSel(r.procesos.map((p) => p.id));
     setNormasSel(r.normas.map((n) => n.id));
@@ -602,18 +602,38 @@ export function GestionRequisitosLegales({
                   </div>
                 </div>
 
+                <section className="space-y-3 rounded-lg border border-border p-4">
+                  <label htmlFor="normaLegalId" className="text-sm font-semibold">Marco legal: ley, decreto o resolución de origen</label>
+                  <select id="normaLegalId" name="normaLegalId" value={normaLegalId}
+                    onChange={(e) => setNormaLegalId(e.target.value)}
+                    className="w-full min-w-0 rounded-md border border-input bg-background px-3 py-3 text-sm">
+                    <option value="">Sin vincular</option>
+                    {marcoLegal.map((n) => <option key={n.id} value={n.id}>{n.nombre}</option>)}
+                  </select>
+                  {marcoLegal.filter((n) => n.id === normaLegalId).map((n) => (
+                    <div key={n.id} className="space-y-2 text-sm">
+                      <p className="font-medium">Relaciones legales</p>
+                      {n.relaciones.length ? n.relaciones.map((r) => (
+                        <p key={r.id}>{r.etiqueta} <strong>{r.normaRelacionada.nombreCorto}</strong></p>
+                      )) : <p className="text-muted-foreground">Sin relaciones registradas.</p>}
+                      <a href={`/configuracion/normas/${n.id}`} target="_blank" rel="noreferrer" className="inline-block py-2 text-primary underline">Gestionar relaciones legales (otra pestaña)</a>
+                    </div>
+                  ))}
+                  <p className="text-xs text-muted-foreground">Elegí la disposición que origina esta obligación. Sus relaciones se comparten entre todos sus requisitos.</p>
+                </section>
+
                 {/* Multi-select de normas (N:M) */}
                 <div className="space-y-2">
                   <span className="text-sm font-medium">
-                    Normas vinculadas{" "}
+                    Certificaciones aplicables{" "}
                     <span className="text-muted-foreground">(opcional)</span>
                   </span>
                   <input
-                    aria-label="Buscar normas"
+                    aria-label="Buscar certificaciones"
                     type="search"
                     value={busquedaNorma}
                     onChange={(e) => setBusquedaNorma(e.target.value)}
-                    placeholder="Buscar por nombre o número de norma"
+                    placeholder="Buscar BRCGS, FSA, ISO…"
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   />
                   <div className="flex max-h-52 flex-wrap gap-2 overflow-y-auto rounded-md border border-input bg-background p-2">
@@ -642,59 +662,9 @@ export function GestionRequisitosLegales({
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {normasSel.length} seleccionadas. Un requisito puede aplicar a varias normas.
+                    {normasSel.length} seleccionadas. Un requisito puede aplicar a varias certificaciones.
                   </p>
                 </div>
-
-                {normasSel.length > 0 && (
-                  <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
-                    <div className="flex items-center gap-2">
-                      <GitBranch className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">
-                        Dependencias de las normas seleccionadas
-                      </span>
-                    </div>
-                    <div className="space-y-3">
-                      {normas
-                        .filter((n) => normasSel.includes(n.id))
-                        .map((n) => (
-                          <div key={n.id} className="text-xs">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium">{n.nombre}</span>
-                              <a
-                                href={`/configuracion/normas/${n.normaId}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="shrink-0 text-primary underline-offset-2 hover:underline"
-                              >
-                                Gestionar vínculos
-                              </a>
-                            </div>
-                            {n.dependencias.length > 0 ? (
-                              <ul className="mt-1.5 space-y-1 text-muted-foreground">
-                                {n.dependencias.map((d) => (
-                                  <li key={d.id} className="flex gap-1.5">
-                                    <span aria-hidden="true">•</span>
-                                    <span>
-                                      {d.etiqueta} <strong>{d.normaRelacionada}</strong>
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="mt-1 text-muted-foreground">
-                                Esta norma todavía no tiene dependencias registradas.
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Los vínculos pertenecen a la norma y se muestran automáticamente en todos
-                      sus requisitos.
-                    </p>
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <label htmlFor="criticidad" className="text-sm font-medium">
