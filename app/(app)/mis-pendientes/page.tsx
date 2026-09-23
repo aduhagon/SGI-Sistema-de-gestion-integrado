@@ -87,7 +87,7 @@ export default async function MisPendientesPage() {
               key={grupo.modulo}
               label={grupo.label}
               items={grupo.items}
-              inicialAbierto={false}
+              inicialAbierto={grupo.items.some((i) => i.nivel === "vencido" || i.nivel === "vencido_hoy")}
             />
           ))}
         </div>

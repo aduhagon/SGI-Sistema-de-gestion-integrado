@@ -256,7 +256,17 @@ export async function listarProcesosParaSelector(): Promise<
 // Normas para el selector. Devuelve el id de la VERSIÓN VIGENTE de cada norma
 // (versiones_norma.id), que es lo que referencia la N:M requisito_legal_norma.
 export async function listarNormasParaSelector(): Promise<
-  Array<{ id: string; nombre: string }>
+  Array<{
+    id: string;
+    normaId: string;
+    nombre: string;
+    dependencias: Array<{
+      id: string;
+      etiqueta: string;
+      normaRelacionadaId: string;
+      normaRelacionada: string;
+    }>;
+  }>
 > {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -265,9 +275,86 @@ export async function listarNormasParaSelector(): Promise<
     .eq("es_version_actual", true)
     .is("eliminado_en", null);
   if (error) return [];
-  return ((data ?? []) as any[])
+  const versiones = ((data ?? []) as any[])
     .filter((v) => v.normas?.activo === true)
-    .map((v) => ({ id: v.id, nombre: v.normas?.nombre_corto ?? v.id }))
+    .map((v) => ({
+      id: v.id,
+      normaId: v.norma_id as string,
+      nombre: v.normas?.nombre_corto ?? v.id,
+    }));
+
+  const normaIds = versiones.map((v) => v.normaId);
+  const dependenciasPorNorma = new Map<
+    string,
+    Array<{
+      id: string;
+      etiqueta: string;
+      normaRelacionadaId: string;
+      normaRelacionada: string;
+    }>
+  >();
+
+  if (normaIds.length > 0) {
+    const { data: relaciones } = await supabase
+      .from("normas_relaciones")
+      .select("id, norma_origen_id, norma_destino_id, tipo")
+      .or(
+        `norma_origen_id.in.(${normaIds.join(",")}),norma_destino_id.in.(${normaIds.join(",")})`,
+      )
+      .eq("activo", true)
+      .is("eliminado_en", null);
+
+    const relacionadasIds = [
+      ...new Set(
+        ((relaciones ?? []) as any[]).flatMap((r) => [
+          r.norma_origen_id as string,
+          r.norma_destino_id as string,
+        ]),
+      ),
+    ];
+    const nombres = new Map<string, string>();
+    if (relacionadasIds.length > 0) {
+      const { data: normasRelacionadas } = await supabase
+        .from("normas")
+        .select("id, nombre_corto")
+        .in("id", relacionadasIds);
+      for (const n of (normasRelacionadas ?? []) as any[]) {
+        nombres.set(n.id, n.nombre_corto);
+      }
+    }
+
+    const etiquetas: Record<string, { saliente: string; entrante: string }> = {
+      reglamenta: { saliente: "Reglamenta a", entrante: "Es reglamentada por" },
+      complementa: { saliente: "Complementa a", entrante: "Es complementada por" },
+      modifica: { saliente: "Modifica a", entrante: "Es modificada por" },
+      sustituye: { saliente: "Sustituye a", entrante: "Es sustituida por" },
+      deroga: { saliente: "Deroga a", entrante: "Es derogada por" },
+      depende_de: { saliente: "Depende de", entrante: "Es norma principal de" },
+    };
+
+    for (const r of (relaciones ?? []) as any[]) {
+      for (const normaId of normaIds) {
+        const saliente = r.norma_origen_id === normaId;
+        const entrante = r.norma_destino_id === normaId;
+        if (!saliente && !entrante) continue;
+        const relacionadaId = saliente ? r.norma_destino_id : r.norma_origen_id;
+        const arr = dependenciasPorNorma.get(normaId) ?? [];
+        arr.push({
+          id: r.id,
+          etiqueta: etiquetas[r.tipo]?.[saliente ? "saliente" : "entrante"] ?? r.tipo,
+          normaRelacionadaId: relacionadaId,
+          normaRelacionada: nombres.get(relacionadaId) ?? relacionadaId,
+        });
+        dependenciasPorNorma.set(normaId, arr);
+      }
+    }
+  }
+
+  return versiones
+    .map((v) => ({
+      ...v,
+      dependencias: dependenciasPorNorma.get(v.normaId) ?? [],
+    }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }
 

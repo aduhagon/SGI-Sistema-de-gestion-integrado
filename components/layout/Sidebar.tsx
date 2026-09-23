@@ -168,7 +168,7 @@ export function Sidebar({ esSuperadmin = false, esAdminSgi = false, modulosHabil
                 <span className="font-serif text-base font-semibold leading-none tracking-tight">
                   MSU
                 </span>
-                <span className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
+                <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">
                   SGI Multinorma
                 </span>
               </div>
@@ -287,8 +287,8 @@ function MenuContenido({
         })}
       </nav>
 
-      <div className="border-t border-border px-4 py-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60">
-        v1.0 · Build inicial
+      <div className="border-t border-border px-4 py-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        SGI · Gestión integrada
       </div>
     </>
   );
@@ -313,7 +313,7 @@ function NavGroup({
         type="button"
         onClick={onToggle}
         aria-expanded={abierto}
-        className="group flex w-full items-center gap-2 rounded-md px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/75 transition-colors hover:text-primary"
+        className="group flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary/75 transition-colors hover:text-primary"
       >
         <ChevronRight
           className={cn(
@@ -322,7 +322,7 @@ function NavGroup({
           )}
         />
         <span>{title}</span>
-        <span className="ml-auto text-[9px] font-normal tabular-nums text-muted-foreground/50">
+        <span className="ml-auto text-xs font-normal tabular-nums text-muted-foreground">
           {count}
         </span>
       </button>

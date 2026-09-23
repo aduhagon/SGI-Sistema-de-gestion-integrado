@@ -12,6 +12,7 @@ import {
   Download,
   LayoutList,
   FolderTree,
+  GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
@@ -31,11 +32,22 @@ import {
 import type { RequisitoLegal } from "@/lib/api/requisitos-legales";
 
 type Selector = { id: string; codigo?: string; nombre: string };
+type NormaSelector = {
+  id: string;
+  normaId: string;
+  nombre: string;
+  dependencias: Array<{
+    id: string;
+    etiqueta: string;
+    normaRelacionadaId: string;
+    normaRelacionada: string;
+  }>;
+};
 
 type Props = {
   requisitos: RequisitoLegal[];
   procesos: Selector[];
-  normas: Selector[];
+  normas: NormaSelector[];
   codigoSugerido: string | null;
 };
 
@@ -77,6 +89,7 @@ export function GestionRequisitosLegales({
   const [motivo, setMotivo] = useState("");
   const [procesosSel, setProcesosSel] = useState<string[]>([]);
   const [normasSel, setNormasSel] = useState<string[]>([]);
+  const [busquedaNorma, setBusquedaNorma] = useState("");
   const [filtroNorma, setFiltroNorma] = useState<string>("__todas__");
   const [vista, setVista] = useState<"lista" | "proceso">("lista");
 
@@ -104,12 +117,14 @@ export function GestionRequisitosLegales({
 
   function abrirNuevo() {
     setEditando(null);
+    setBusquedaNorma("");
     setProcesosSel([]);
     setNormasSel([]);
     setAbierto(true);
   }
   function abrirEdicion(r: RequisitoLegal) {
     setEditando(r);
+    setBusquedaNorma("");
     setProcesosSel(r.procesos.map((p) => p.id));
     setNormasSel(r.normas.map((n) => n.id));
     setAbierto(true);
@@ -445,7 +460,7 @@ export function GestionRequisitosLegales({
       )}
 
       {/* Diálogo alta/edición */}
-      <ModalShell abierto={abierto} onClose={() => setAbierto(false)} maxWidth="max-w-lg">
+      <ModalShell abierto={abierto} onClose={() => setAbierto(false)} maxWidth="max-w-3xl">
         <ModalHeader>
           <h2 className="font-serif text-2xl font-semibold tracking-tight">
             {editando ? "Editar requisito legal" : "Nuevo requisito legal"}
@@ -565,17 +580,26 @@ export function GestionRequisitosLegales({
                 {/* Multi-select de normas (N:M) */}
                 <div className="space-y-2">
                   <span className="text-sm font-medium">
-                    Normas a las que responde{" "}
+                    Normas vinculadas{" "}
                     <span className="text-muted-foreground">(opcional)</span>
                   </span>
-                  <div className="flex flex-wrap gap-2 rounded-md border border-input bg-background p-2">
-                    {normas.map((n) => {
+                  <input
+                    aria-label="Buscar normas"
+                    type="search"
+                    value={busquedaNorma}
+                    onChange={(e) => setBusquedaNorma(e.target.value)}
+                    placeholder="Buscar por nombre o número de norma"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                  <div className="flex max-h-52 flex-wrap gap-2 overflow-y-auto rounded-md border border-input bg-background p-2">
+                    {normas.filter((n) => normasSel.includes(n.id) || n.nombre.toLocaleLowerCase("es").includes(busquedaNorma.toLocaleLowerCase("es"))).map((n) => {
                       const sel = normasSel.includes(n.id);
                       return (
                         <button
                           key={n.id}
                           type="button"
                           onClick={() => toggleNorma(n.id)}
+                          aria-pressed={sel}
                           className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
                             sel
                               ? "bg-emerald-600 text-white"
@@ -593,9 +617,59 @@ export function GestionRequisitosLegales({
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Un mismo requisito puede aplicar a varias normas.
+                    {normasSel.length} seleccionadas. Un requisito puede aplicar a varias normas.
                   </p>
                 </div>
+
+                {normasSel.length > 0 && (
+                  <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+                    <div className="flex items-center gap-2">
+                      <GitBranch className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">
+                        Dependencias de las normas seleccionadas
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {normas
+                        .filter((n) => normasSel.includes(n.id))
+                        .map((n) => (
+                          <div key={n.id} className="text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium">{n.nombre}</span>
+                              <a
+                                href={`/configuracion/normas/${n.normaId}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="shrink-0 text-primary underline-offset-2 hover:underline"
+                              >
+                                Gestionar vínculos
+                              </a>
+                            </div>
+                            {n.dependencias.length > 0 ? (
+                              <ul className="mt-1.5 space-y-1 text-muted-foreground">
+                                {n.dependencias.map((d) => (
+                                  <li key={d.id} className="flex gap-1.5">
+                                    <span aria-hidden="true">•</span>
+                                    <span>
+                                      {d.etiqueta} <strong>{d.normaRelacionada}</strong>
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="mt-1 text-muted-foreground">
+                                Esta norma todavía no tiene dependencias registradas.
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Los vínculos pertenecen a la norma y se muestran automáticamente en todos
+                      sus requisitos.
+                    </p>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label htmlFor="criticidad" className="text-sm font-medium">
@@ -675,6 +749,16 @@ export function GestionRequisitosLegales({
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <label htmlFor="observacionesRequisito" className="text-sm font-medium">Observaciones</label>
+                  <textarea
+                    id="observacionesRequisito"
+                    name="observaciones"
+                    rows={3}
+                    defaultValue={editando?.observaciones ?? ""}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                </div>
                 <div className="pb-1" />
           </ModalBody>
           <ModalFooter>

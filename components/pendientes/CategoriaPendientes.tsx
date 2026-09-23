@@ -78,14 +78,14 @@ export function CategoriaPendientes({
           aria-hidden="true"
         />
 
-        <span className="flex-1 truncate font-serif text-sm font-semibold">
+        <span className="flex-1 truncate font-sans text-sm font-semibold">
           {label}
         </span>
 
         {/* Contador de urgentes: solo si hay */}
         {urgentes > 0 && (
           <span className="shrink-0 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-red-700">
-            {urgentes} vencido{urgentes === 1 ? "" : "s"}
+            {urgentes} urgente{urgentes === 1 ? "" : "s"}
           </span>
         )}
 
@@ -111,7 +111,7 @@ export function CategoriaPendientes({
                 href={item.urlDestino}
                 tabIndex={abierto ? undefined : -1}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40",
+                  "flex flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40",
                   idx > 0 && "border-t border-border",
                 )}
               >
