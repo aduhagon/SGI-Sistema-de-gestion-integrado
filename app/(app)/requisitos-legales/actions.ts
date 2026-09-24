@@ -68,7 +68,6 @@ export async function guardarRequisitoLegal(
   }
 
   const i = parsed.data;
-  const esEdicion = !!(i.id && i.id !== "");
 
   const payload = {
     norma_id: limpio(i.normaLegalId),
@@ -85,118 +84,13 @@ export async function guardarRequisitoLegal(
     observaciones: limpio(i.observaciones),
   };
 
-  let requisitoId: string;
-
-  if (esEdicion) {
-    const { data: guardado, error } = await supabase
-      .from("requisitos_legales")
-      .update({
-        ...payload,
-        actualizado_en: new Date().toISOString(),
-        actualizado_por: usuarioId,
-      })
-      .eq("id", i.id!).select("id").maybeSingle();
-    if (error) return { ok: false, error: traducir(error.message) };
-    if (!guardado) return { ok: false, error: "No se guardó el requisito. Revisá tus permisos o recargá la página." };
-    requisitoId = i.id!;
-  } else {
-    const { data, error } = await supabase
-      .from("requisitos_legales")
-      .insert({ ...payload, creado_por: usuarioId })
-      .select("id")
-      .single();
-    if (error || !data) return { ok: false, error: traducir(error?.message ?? "desconocido") };
-    requisitoId = data.id;
-  }
-
-  // Sincronizar vínculos a procesos (soft-delete de los que ya no están + alta de nuevos).
-  const { data: actuales, error: errorProcesos } = await supabase
-    .from("requisito_legal_proceso")
-    .select("id, proceso_id")
-    .eq("requisito_legal_id", requisitoId)
-    .is("eliminado_en", null);
-
-  if (errorProcesos) return { ok: false, error: traducir(errorProcesos.message) };
-  const actualesMap = new Map(
-    ((actuales ?? []) as any[]).map((v) => [v.proceso_id as string, v.id as string]),
-  );
-  const deseados = new Set(i.procesosIds);
-
-  // Bajas: los que estaban y ya no se quieren.
-  for (const [procId, vincId] of actualesMap) {
-    if (!deseados.has(procId)) {
-      const { data: baja, error: errorBaja } = await supabase
-        .from("requisito_legal_proceso")
-        .update({
-          eliminado_en: new Date().toISOString(),
-          eliminado_por: usuarioId,
-          eliminado_motivo: "Desvinculado al editar el requisito legal",
-          activo: false,
-        })
-        .eq("id", vincId).select("id").maybeSingle();
-      if (errorBaja || !baja) return { ok: false, error: "El requisito se guardó, pero no se pudo quitar una asociación. Revisá tus permisos y volvé a intentar." };
-    }
-  }
-
-  // Altas: los nuevos que no estaban.
-  const nuevos = i.procesosIds
-    .filter((p) => !actualesMap.has(p))
-    .map((p) => ({
-      requisito_legal_id: requisitoId,
-      proceso_id: p,
-      creado_por: usuarioId,
-    }));
-  if (nuevos.length > 0) {
-    const { error } = await supabase.from("requisito_legal_proceso").insert(nuevos);
-    if (error) return { ok: false, error: traducir(error.message) };
-  }
-
-  // Sincronizar vínculos a normas (N:M). Mismo patrón: soft-delete + alta.
-  const { data: normasActuales, error: errorNormas } = await supabase
-    .from("requisito_legal_norma")
-    .select("id, version_norma_id")
-    .eq("requisito_legal_id", requisitoId)
-    .is("eliminado_en", null);
-
-  if (errorNormas) return { ok: false, error: traducir(errorNormas.message) };
-  const normasActualesMap = new Map(
-    ((normasActuales ?? []) as any[]).map((v) => [
-      v.version_norma_id as string,
-      v.id as string,
-    ]),
-  );
-  const normasDeseadas = new Set(i.normasIds);
-
-  // Bajas.
-  for (const [verId, vincId] of normasActualesMap) {
-    if (!normasDeseadas.has(verId)) {
-      const { data: baja, error: errorBaja } = await supabase
-        .from("requisito_legal_norma")
-        .update({
-          eliminado_en: new Date().toISOString(),
-          eliminado_por: usuarioId,
-          eliminado_motivo: "Desvinculada al editar el requisito legal",
-          activo: false,
-        })
-        .eq("id", vincId).select("id").maybeSingle();
-      if (errorBaja || !baja) return { ok: false, error: "El requisito se guardó, pero no se pudo quitar una asociación. Revisá tus permisos y volvé a intentar." };
-    }
-  }
-
-  // Altas.
-  const nuevasNormas = i.normasIds
-    .filter((v) => !normasActualesMap.has(v))
-    .map((v) => ({
-      requisito_legal_id: requisitoId,
-      version_norma_id: v,
-      creado_por: usuarioId,
-    }));
-  if (nuevasNormas.length > 0) {
-    const { error } = await supabase
-      .from("requisito_legal_norma")
-      .insert(nuevasNormas);
-    if (error) return { ok: false, error: traducir(error.message) };
-  }
+  const { error } = await supabase.rpc("guardar_requisito_legal_atomico", {
+    p_id: i.id ?? null,
+    p_datos: payload,
+    p_procesos: i.procesosIds,
+    p_certificaciones: i.normasIds,
+  });
+  if (error) return { ok: false, error: traducir(error.message) };
 
   revalidatePath("/requisitos-legales");
   return { ok: true };

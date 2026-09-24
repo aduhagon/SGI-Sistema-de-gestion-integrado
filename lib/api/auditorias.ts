@@ -92,7 +92,7 @@ export async function obtenerNormasParaAlcance(): Promise<NormaParaAlcance[]> {
     .from("versiones_norma")
     .select(
       `id, version, es_version_actual,
-       normas:normas!versiones_norma_norma_id_fkey (codigo, nombre_corto, activo)`,
+       normas:normas!versiones_norma_norma_id_fkey (codigo, nombre_corto, activo, ambito)`,
     )
     .eq("es_version_actual", true);
 
@@ -101,11 +101,11 @@ export async function obtenerNormasParaAlcance(): Promise<NormaParaAlcance[]> {
   type Fila = {
     id: string;
     version: string;
-    normas: { codigo: string; nombre_corto: string; activo: boolean } | null;
+    normas: { codigo: string; nombre_corto: string; activo: boolean; ambito: string | null } | null;
   };
 
   return ((data ?? []) as unknown as Fila[])
-    .filter((v) => v.normas?.activo)
+    .filter((v) => v.normas?.activo && !v.normas.ambito?.startsWith("Marco legal"))
     .map((v) => ({
       versionNormaId: v.id,
       codigo: v.normas!.codigo,

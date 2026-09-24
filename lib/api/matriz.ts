@@ -54,7 +54,7 @@ export async function obtenerNormasConRequisitos(): Promise<NormaOpcion[]> {
       .from("versiones_norma")
       .select(
         `id, version,
-         normas:normas!versiones_norma_norma_id_fkey (codigo, nombre_corto, estado_gestion),
+         normas:normas!versiones_norma_norma_id_fkey (codigo, nombre_corto, estado_gestion, ambito),
          requisitos ( id )`,
       ),
     verNoPublicadas(),
@@ -65,12 +65,13 @@ export async function obtenerNormasConRequisitos(): Promise<NormaOpcion[]> {
   type Fila = {
     id: string;
     version: string;
-    normas: { codigo: string; nombre_corto: string; estado_gestion: string } | null;
+    normas: { codigo: string; nombre_corto: string; estado_gestion: string; ambito: string | null } | null;
     requisitos: Array<{ id: string }> | null;
   };
 
   return ((data ?? []) as unknown as Fila[])
     .filter((vn) => (vn.requisitos?.length ?? 0) > 0)
+    .filter((vn) => !vn.normas?.ambito?.startsWith("Marco legal"))
     // Lectores comunes solo ven normas en gestión plena ('activa').
     .filter((vn) => puedeVerNoPub || vn.normas?.estado_gestion === "activa")
     .map((vn) => ({
