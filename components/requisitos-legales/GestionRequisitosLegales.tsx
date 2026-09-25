@@ -308,15 +308,15 @@ export function GestionRequisitosLegales({
                 {r.normas.map((n) => <span key={n.id} className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">{n.nombre}</span>)}
                 {mostrarProcesos && r.procesos.map((p) => <span key={p.id} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">{p.codigo || p.nombre}</span>)}
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 grid grid-cols-[1fr_1fr_auto] gap-2">
+                <Button type="button" className="min-h-11" onClick={() => setEvaluando(r)}>
+                  <ClipboardCheck className="h-4 w-4" /> Evaluar
+                </Button>
                 <Button type="button" variant="outline" className="min-h-11" onClick={() => abrirEdicion(r)}>
                   <Pencil className="h-4 w-4" /> Editar
                 </Button>
-                <Button type="button" variant="outline" className="min-h-11" onClick={() => setEvaluando(r)}>
-                  <ClipboardCheck className="h-4 w-4" /> Evaluar
-                </Button>
-                <Button type="button" variant="outline" className="min-h-11" disabled={eliminando === r.id} onClick={() => setBorrarDe(r)}>
-                  <Trash2 className="h-4 w-4" /> Eliminar
+                <Button type="button" variant="outline" className="min-h-11 px-3 text-destructive" disabled={eliminando === r.id} onClick={() => setBorrarDe(r)} aria-label={`Eliminar ${r.codigo}`}>
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </article>

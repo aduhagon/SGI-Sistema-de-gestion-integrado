@@ -145,7 +145,19 @@ export function GestionControles({
       {error && <div role="alert" className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{error}</div>}
 
       {filtrados.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border border-border">
+        <>
+        <div className="space-y-3 md:hidden">
+          {filtrados.map((control) => {
+            const vencimiento = estadoVencimiento(control);
+            return <article key={control.id} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="font-mono text-xs text-muted-foreground">{control.codigo}</p><h3 className="mt-1 break-words font-sans text-base font-semibold">{control.nombre}</h3></div><span className={cn("shrink-0 rounded-full px-2 py-1 text-xs font-medium", vencimiento.clase)}>{vencimiento.texto}</span></div>
+              <p className="mt-2 text-sm text-muted-foreground">{control.procesoCodigo} · {control.procesoNombre}</p>
+              <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-muted-foreground"><span className="rounded-full bg-muted px-2 py-1">{PERIODICIDAD_LABEL[control.periodicidad] ?? control.periodicidad}</span><span className="rounded-full bg-muted px-2 py-1">{control.riesgos.length + control.requisitos.length + control.documentos.length + control.indicadores.length} vínculos</span><span className="rounded-full bg-muted px-2 py-1">{control.ultimoResultado ? RESULTADO_LABEL[control.ultimoResultado] : "Sin ejecuciones"}</span></div>
+              <div className="mt-4 grid grid-cols-2 gap-2"><Button type="button" className="min-h-11" disabled={control.estado !== "activo"} onClick={() => setEjecutando(control)}><CirclePlay className="h-4 w-4" />Ejecutar</Button><Button type="button" variant="outline" className="min-h-11" onClick={() => abrir(control)}><Pencil className="h-4 w-4" />Editar</Button><Link href={`/controles/${control.id}/ejecuciones`} className="col-span-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-input bg-background px-4 text-sm font-medium"><History className="h-4 w-4" />Ver historial y tratamiento</Link></div>
+            </article>;
+          })}
+        </div>
+        <div className="hidden overflow-hidden rounded-lg border border-border md:block">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-sm">
               <thead>
@@ -181,6 +193,7 @@ export function GestionControles({
             </table>
           </div>
         </div>
+        </>
       ) : controles.length > 0 ? (
         <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">No hay controles que coincidan con los filtros.</div>
       ) : (

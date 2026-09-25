@@ -120,6 +120,8 @@ export function GestionRiesgos({ riesgos, procesos, puestos, controlesPorRiesgo,
   }, [searchParams, riesgos, router]);
 
   async function quitar(id: string) {
+    const riesgo = riesgos.find((item) => item.id === id);
+    if (!window.confirm(`Eliminar ${riesgo?.codigo ?? "este riesgo"}? Esta acción requiere que el registro no tenga dependencias activas.`)) return;
     setEliminando(id);
     const r = await eliminarRiesgo(id);
     setEliminando(null);
@@ -176,7 +178,22 @@ export function GestionRiesgos({ riesgos, procesos, puestos, controlesPorRiesgo,
       </div>
 
       {filtrados.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border border-border">
+        <>
+        <div className="space-y-3 md:hidden">
+          {filtrados.map((r) => {
+            const nivel = clasificarNivel(r.probabilidad, r.impacto);
+            const nControles = controlesPorRiesgo[r.id]?.length ?? 0;
+            return <article key={r.id} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0"><p className="font-mono text-xs text-muted-foreground">{r.codigo}</p><h3 className="mt-1 break-words font-sans text-base font-semibold">{r.titulo}</h3></div>
+                <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${NIVEL_COLOR[nivel.nivel]}`}>{NIVEL_LABEL[nivel.nivel]} · {nivel.numerico}</span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-muted-foreground"><span className="rounded-full bg-muted px-2 py-1">{r.procesoNombre}</span><span className="rounded-full bg-muted px-2 py-1 capitalize">{r.categoria}</span><span className="rounded-full bg-muted px-2 py-1">{nControles} control{nControles === 1 ? "" : "es"}</span></div>
+              <div className="mt-4 grid grid-cols-[1fr_auto] gap-2"><Button type="button" className="min-h-11" onClick={() => abrir(r)}><Pencil className="h-4 w-4" />Editar riesgo</Button><Button type="button" variant="outline" className="min-h-11 px-3 text-destructive" disabled={eliminando === r.id} onClick={() => quitar(r.id)} aria-label={`Eliminar ${r.codigo}`}>{eliminando === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</Button></div>
+            </article>;
+          })}
+        </div>
+        <div className="hidden overflow-hidden rounded-lg border border-border md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-left">
@@ -230,6 +247,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos, controlesPorRiesgo,
             </tbody>
           </table>
         </div>
+        </>
       ) : riesgos.length > 0 ? (
         <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
           Ningún riesgo coincide con “{filtro}”.

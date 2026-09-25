@@ -54,10 +54,10 @@ export function ModalShell({
   if (!abierto) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
-        className={`relative z-10 flex max-h-[85vh] w-full ${maxWidth} flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl`}
+        className={`relative z-10 flex h-[100dvh] max-h-[100dvh] w-full ${maxWidth} flex-col overflow-hidden border border-border bg-card shadow-2xl sm:h-auto sm:max-h-[85vh] sm:rounded-xl`}
       >
         {children}
       </div>
@@ -70,12 +70,12 @@ export const MODAL_FORM_CLASS = "flex min-h-0 flex-1 flex-col";
 
 /** Zona superior fija: título, subtítulo, indicador de pasos. */
 export function ModalHeader({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={`shrink-0 px-6 pt-6 pb-4 ${className ?? ""}`}>{children}</div>;
+  return <div className={`shrink-0 px-4 pb-4 pt-5 sm:px-6 sm:pt-6 ${className ?? ""}`}>{children}</div>;
 }
 
 /** Zona central: lo único que scrollea cuando el contenido no entra. */
 export function ModalBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={`min-h-0 flex-1 overflow-y-auto px-6 py-1 ${className ?? ""}`}>{children}</div>;
+  return <div className={`min-h-0 flex-1 overflow-y-auto px-4 py-1 sm:px-6 ${className ?? ""}`}>{children}</div>;
 }
 
 /**
@@ -84,7 +84,7 @@ export function ModalBody({ children, className }: { children: ReactNode; classN
  * queden ocultos por el scroll.
  */
 export function ModalFooter({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={`shrink-0 border-t border-border px-6 py-4 ${className ?? ""}`}>{children}</div>;
+  return <div className={`shrink-0 border-t border-border bg-card px-4 py-3 sm:px-6 sm:py-4 ${className ?? ""}`}>{children}</div>;
 }
 
 /** Alerta de error estándar de los modales. No renderiza nada si mensaje es null/undefined. */
