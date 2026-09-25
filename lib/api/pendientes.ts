@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
 import { obtenerZonaHoraria } from "@/lib/api/ajustes";
+import { listarRequisitosLegales } from "@/lib/api/requisitos-legales";
 
 export type NivelPendiente = "recordatorio" | "advertencia" | "vencido_hoy" | "vencido";
 
@@ -33,6 +34,7 @@ const MODULO_LABEL: Record<string, string> = {
   documentos: "Documentos por revisar",
   controles: "Controles por ejecutar",
   controles_observados: "Resultados de controles por tratar",
+  requisitos_legales: "Requisitos legales por evaluar",
   documentacion: "Cambios documentales y lecturas",
   tratamiento: "Tratamientos por planificar",
   verificaciones: "Verificaciones de eficacia",
@@ -53,6 +55,7 @@ const ORDEN_MODULO = [
   "hallazgos",
   "auditorias",
   "controles",
+  "requisitos_legales",
   "controles_observados",
   "documentacion",
   "tratamiento",
@@ -114,6 +117,7 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
     }));
 
   items.push(...(await obtenerPendientesControles(supabase, usuarioId, zona)));
+  items.push(...(await obtenerPendientesRequisitosLegales(zona)));
 
   // Agrupar por módulo respetando el orden de presentación.
   const grupos: GrupoPendientes[] = [];
@@ -129,6 +133,44 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
   }
 
   return grupos;
+}
+
+async function obtenerPendientesRequisitosLegales(zona: string): Promise<Pendiente[]> {
+  const requisitos = await listarRequisitosLegales();
+  const hoy = fechaCalendarioEnZona(zona);
+  const sinEvaluacion = requisitos.filter((requisito) => !requisito.ultimaEvaluacion);
+  const pendientes: Pendiente[] = [];
+
+  if (sinEvaluacion.length > 0) {
+    const criticos = sinEvaluacion.filter((requisito) => requisito.criticidad === "alta").length;
+    pendientes.push({
+      modulo: "requisitos_legales",
+      entidadId: "sin-evaluacion-inicial",
+      codigo: "LEGAL",
+      titulo: `${sinEvaluacion.length} requisitos sin evaluación inicial${criticos > 0 ? ` · ${criticos} de criticidad alta` : ""}`,
+      fechaLimite: null,
+      diasRestantes: null,
+      nivel: criticos > 0 ? "advertencia" : "recordatorio",
+      urlDestino: "/requisitos-legales",
+    });
+  }
+
+  for (const requisito of requisitos) {
+    if (!requisito.ultimaEvaluacion || !requisito.proximaEvaluacion) continue;
+    const diasRestantes = diferenciaDias(hoy, requisito.proximaEvaluacion);
+    if (diasRestantes > 30) continue;
+    pendientes.push({
+      modulo: "requisitos_legales",
+      entidadId: requisito.id,
+      codigo: requisito.codigo,
+      titulo: requisito.titulo,
+      fechaLimite: requisito.proximaEvaluacion,
+      diasRestantes,
+      nivel: diasRestantes < 0 ? "vencido" : diasRestantes === 0 ? "vencido_hoy" : diasRestantes <= 7 ? "advertencia" : "recordatorio",
+      urlDestino: `/requisitos-legales?requisito=${requisito.id}`,
+    });
+  }
+  return pendientes;
 }
 
 async function obtenerPendientesControles(

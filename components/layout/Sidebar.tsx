@@ -76,7 +76,7 @@ const navItems: NavItem[] = [
   { href: "/tablero", label: "Inicio", icon: Home, section: "trabajo" },
   {
     href: "/mis-pendientes",
-    label: "Mis pendientes",
+    label: "Centro de pendientes",
     icon: ListChecks,
     section: "trabajo",
     children: [
