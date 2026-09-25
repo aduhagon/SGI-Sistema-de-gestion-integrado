@@ -10,6 +10,7 @@ import {
 import { GestionVersionesNorma } from "@/components/configuracion/GestionVersionesNorma";
 import { GestionRelacionesNorma } from "@/components/configuracion/GestionRelacionesNorma";
 import { listarRequisitosLegales } from "@/lib/api/requisitos-legales";
+import { PageContainer } from "@/components/ui/page";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export default async function NormaDetallePage({ params }: Props) {
   const sinCertificacion = requisitos.filter((r) => r.normas.length === 0).length;
 
   return (
-    <div className="mx-auto max-w-3xl p-6 sm:p-8 lg:p-10">
+    <PageContainer width="standard">
       <nav aria-label="Breadcrumb" className="mb-8">
         <Link href="/configuracion/normas" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="h-4 w-4" />Volver a normas
@@ -125,6 +126,6 @@ export default async function NormaDetallePage({ params }: Props) {
         normasDisponibles={normasDisponibles}
         relaciones={relaciones}
       />
-    </div>
+    </PageContainer>
   );
 }

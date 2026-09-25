@@ -34,8 +34,19 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "ss01", "cv01", "cv11";
   }
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
   h1, h2, h3 {
     @apply font-serif tracking-tight;
+  }
+}
+
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
   }
 }
 

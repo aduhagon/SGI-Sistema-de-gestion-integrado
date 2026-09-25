@@ -270,12 +270,19 @@ export function GestionRequisitosLegales({
         <div className="space-y-3 md:hidden">
           {items.map((r) => (
             <article key={r.id} className="min-w-0 rounded-lg border border-border bg-card p-4">
-              <p className="break-all font-mono text-xs text-muted-foreground">{r.codigo}</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="break-all font-mono text-xs text-muted-foreground">{r.codigo}</p>
+                <span className={`rounded-full px-2 py-1 text-xs ${r.ultimoEstado ? COLOR_ESTADO[r.ultimoEstado] ?? "bg-muted" : "bg-muted text-muted-foreground"}`}>
+                  {r.ultimoEstado ? ETIQUETA_CUMPLIMIENTO[r.ultimoEstado] : "Sin evaluar"}
+                </span>
+              </div>
               <h3 className="mt-1 break-words font-sans text-base font-semibold">{r.titulo}</h3>
               {r.referencia && <p className="mt-1 break-words text-sm text-muted-foreground">{r.referencia}</p>}
-              <p className="mt-3 text-sm">
-                {r.ultimoEstado ? ETIQUETA_CUMPLIMIENTO[r.ultimoEstado] : "Sin evaluar"}
-              </p>
+              <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+                <span className="rounded-full bg-muted px-2 py-1">{ETIQUETA_TIPO[r.tipo as keyof typeof ETIQUETA_TIPO] ?? r.tipo}</span>
+                {r.normas.map((n) => <span key={n.id} className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">{n.nombre}</span>)}
+                {mostrarProcesos && r.procesos.map((p) => <span key={p.id} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">{p.codigo || p.nombre}</span>)}
+              </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button type="button" variant="outline" className="min-h-11" onClick={() => abrirEdicion(r)}>
                   <Pencil className="h-4 w-4" /> Editar
@@ -362,7 +369,7 @@ export function GestionRequisitosLegales({
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           {requisitosFiltrados.length} requisito
           {requisitosFiltrados.length === 1 ? "" : "s"}
@@ -370,13 +377,13 @@ export function GestionRequisitosLegales({
             ? ` (de ${requisitos.length})`
             : " registrado" + (requisitos.length === 1 ? "" : "s")}
         </p>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           {/* Toggle de vista */}
-          <div className="flex rounded-md border border-border p-0.5">
+          <div className="col-span-2 flex rounded-md border border-border p-0.5 sm:col-span-1">
             <button
               type="button"
               onClick={() => setVista("lista")}
-              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${
+              className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${
                 vista === "lista"
                   ? "bg-muted font-medium text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -389,7 +396,7 @@ export function GestionRequisitosLegales({
             <button
               type="button"
               onClick={() => setVista("proceso")}
-              className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${
+              className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${
                 vista === "proceso"
                   ? "bg-muted font-medium text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -404,14 +411,14 @@ export function GestionRequisitosLegales({
           {/* Exportar a Excel (respeta el filtro de norma activo) */}
           <a
             href={urlExport}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
             title="Exportar a Excel lo que se ve"
           >
             <Download className="h-3.5 w-3.5" />
             Exportar a Excel
           </a>
 
-          <Button size="sm" onClick={abrirNuevo}>
+          <Button size="sm" className="min-h-10" onClick={abrirNuevo}>
             <Plus className="h-4 w-4" />
             Nuevo requisito
           </Button>
@@ -501,7 +508,7 @@ export function GestionRequisitosLegales({
                   <input key={n} type="hidden" name="normasIds" value={n} />
                 ))}
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid gap-3 sm:grid-cols-3">
                   <div className="space-y-2">
                     <label htmlFor="codigo" className="text-sm font-medium">
                       Código
@@ -514,7 +521,7 @@ export function GestionRequisitosLegales({
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </div>
-                  <div className="col-span-2 space-y-2">
+                  <div className="space-y-2 sm:col-span-2">
                     <label htmlFor="tipo" className="text-sm font-medium">
                       Tipo
                     </label>
@@ -548,7 +555,7 @@ export function GestionRequisitosLegales({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-2">
                     <label htmlFor="referencia" className="text-sm font-medium">
                       Referencia{" "}
@@ -576,7 +583,7 @@ export function GestionRequisitosLegales({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-2">
                     <label htmlFor="organismoEmisor" className="text-sm font-medium">
                       Organismo emisor

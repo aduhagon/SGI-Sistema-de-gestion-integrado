@@ -192,8 +192,43 @@ export default function VisorAuditoria({ resumenInicial }: { resumenInicial: Res
         </div>
       )}
 
-      {/* Tabla */}
-      <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+      {/* Móvil: cada evento conserva contexto y acción sin desplazamiento horizontal. */}
+      <div className="mt-4 space-y-2 md:hidden">
+        {cargando ? (
+          <div className="rounded-xl border border-border bg-card px-4 py-10 text-center text-muted-foreground">
+            <Loader2 className="mx-auto h-5 w-5 animate-spin" />
+          </div>
+        ) : eventos.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
+            No hay eventos para los filtros aplicados.
+          </div>
+        ) : eventos.map((e) => (
+          <button
+            key={e.id}
+            type="button"
+            onClick={() => abrirDetalle(e.id)}
+            className="w-full rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors active:bg-muted/50"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">{fmtFecha(e.timestamp_utc)}</p>
+                <p className="mt-1 font-medium leading-snug">{e.accion_legible ?? e.descripcion ?? "Actividad registrada"}</p>
+              </div>
+              <span
+                className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                style={{ backgroundColor: `${ACCION_COLOR[e.accion] ?? "#6b7280"}15`, color: ACCION_COLOR[e.accion] ?? "#6b7280" }}
+              >
+                {e.accion.replace("_", " ")}
+              </span>
+            </div>
+            <p className="mt-3 text-sm font-medium text-foreground">{e.objeto ?? "Objeto no identificado"}</p>
+            <p className="mt-2 text-xs text-muted-foreground">{e.usuario_email ?? "sistema"}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Escritorio: tabla densa para revisión y comparación. */}
+      <div className="mt-4 hidden overflow-x-auto rounded-xl border border-border bg-card md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-left text-xs uppercase tracking-wider text-muted-foreground">

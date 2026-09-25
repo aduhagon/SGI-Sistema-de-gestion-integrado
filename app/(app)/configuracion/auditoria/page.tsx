@@ -3,6 +3,7 @@ import { ChevronLeft, ShieldAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerResumen } from "@/lib/api/auditoria";
 import VisorAuditoria from "@/components/configuracion/VisorAuditoria";
+import { PageContainer, PageHeader } from "@/components/ui/page";
 
 export const dynamic = "force-dynamic";
 
@@ -41,28 +42,21 @@ export default async function AuditoriaPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl p-6 sm:p-8 lg:p-10">
-      <nav aria-label="Breadcrumb" className="mb-8">
+    <PageContainer width="wide">
+      <nav aria-label="Breadcrumb" className="mb-5">
         <Link href="/configuracion" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="h-4 w-4" />
           Volver a configuración
         </Link>
       </nav>
-      <header className="mb-2">
-        <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-          Configuración · Auditoría
-        </p>
-        <h1 className="mb-3 font-serif text-4xl font-semibold tracking-tight">
-          Registro de auditoría
-        </h1>
-        <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
+      <PageHeader eyebrow="Configuración · Trazabilidad" title="Registro de auditoría" description={
+        <>
           Bitácora completa de la actividad del sistema. Cada evento queda registrado
-          de forma inmutable, encadenado por hash. Filtrá por fecha, usuario, acción o
-          entidad, y verificá la integridad de la cadena en cualquier momento.
-        </p>
-      </header>
+          de forma inmutable y encadenado por hash. Filtrá por fecha, usuario, acción o entidad.
+        </>
+      } />
 
       <VisorAuditoria resumenInicial={resumen} />
-    </div>
+    </PageContainer>
   );
 }

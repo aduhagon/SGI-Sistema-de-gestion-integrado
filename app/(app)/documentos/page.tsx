@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, FileText, FolderTree } from "lucide-react";
+import { Plus, FileText, FolderTree, CircleCheck, Clock3 } from "lucide-react";
 import { listarDocumentos, obtenerDatosForm } from "@/lib/api/documentos";
 import { GrillaDocumentosSeleccionable } from "@/components/documentos/GrillaDocumentosSeleccionable";
 import { obtenerPerfilMenu } from "@/lib/api/perfil-menu";
@@ -7,6 +7,7 @@ import { DocumentEmptyState } from "@/components/documentos/DocumentEmptyState";
 import { DocumentFilters } from "@/components/documentos/DocumentFilters";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { MetricCard, MetricGrid, PageContainer, PageHeader } from "@/components/ui/page";
 
 export const dynamic = "force-dynamic";
 
@@ -55,18 +56,16 @@ export default async function DocumentosPage({ searchParams }: Props) {
     !!searchParams.proceso ||
     !!searchParams.tipo ||
     !!searchParams.norma;
+  const aprobados = documentos.filter((d) => d.estado_actual === "aprobado").length;
+  const pendientes = documentos.filter((d) => d.estado_actual === "pendiente_aprobacion").length;
 
   return (
-    <div className="mx-auto max-w-7xl p-6 sm:p-8 lg:p-10">
-      <header className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">
-            Sistema de Gestión Integrado
-          </p>
-          <h1 className="font-serif text-4xl font-semibold tracking-tight mb-2">
-            Documentos
-          </h1>
-          <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
+    <PageContainer width="full">
+      <PageHeader
+        eyebrow="Documentación · Repositorio"
+        title="Documentos"
+        description={
+          <>
             {documentos.length > 0
               ? `${documentos.length} ${
                   documentos.length === 1 ? "documento" : "documentos"
@@ -74,26 +73,33 @@ export default async function DocumentosPage({ searchParams }: Props) {
               : hayFiltros
                 ? "Ningún documento coincide con los filtros."
                 : "Repositorio único del SGI. Cada documento es trazable, versionado y auditable."}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
+          </>
+        }
+        actions={
+          <>
           <Link
             href="/documentos/maestro"
-            className={cn(buttonVariants({ variant: "outline" }))}
+            className={cn(buttonVariants({ variant: "outline" }), "flex-1 sm:flex-none")}
           >
             <FolderTree className="h-4 w-4" aria-hidden="true" />
             Listado maestro
           </Link>
           <Link
             href="/documentos/nuevo"
-            className={cn(buttonVariants({ variant: "default" }))}
+            className={cn(buttonVariants({ variant: "default" }), "flex-1 sm:flex-none")}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             Cargar documento
           </Link>
-        </div>
-      </header>
+          </>
+        }
+      >
+        <MetricGrid>
+          <MetricCard value={documentos.length} label={hayFiltros ? "Resultados" : "Total documentos"} icon={<FileText className="h-4 w-4" />} />
+          <MetricCard value={aprobados} label="Aprobados" tone="success" icon={<CircleCheck className="h-4 w-4" />} />
+          <MetricCard value={pendientes} label="Pendientes de aprobación" tone={pendientes ? "warning" : "success"} icon={<Clock3 className="h-4 w-4" />} />
+        </MetricGrid>
+      </PageHeader>
 
       <DocumentFilters procesos={procesosOpc} tipos={tiposOpc} normas={normasOpc} />
 
@@ -134,7 +140,7 @@ export default async function DocumentosPage({ searchParams }: Props) {
           <LegendItem color="bg-stone-300" label="Obsoleto" />
         </footer>
       )}
-    </div>
+    </PageContainer>
   );
 }
 
