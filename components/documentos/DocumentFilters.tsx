@@ -66,7 +66,8 @@ export function DocumentFilters({ procesos, tipos, normas }: Props) {
   }
 
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
+    <div className="mb-4 rounded-lg border border-border bg-card p-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
       <div className="relative flex-1 min-w-[220px]">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <input
@@ -84,7 +85,7 @@ export function DocumentFilters({ procesos, tipos, normas }: Props) {
       <select
         value={estado}
         onChange={(e) => aplicar({ estado: e.target.value })}
-        className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto"
       >
         <option value="">Todos los estados</option>
         {ESTADOS.map((e) => <option key={e.value} value={e.value}>{e.label}</option>)}
@@ -93,7 +94,7 @@ export function DocumentFilters({ procesos, tipos, normas }: Props) {
       <select
         value={proceso}
         onChange={(e) => aplicar({ proceso: e.target.value })}
-        className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring max-w-[220px]"
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:max-w-[220px]"
       >
         <option value="">Todos los procesos</option>
         {procesos.map((p) => <option key={p.id} value={p.id}>{p.codigo} — {p.nombre}</option>)}
@@ -102,7 +103,7 @@ export function DocumentFilters({ procesos, tipos, normas }: Props) {
       <select
         value={norma}
         onChange={(e) => aplicar({ norma: e.target.value })}
-        className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring max-w-[200px]"
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:max-w-[200px]"
       >
         <option value="">Todas las normas</option>
         {normas.map((n) => <option key={n.id} value={n.id}>{n.nombre}</option>)}
@@ -111,7 +112,7 @@ export function DocumentFilters({ procesos, tipos, normas }: Props) {
       <select
         value={tipo}
         onChange={(e) => aplicar({ tipo: e.target.value })}
-        className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring max-w-[200px]"
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto sm:max-w-[200px]"
       >
         <option value="">Todos los tipos</option>
         {tipos.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
@@ -127,6 +128,8 @@ export function DocumentFilters({ procesos, tipos, normas }: Props) {
           Limpiar
         </button>
       )}
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">Los filtros quedan guardados en la dirección de esta página para poder compartir la vista.</p>
     </div>
   );
 }

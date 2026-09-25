@@ -168,7 +168,7 @@ export function GrillaDocumentosSeleccionable({
       )}
 
       {/* Barra de herramientas: ordenar + exportar */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 border-b border-border bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <ArrowUpDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <label htmlFor="orden-docs" className="text-sm text-muted-foreground">Ordenar por:</label>
@@ -196,7 +196,7 @@ export function GrillaDocumentosSeleccionable({
       </div>
 
       {/* Encabezado con seleccionar todos */}
-      <div className="flex items-center gap-4 border-b border-border bg-muted/30 px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground">
+      <div className="sticky top-0 z-10 hidden items-center gap-4 border-b border-border bg-muted/95 px-4 py-2.5 text-xs uppercase tracking-wider text-muted-foreground backdrop-blur sm:flex">
         {puedeObsoletar && (
           <input
             type="checkbox"
@@ -225,7 +225,7 @@ export function GrillaDocumentosSeleccionable({
             <div
               key={doc.id}
               className={
-                "flex items-center gap-4 border-b border-border px-4 py-3.5 transition-colors " +
+                "relative flex items-start gap-3 border-b border-border px-4 py-4 transition-colors sm:items-center sm:gap-4 sm:py-3.5 " +
                 (tildado
                   ? "bg-primary/5"
                   : esRechazado
@@ -247,16 +247,20 @@ export function GrillaDocumentosSeleccionable({
 
               <Link
                 href={`/documentos/${doc.id}`}
-                className="group flex flex-1 items-center gap-4 min-w-0"
+                className="group flex min-w-0 flex-1 items-start gap-3 sm:items-center sm:gap-4"
               >
-                <StatusDot estado={doc.estado_actual} />
+                <StatusDot estado={doc.estado_actual} className="hidden sm:inline-flex" />
 
-                <div className="font-mono text-xs text-muted-foreground tabular-nums w-32 shrink-0 truncate">
+                <div className="hidden w-32 shrink-0 truncate font-mono text-xs tabular-nums text-muted-foreground sm:block">
                   {doc.codigo}
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-foreground truncate">
+                  <div className="mb-1 flex min-w-0 items-center gap-2 sm:mb-0">
+                    <span className="truncate font-mono text-xs text-muted-foreground sm:hidden">{doc.codigo}</span>
+                    <StatusDot estado={doc.estado_actual} showLabel className="ml-auto sm:hidden" />
+                  </div>
+                  <div className="text-sm font-medium text-foreground sm:truncate">
                     {doc.titulo}
                   </div>
                   {doc.descripcion_corta && (
@@ -264,6 +268,12 @@ export function GrillaDocumentosSeleccionable({
                       {doc.descripcion_corta}
                     </div>
                   )}
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground sm:hidden">
+                    {doc.tipo ? <span className="rounded bg-muted px-1.5 py-0.5 font-medium">{doc.tipo.codigo}</span> : null}
+                    {doc.proceso ? <span>{doc.proceso.codigo}</span> : null}
+                    {doc.normas.length > 0 ? <span>· {doc.normas.length === 1 ? doc.normas[0].codigo : `${doc.normas.length} normas`}</span> : null}
+                    <span className="basis-full">Actualizado {formatearFechaRelativa(doc.actualizado_en ?? doc.creado_en)}</span>
+                  </div>
                 </div>
 
                 <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground shrink-0 max-w-md">

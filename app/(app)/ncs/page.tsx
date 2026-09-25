@@ -15,6 +15,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { obtenerZonaHoraria } from "@/lib/api/ajustes";
 import { estaVencida, formatearFechaCorta } from "@/lib/fechas";
+import { NCFilters } from "@/components/ncs/NCFilters";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,7 @@ const TIPO_OBS_LABEL: Record<string, string> = {
 };
 
 type Props = {
-  searchParams: { vista?: string; tablero?: string; rango?: string; desde?: string; hasta?: string };
+  searchParams: { vista?: string; tablero?: string; rango?: string; desde?: string; hasta?: string; q?: string; estado?: string };
 };
 
 export default async function NCsPage({ searchParams }: Props) {
@@ -53,6 +54,19 @@ export default async function NCsPage({ searchParams }: Props) {
     obtenerPerfilMenu(),
     obtenerZonaHoraria(),
   ]);
+  const termino = searchParams.q?.trim().toLocaleLowerCase("es") ?? "";
+  const estadoFiltro = searchParams.estado ?? "";
+  const ncsVisibles = ncs.filter((nc) => {
+    const coincideEstado = !estadoFiltro || nc.estado === estadoFiltro;
+    const texto = `${nc.codigo} ${nc.titulo} ${nc.procesoNombre ?? ""}`.toLocaleLowerCase("es");
+    return coincideEstado && (!termino || texto.includes(termino));
+  });
+  const observacionesVisibles = observaciones.filter((observacion) => {
+    const coincideEstado = !estadoFiltro || observacion.estado === estadoFiltro;
+    const texto = `${observacion.codigo} ${observacion.titulo} ${observacion.responsableNombre ?? ""}`.toLocaleLowerCase("es");
+    return coincideEstado && (!termino || texto.includes(termino));
+  });
+  const hayFiltros = Boolean(termino || estadoFiltro);
 
   const tableroAbierto = perfil.esGestor && searchParams.tablero === "1" && vista === "ncs";
   let tableroDatos = null;
@@ -156,10 +170,13 @@ export default async function NCsPage({ searchParams }: Props) {
 
       {tableroAbierto && tableroDatos && <PanelTableroNC datos={tableroDatos} periodoLabel={periodoLabel} />}
 
+      <NCFilters vista={vista} total={vista === "ncs" ? ncsVisibles.length : observacionesVisibles.length} />
+
       {vista === "ncs" ? (
         <ListaNC
-          ncs={ncs}
+          ncs={ncsVisibles}
           zona={zona}
+          hayFiltros={hayFiltros}
           slotNuevaNC={
             datosNuevaNC ? (
               <BotonNuevaNC
@@ -172,7 +189,7 @@ export default async function NCsPage({ searchParams }: Props) {
           }
         />
       ) : (
-        <ListaObservaciones observaciones={observaciones} zona={zona} />
+        <ListaObservaciones observaciones={observacionesVisibles} zona={zona} hayFiltros={hayFiltros} />
       )}
     </div>
   );
@@ -182,27 +199,28 @@ function ListaNC({
   ncs,
   zona,
   slotNuevaNC,
+  hayFiltros,
 }: {
   ncs: Awaited<ReturnType<typeof obtenerNCs>>;
   zona: string;
   slotNuevaNC?: React.ReactNode;
+  hayFiltros: boolean;
 }) {
   if (ncs.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
         <AlertOctagon className="mb-4 h-10 w-10 text-muted-foreground" aria-hidden="true" />
-        <p className="font-medium text-foreground">No hay no conformidades registradas</p>
+        <p className="font-medium text-foreground">{hayFiltros ? "No hay coincidencias" : "No hay no conformidades registradas"}</p>
         <p className="mt-1 max-w-md text-sm text-muted-foreground">
-          Cuando se detecte un incumplimiento (en una auditoría, un reclamo o un control interno),
-          abrí una no conformidad para gestionarla hasta su cierre.
+          {hayFiltros ? "Probá con otra búsqueda o limpiá los filtros activos." : "Cuando se detecte un incumplimiento (en una auditoría, un reclamo o un control interno), abrí una no conformidad para gestionarla hasta su cierre."}
         </p>
-        <div className="mt-6">{slotNuevaNC}</div>
+        {!hayFiltros ? <div className="mt-6">{slotNuevaNC}</div> : null}
       </div>
     );
   }
   return (
     <div className="overflow-hidden rounded-lg border border-border">
-      <div className="hidden items-center gap-3 bg-muted/40 px-4 py-2 text-[11px] uppercase tracking-wider text-muted-foreground sm:flex">
+      <div className="sticky top-0 z-10 hidden items-center gap-3 border-b border-border bg-muted/95 px-4 py-2 text-[11px] uppercase tracking-wider text-muted-foreground backdrop-blur sm:flex">
         <span className="w-28 shrink-0">Código</span>
         <span className="flex-1">Título</span>
         <span className="w-40 shrink-0">Proceso</span>
@@ -217,23 +235,25 @@ function ListaNC({
           <Link
             key={nc.id}
             href={`/ncs/${nc.id}`}
-            className="flex flex-col gap-1 border-t border-border px-4 py-2.5 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:gap-3 sm:py-2"
+            className="group block border-t border-border px-4 py-3 transition-colors hover:bg-muted/30 sm:flex sm:items-center sm:gap-3 sm:py-2"
           >
-            <span className="flex w-28 shrink-0 items-center gap-2">
+            <span className="mb-2 flex items-center justify-between sm:mb-0 sm:w-28 sm:shrink-0 sm:justify-start sm:gap-2">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: meta.color }} aria-hidden="true" />
-              <span className="font-mono text-xs text-muted-foreground">{nc.codigo}</span>
+              <span className="mr-auto ml-2 font-mono text-xs text-muted-foreground sm:mr-0 sm:ml-0">{nc.codigo}</span>
+              <span className="inline-flex items-center rounded px-2 py-1 text-[11px] font-medium sm:hidden" style={{ backgroundColor: `${meta.color}15`, color: meta.color }}>{meta.label}</span>
             </span>
-            <span className="flex-1 truncate text-sm">
+            <span className="block font-medium text-sm sm:flex-1 sm:truncate sm:font-normal">
               {nc.titulo}
               {vencida && <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">Vencida</span>}
             </span>
-            <span className="w-40 shrink-0 truncate text-xs text-muted-foreground">
+            <span className="mt-2 block truncate text-xs text-muted-foreground sm:mt-0 sm:w-40 sm:shrink-0">
+              <span className="sm:hidden">Proceso: </span>
               {nc.procesoNombre ?? <span className="text-muted-foreground/50">—</span>}
             </span>
-            <span className="flex w-24 shrink-0 items-center gap-1.5">
+            <span className="hidden w-24 shrink-0 items-center gap-1.5 sm:flex">
               <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium" style={{ backgroundColor: `${meta.color}15`, color: meta.color }}>{meta.label}</span>
             </span>
-            <span className="w-20 shrink-0 text-xs text-muted-foreground sm:text-right">{fecha}</span>
+            <span className="mt-1 block text-xs text-muted-foreground sm:mt-0 sm:w-20 sm:shrink-0 sm:text-right"><span className="sm:hidden">Abierta: </span>{fecha}</span>
           </Link>
         );
       })}
@@ -241,22 +261,21 @@ function ListaNC({
   );
 }
 
-function ListaObservaciones({ observaciones, zona }: { observaciones: Awaited<ReturnType<typeof obtenerObservaciones>>; zona: string }) {
+function ListaObservaciones({ observaciones, zona, hayFiltros }: { observaciones: Awaited<ReturnType<typeof obtenerObservaciones>>; zona: string; hayFiltros: boolean }) {
   if (observaciones.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
         <Eye className="mb-4 h-10 w-10 text-muted-foreground" aria-hidden="true" />
-        <p className="font-medium text-foreground">No hay observaciones registradas</p>
+        <p className="font-medium text-foreground">{hayFiltros ? "No hay coincidencias" : "No hay observaciones registradas"}</p>
         <p className="mt-1 max-w-md text-sm text-muted-foreground">
-          Las observaciones y oportunidades de mejora se registran durante las auditorías.
-          Cuando existan, vas a poder darles seguimiento desde acá.
+          {hayFiltros ? "Probá con otra búsqueda o limpiá los filtros activos." : "Las observaciones y oportunidades de mejora se registran durante las auditorías. Cuando existan, vas a poder darles seguimiento desde acá."}
         </p>
       </div>
     );
   }
   return (
     <div className="overflow-hidden rounded-lg border border-border">
-      <div className="hidden items-center gap-3 bg-muted/40 px-4 py-2 text-[11px] uppercase tracking-wider text-muted-foreground sm:flex">
+      <div className="sticky top-0 z-10 hidden items-center gap-3 border-b border-border bg-muted/95 px-4 py-2 text-[11px] uppercase tracking-wider text-muted-foreground backdrop-blur sm:flex">
         <span className="w-28 shrink-0">Código</span>
         <span className="flex-1">Título</span>
         <span className="w-32 shrink-0">Responsable</span>
@@ -271,26 +290,28 @@ function ListaObservaciones({ observaciones, zona }: { observaciones: Awaited<Re
           <Link
             key={o.id}
             href={`/ncs/observacion/${o.id}`}
-            className="flex flex-col gap-1 border-t border-border px-4 py-2.5 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:gap-3 sm:py-2"
+            className="group block border-t border-border px-4 py-3 transition-colors hover:bg-muted/30 sm:flex sm:items-center sm:gap-3 sm:py-2"
           >
-            <span className="flex w-28 shrink-0 items-center gap-2">
+            <span className="mb-2 flex items-center sm:mb-0 sm:w-28 sm:shrink-0 sm:gap-2">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: meta.color }} aria-hidden="true" />
-              <span className="font-mono text-xs text-muted-foreground">{o.codigo}</span>
+              <span className="ml-2 font-mono text-xs text-muted-foreground sm:ml-0">{o.codigo}</span>
+              <span className="ml-auto inline-flex items-center rounded px-2 py-1 text-[11px] font-medium sm:hidden" style={{ backgroundColor: `${meta.color}15`, color: meta.color }}>{meta.label}</span>
             </span>
-            <span className="flex-1 truncate text-sm">
+            <span className="block font-medium text-sm sm:flex-1 sm:truncate sm:font-normal">
               <span className="mr-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                 {TIPO_OBS_LABEL[o.tipo] ?? o.tipo}
               </span>
               {o.titulo}
               {vencida && <span className="ml-2 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">Vencida</span>}
             </span>
-            <span className="w-32 shrink-0 truncate text-xs text-muted-foreground">
+            <span className="mt-2 block truncate text-xs text-muted-foreground sm:mt-0 sm:w-32 sm:shrink-0">
+              <span className="sm:hidden">Responsable: </span>
               {o.responsableNombre ?? <span className="text-muted-foreground/50">Sin asignar</span>}
             </span>
-            <span className="flex w-24 shrink-0 items-center gap-1.5">
+            <span className="hidden w-24 shrink-0 items-center gap-1.5 sm:flex">
               <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium" style={{ backgroundColor: `${meta.color}15`, color: meta.color }}>{meta.label}</span>
             </span>
-            <span className="w-20 shrink-0 text-xs text-muted-foreground sm:text-right">{limite}</span>
+            <span className="mt-1 block text-xs text-muted-foreground sm:mt-0 sm:w-20 sm:shrink-0 sm:text-right"><span className="sm:hidden">Límite: </span>{limite}</span>
           </Link>
         );
       })}
