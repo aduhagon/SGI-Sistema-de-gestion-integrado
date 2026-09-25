@@ -94,6 +94,8 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [paso, setPaso] = useState(1);
+  const [hayCambios, setHayCambios] = useState(false);
+  const [errorLocal, setErrorLocal] = useState<string | null>(null);
 
   const [paisCodigo, setPaisCodigo] = useState(paises[0]?.codigo ?? "A");
   const [tipoId, setTipoId] = useState<string>("");
@@ -142,6 +144,16 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
     };
   }, [procesoId, requierePadre]);
 
+  useEffect(() => {
+    if (!hayCambios || pending) return;
+    const advertir = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", advertir);
+    return () => window.removeEventListener("beforeunload", advertir);
+  }, [hayCambios, pending]);
+
   const regenerarCodigo = useCallback(async () => {
     if (codigoEditadoManualmente) return;
     if (!tipoId || !procesoId) return;
@@ -170,10 +182,12 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
 
   function resetearCodigo() {
     setCodigoEditadoManualmente(false);
+    setHayCambios(true);
     void regenerarCodigo();
   }
 
   function toggleNorma(normaId: string) {
+    setHayCambios(true);
     setNormasSeleccionadas((prev) => {
       const next = new Set(prev);
       if (next.has(normaId)) next.delete(normaId);
@@ -184,11 +198,20 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
 
   function handleArchivoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) setArchivo(f);
+    if (!f) return;
+    if (f.size > 50 * 1024 * 1024) {
+      setErrorLocal("El archivo supera el máximo permitido de 50 MB.");
+      e.target.value = "";
+      return;
+    }
+    setErrorLocal(null);
+    setArchivo(f);
+    setHayCambios(true);
   }
 
   function quitarArchivo() {
     setArchivo(null);
+    setHayCambios(true);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -243,10 +266,13 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
       formData.delete("archivo");
     }
 
+    setErrorLocal(null);
+    setHayCambios(false);
     startTransition(async () => {
       const resultado = await crearDocumento(estado, formData);
       setEstado(resultado);
       if (resultado && !resultado.ok) {
+        setHayCambios(true);
         // Si el error es de un campo de un paso anterior, volvemos a ese paso.
         if (
           resultado.campo &&
@@ -267,7 +293,7 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
     estado && !estado.ok && estado.campo === campo ? estado.error : undefined;
 
   return (
-    <form action={handleSubmit} className="space-y-6">
+    <form action={handleSubmit} onChange={() => setHayCambios(true)} className="space-y-6">
       {/* Indicador de pasos */}
       <Stepper paso={paso} />
 
@@ -285,6 +311,13 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
           </div>
         </div>
       )}
+
+      {errorLocal ? (
+        <div role="alert" className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <span>{errorLocal}</span>
+        </div>
+      ) : null}
 
       {/* ===================== PASO 1 · CLASIFICACIÓN ===================== */}
       <div className={paso === 1 ? "block" : "hidden"}>
@@ -651,7 +684,7 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
       </div>
 
       {/* ===================== NAVEGACIÓN ===================== */}
-      <div className="flex items-center justify-between border-t border-border pt-6">
+      <div className="sticky bottom-0 z-20 -mx-4 flex items-center justify-between border-t border-border bg-background/95 px-4 py-4 shadow-[0_-8px_20px_-18px_rgba(0,0,0,0.45)] backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pt-6 sm:shadow-none">
         {paso > 1 ? (
           <Button type="button" variant="ghost" onClick={irAtras} disabled={pending}>
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -690,6 +723,11 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
           </Button>
         )}
       </div>
+      {!pasoActualCompleto ? (
+        <p className="text-center text-xs text-muted-foreground" role="status">
+          {paso === 1 ? "Completá tipo, proceso, código y documento padre cuando corresponda." : paso === 2 ? "Ingresá el título para continuar." : "Seleccioná el archivo principal para crear el documento."}
+        </p>
+      ) : null}
     </form>
   );
 }

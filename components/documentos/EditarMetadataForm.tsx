@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Loader2, AlertCircle, Lock, FileText, Upload, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,6 +71,7 @@ export function EditarMetadataForm({ documento, normas, tipos, procesos }: Props
   );
   const [requiereAcuse, setRequiereAcuse] = useState(documento.requiere_acuse_lectura);
   const [archivoNuevo, setArchivoNuevo] = useState<File | null>(null);
+  const [hayCambios, setHayCambios] = useState(false);
 
   const archivoEditable = documento.archivoEditable;
 
@@ -85,6 +86,16 @@ export function EditarMetadataForm({ documento, normas, tipos, procesos }: Props
 
   // País: primer segmento del código actual (ej. "A" en "A-FOR-07-001").
   const paisCodigo = documento.codigo.split("-")[0] || "A";
+
+  useEffect(() => {
+    if (!hayCambios || pending) return;
+    const advertir = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", advertir);
+    return () => window.removeEventListener("beforeunload", advertir);
+  }, [hayCambios, pending]);
 
   async function regenerarCodigo(nuevoTipo: string, nuevoProceso: string) {
     setRegenerando(true);
@@ -117,6 +128,7 @@ export function EditarMetadataForm({ documento, normas, tipos, procesos }: Props
   }
 
   function toggleNorma(normaId: string) {
+    setHayCambios(true);
     setNormasSeleccionadas((prev) => {
       const next = new Set(prev);
       if (next.has(normaId)) next.delete(normaId);
@@ -126,6 +138,7 @@ export function EditarMetadataForm({ documento, normas, tipos, procesos }: Props
   }
 
   function handleSubmit(formData: FormData) {
+    setHayCambios(false);
     formData.delete("normas_ids");
     normasSeleccionadas.forEach((id) => formData.append("normas_ids", id));
     formData.set("requiere_acuse_lectura", requiereAcuse ? "true" : "false");
@@ -154,6 +167,7 @@ export function EditarMetadataForm({ documento, normas, tipos, procesos }: Props
           fdArchivo,
         );
         if (resArchivo && !resArchivo.ok) {
+          setHayCambios(true);
           setErrorArchivo(resArchivo.error);
           window.scrollTo({ top: 0, behavior: "smooth" });
           return;
@@ -164,6 +178,7 @@ export function EditarMetadataForm({ documento, normas, tipos, procesos }: Props
       const resultado = await editarMetadata(documento.id, estado, formData);
       setEstado(resultado);
       if (resultado && !resultado.ok) {
+        setHayCambios(true);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
     });
@@ -173,7 +188,7 @@ export function EditarMetadataForm({ documento, normas, tipos, procesos }: Props
     estado && !estado.ok && estado.campo === campo ? estado.error : undefined;
 
   return (
-    <form action={handleSubmit} className="space-y-10">
+    <form action={handleSubmit} onChange={() => setHayCambios(true)} className="space-y-10">
       {estado && !estado.ok && (
         <div
           role="alert"
@@ -543,7 +558,7 @@ export function EditarMetadataForm({ documento, normas, tipos, procesos }: Props
         </Field>
       </Section>
 
-      <div className="flex items-center justify-between border-t border-border pt-6">
+      <div className="sticky bottom-0 z-20 -mx-4 flex flex-col gap-3 border-t border-border bg-background/95 px-4 py-4 shadow-[0_-8px_20px_-18px_rgba(0,0,0,0.45)] backdrop-blur sm:static sm:mx-0 sm:flex-row sm:items-center sm:justify-between sm:bg-transparent sm:px-0 sm:pt-6 sm:shadow-none">
         <p className="text-xs text-muted-foreground flex items-center gap-2">
           <Badge variant="muted" size="sm">
             <Lock className="h-3 w-3 mr-1" aria-hidden="true" />
@@ -553,7 +568,7 @@ export function EditarMetadataForm({ documento, normas, tipos, procesos }: Props
             ? "Cambios de metadata y archivo, sin generar nueva versión."
             : "No genera nueva versión."}
         </p>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending} className="w-full sm:w-auto">
           {pending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

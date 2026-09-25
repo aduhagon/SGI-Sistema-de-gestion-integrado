@@ -70,14 +70,21 @@ export function NCModalWizard({
   const [requisitoId, setRequisitoId] = useState("");
   const [hallazgoId, setHallazgoId] = useState("");
   const [errorPaso, setErrorPaso] = useState<string | null>(null);
+  const [hayCambios, setHayCambios] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   const esAuditoria = ORIGENES_AUDITORIA.includes(origen);
 
   // Al crear con éxito: cerrar y navegar a la NC para arrancar su tratamiento.
   useEffect(() => {
     if (estado?.ok) {
+      setEnviando(false);
+      setHayCambios(false);
       onClose();
       router.push(`/ncs/${estado.ncId}?creada=1`);
+    } else if (estado && !estado.ok) {
+      setEnviando(false);
+      setHayCambios(true);
     }
   }, [estado, onClose, router]);
 
@@ -87,6 +94,25 @@ export function NCModalWizard({
       setErrorPaso(null);
     }
   }, [abierto]);
+
+  function limpiarFormulario() {
+    setPaso(0);
+    setOrigen("control_interno");
+    setAccionInmediata(false);
+    setTitulo("");
+    setDescripcion("");
+    setRequisitoId("");
+    setHallazgoId("");
+    setErrorPaso(null);
+    setHayCambios(false);
+  }
+
+  function cerrar() {
+    if (enviando) return;
+    if (hayCambios && !window.confirm("Hay datos sin guardar. ¿Querés cerrar y descartarlos?")) return;
+    limpiarFormulario();
+    onClose();
+  }
 
   // El selector de requisito captura su valor en un <input name="requisitoId">
   // interno; acá mantenemos un espejo para poder validar el paso 2. Para eso
@@ -137,12 +163,14 @@ export function NCModalWizard({
       const err = validarPaso(i);
       if (err) { e.preventDefault(); setPaso(i); setErrorPaso(err); return; }
     }
+    setHayCambios(false);
+    setEnviando(true);
   }
 
   const enUltimo = paso === PASOS.length - 1;
 
   return (
-    <ModalShell abierto={abierto} onClose={onClose} maxWidth="max-w-xl">
+    <ModalShell abierto={abierto} onClose={cerrar} maxWidth="max-w-xl">
       <ModalHeader>
         <h2 className="font-serif text-2xl font-semibold tracking-tight">Abrir no conformidad</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -186,12 +214,12 @@ export function NCModalWizard({
         </div>
       </ModalHeader>
 
-      <form action={formAction} onSubmit={onSubmitGuard} className={MODAL_FORM_CLASS}>
+      <form action={formAction} onSubmit={onSubmitGuard} onChange={() => setHayCambios(true)} className={MODAL_FORM_CLASS}>
         <ModalBody className="pb-3">
             {/* Paso 1 — Qué */}
             <div hidden={paso !== 0} className="space-y-5">
               <div className="space-y-2">
-                <label htmlFor="titulo" className="text-sm font-medium">Título</label>
+                <label htmlFor="titulo" className="text-sm font-medium">Título <span className="text-destructive">*</span></label>
                 <input
                   id="titulo" name="titulo" maxLength={200} value={titulo}
                   onChange={(e) => setTitulo(e.target.value)}
@@ -234,7 +262,7 @@ export function NCModalWizard({
 
               {esAuditoria && (
                 <div className="space-y-2">
-                  <label htmlFor="hallazgoId" className="text-sm font-medium">Hallazgo de origen</label>
+                  <label htmlFor="hallazgoId" className="text-sm font-medium">Hallazgo de origen <span className="text-destructive">*</span></label>
                   {hallazgos.length > 0 ? (
                     <select id="hallazgoId" name="hallazgoId" className={INPUT_CLASS}>
                       <option value="">Elegí el hallazgo…</option>
@@ -268,7 +296,7 @@ export function NCModalWizard({
             {/* Paso 3 — Detalle */}
             <div hidden={paso !== 2} className="space-y-5">
               <div className="space-y-2">
-                <label htmlFor="descripcion" className="text-sm font-medium">Descripción</label>
+                <label htmlFor="descripcion" className="text-sm font-medium">Descripción <span className="text-destructive">*</span></label>
                 <textarea
                   id="descripcion" name="descripcion" rows={3} value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
@@ -305,7 +333,7 @@ export function NCModalWizard({
 
         </ModalBody>
         <ModalFooter>
-          <ModalError mensaje={errorPaso} />
+          <div aria-live="assertive"><ModalError mensaje={errorPaso} /></div>
           <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
           <div className="flex items-center gap-3">
             {paso > 0 ? (
@@ -313,7 +341,7 @@ export function NCModalWizard({
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />Atrás
               </Button>
             ) : (
-              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={cerrar} disabled={enviando}>Cancelar</Button>
             )}
             <div className="flex-1" />
             {enUltimo ? (
