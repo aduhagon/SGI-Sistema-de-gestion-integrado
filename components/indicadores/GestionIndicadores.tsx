@@ -36,6 +36,8 @@ export function GestionIndicadores({ indicadores, procesos, puestos }: {
   }
 
   async function quitar(id: string) {
+    const indicador = indicadores.find((item) => item.id === id);
+    if (!window.confirm(`¿Eliminar el indicador ${indicador?.codigo ?? "seleccionado"}? Esta acción quedará registrada.`)) return;
     setEliminando(id);
     const r = await eliminarIndicador(id);
     setEliminando(null);
@@ -72,9 +74,32 @@ export function GestionIndicadores({ indicadores, procesos, puestos }: {
       </div>
 
       {filtrados.length > 0 ? (
-        <div className="overflow-hidden rounded-lg border border-border">
+        <>
+        <div className="space-y-3 sm:hidden">
+          {filtrados.map((i) => (
+            <article key={i.id} className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-2 flex items-start justify-between gap-3">
+                <div className="min-w-0"><p className="font-mono text-xs text-muted-foreground">{i.codigo}</p><h3 className="mt-1 font-medium leading-snug">{i.nombre}</h3></div>
+                <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ${CUMPL_COLOR[i.cumplimiento]}`}>{CUMPL_LABEL[i.cumplimiento]}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{i.procesoNombre}</p>
+              <dl className="mt-3 grid grid-cols-2 gap-3 rounded-md bg-muted/30 p-3 text-xs">
+                <div><dt className="text-muted-foreground">Último valor</dt><dd className="mt-1 font-semibold text-foreground">{i.ultimoValor !== null ? `${i.ultimoValor}${i.unidad ? ` ${i.unidad}` : ""}` : "Sin medición"}</dd></div>
+                <div><dt className="text-muted-foreground">Meta</dt><dd className="mt-1 font-medium text-foreground">{metaTexto(i)}</dd></div>
+                <div><dt className="text-muted-foreground">Periodicidad</dt><dd className="mt-1 text-foreground">{i.periodicidad}</dd></div>
+                <div><dt className="text-muted-foreground">Mediciones</dt><dd className="mt-1 text-foreground">{i.cantidadMediciones}</dd></div>
+              </dl>
+              <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
+                <Link href={`/indicadores/${i.id}`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground"><Gauge className="h-4 w-4" aria-hidden="true" />Ver y medir</Link>
+                <button type="button" onClick={() => abrir(i)} className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-border" aria-label={`Editar ${i.codigo}`}><Pencil className="h-4 w-4" /></button>
+                <button type="button" onClick={() => quitar(i.id)} disabled={eliminando === i.id} className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-destructive/30 text-destructive disabled:opacity-50" aria-label={`Eliminar ${i.codigo}`}>{eliminando === i.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</button>
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className="hidden overflow-hidden rounded-lg border border-border sm:block">
           <table className="w-full text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
               <tr className="border-b border-border bg-muted/40 text-left">
                 <th className="px-4 py-2.5 font-medium text-muted-foreground">Código</th>
                 <th className="px-4 py-2.5 font-medium text-muted-foreground">Indicador</th>
@@ -121,6 +146,7 @@ export function GestionIndicadores({ indicadores, procesos, puestos }: {
             </tbody>
           </table>
         </div>
+        </>
       ) : indicadores.length > 0 ? (
         <div className="rounded-lg border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
           Ningún indicador coincide con “{filtro}”.
