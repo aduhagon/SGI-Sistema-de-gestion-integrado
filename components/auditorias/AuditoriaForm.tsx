@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { Loader2, Save, Check, ArrowLeft, ArrowRight } from "lucide-react";
 import type { NormaParaAlcance, ProcesoParaAlcance } from "@/lib/api/auditorias";
@@ -55,6 +55,9 @@ export function AuditoriaForm({ normas, procesos }: Props) {
   const [normasSel, setNormasSel] = useState<Set<string>>(new Set());
   const [procesosSel, setProcesosSel] = useState<Set<string>>(new Set());
   const [errorPaso, setErrorPaso] = useState<string | null>(null);
+  const [entidad, setEntidad] = useState("");
+  const [hayCambios, setHayCambios] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   const esExterna = TIPOS_EXTERNOS.includes(tipo);
 
@@ -64,6 +67,17 @@ export function AuditoriaForm({ normas, procesos }: Props) {
   }, {});
 
   const totalAlcance = normasSel.size + procesosSel.size;
+
+  useEffect(() => {
+    if (!hayCambios || enviando) return;
+    const advertir = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", advertir);
+    return () => window.removeEventListener("beforeunload", advertir);
+  }, [hayCambios, enviando]);
+
+  useEffect(() => {
+    if (estado && !estado.ok) { setEnviando(false); setHayCambios(true); }
+  }, [estado]);
 
   function toggle(set: Set<string>, setter: (s: Set<string>) => void, id: string) {
     const next = new Set(set);
@@ -75,6 +89,7 @@ export function AuditoriaForm({ normas, procesos }: Props) {
     if (n === 0) {
       if (!titulo.trim()) return "El título es obligatorio.";
       if (!fecha) return "La fecha planificada es obligatoria.";
+      if (esExterna && !entidad.trim()) return "La entidad certificadora es obligatoria para este tipo de auditoría.";
     }
     return null;
   }
@@ -97,7 +112,10 @@ export function AuditoriaForm({ normas, procesos }: Props) {
       e.preventDefault();
       setPaso(1);
       setErrorPaso("Marcá al menos una norma o un proceso.");
+      return;
     }
+    setHayCambios(false);
+    setEnviando(true);
   }
   const enUltimo = paso === PASOS.length - 1;
 
@@ -128,10 +146,10 @@ export function AuditoriaForm({ normas, procesos }: Props) {
         })}
       </div>
 
-      <form action={formAction} onSubmit={onSubmitGuard}>
+      <form action={formAction} onSubmit={onSubmitGuard} onChange={() => setHayCambios(true)}>
         <div hidden={paso !== 0} className="space-y-5">
           <div className="space-y-2">
-            <label htmlFor="titulo" className="text-sm font-medium">Título</label>
+            <label htmlFor="titulo" className="text-sm font-medium">Título <span className="text-destructive">*</span></label>
             <input
               id="titulo" name="titulo" required value={titulo} onChange={(e) => setTitulo(e.target.value)}
               placeholder="Ej: Auditoría interna anual del SGI 2026" className={INPUT}
@@ -146,7 +164,7 @@ export function AuditoriaForm({ normas, procesos }: Props) {
               </select>
             </div>
             <div className="space-y-2">
-              <label htmlFor="fechaPlanificada" className="text-sm font-medium">Fecha planificada</label>
+              <label htmlFor="fechaPlanificada" className="text-sm font-medium">Fecha planificada <span className="text-destructive">*</span></label>
               <input
                 id="fechaPlanificada" name="fechaPlanificada" type="date" required
                 value={fecha} onChange={(e) => setFecha(e.target.value)} className={INPUT}
@@ -156,8 +174,8 @@ export function AuditoriaForm({ normas, procesos }: Props) {
 
           {esExterna && (
             <div className="space-y-2">
-              <label htmlFor="entidadCertificadora" className="text-sm font-medium">Entidad certificadora</label>
-              <input id="entidadCertificadora" name="entidadCertificadora" placeholder="Ej: Bureau Veritas, SGS, TÜV…" className={INPUT} />
+              <label htmlFor="entidadCertificadora" className="text-sm font-medium">Entidad certificadora <span className="text-destructive">*</span></label>
+              <input id="entidadCertificadora" name="entidadCertificadora" value={entidad} onChange={(e) => setEntidad(e.target.value)} required placeholder="Ej: Bureau Veritas, SGS, TÜV…" className={INPUT} />
               <p className="text-xs text-muted-foreground">
                 Obligatoria para auditorías externas, de certificación, vigilancia o recertificación.
               </p>
@@ -226,6 +244,15 @@ export function AuditoriaForm({ normas, procesos }: Props) {
           <p className="text-xs text-muted-foreground">
             Alcance total: {totalAlcance} ítem{totalAlcance !== 1 ? "s" : ""} ({normasSel.size} norma{normasSel.size !== 1 ? "s" : ""}, {procesosSel.size} proceso{procesosSel.size !== 1 ? "s" : ""}).
           </p>
+          <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Resumen antes de crear</p>
+            <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div><dt className="text-xs text-muted-foreground">Auditoría</dt><dd className="font-medium">{titulo || "Sin título"}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Fecha</dt><dd className="font-medium">{fecha ? new Date(`${fecha}T00:00:00`).toLocaleDateString("es-AR") : "Sin fecha"}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Tipo</dt><dd>{TIPOS.find((item) => item.value === tipo)?.label}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Alcance</dt><dd>{normasSel.size} norma(s) · {procesosSel.size} proceso(s)</dd></div>
+            </dl>
+          </div>
         </div>
 
         {errorPaso && (
@@ -235,7 +262,7 @@ export function AuditoriaForm({ normas, procesos }: Props) {
           <div role="alert" className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{estado.error}</div>
         )}
 
-        <div className="mt-6 flex items-center gap-3 border-t border-border pt-4">
+        <div className="sticky bottom-0 z-20 -mx-4 mt-6 flex items-center gap-3 border-t border-border bg-background/95 px-4 py-4 shadow-[0_-8px_20px_-18px_rgba(0,0,0,0.45)] backdrop-blur sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pt-4 sm:shadow-none">
           {paso > 0 ? (
             <Button type="button" variant="outline" onClick={retroceder}><ArrowLeft className="h-4 w-4" />Atrás</Button>
           ) : (

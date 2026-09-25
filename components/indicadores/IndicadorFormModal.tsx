@@ -51,48 +51,62 @@ export function IndicadorFormModal({
 }) {
   const [estado, formAction] = useFormState<EstadoIndicador, FormData>(guardarIndicador, null);
   const [sentido, setSentido] = useState(editando?.sentido ?? "mayor_mejor");
+  const [hayCambios, setHayCambios] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   // Sincronizar el sentido cuando cambia el indicador en edición (al reabrir).
   useEffect(() => {
-    if (abierto) setSentido(editando?.sentido ?? "mayor_mejor");
+    if (abierto) { setSentido(editando?.sentido ?? "mayor_mejor"); setHayCambios(false); setEnviando(false); }
   }, [abierto, editando]);
 
   useEffect(() => {
     if (estado?.ok) {
+      setEnviando(false);
+      setHayCambios(false);
       onSaved?.();
       onClose();
+    } else if (estado && !estado.ok) {
+      setEnviando(false);
+      setHayCambios(true);
     }
   }, [estado, onClose, onSaved]);
 
+  function cerrar() {
+    if (enviando) return;
+    if (hayCambios && !window.confirm("Hay cambios sin guardar. ¿Querés cerrar y descartarlos?")) return;
+    setHayCambios(false);
+    onClose();
+  }
+
   return (
-    <ModalShell abierto={abierto} onClose={onClose} maxWidth="max-w-2xl">
+    <ModalShell abierto={abierto} onClose={cerrar} maxWidth="max-w-2xl">
       <ModalHeader>
         <h2 className="font-serif text-2xl font-semibold tracking-tight">
           {editando ? "Editar indicador" : "Nuevo indicador"}
         </h2>
       </ModalHeader>
-      <form action={formAction} className={MODAL_FORM_CLASS}>
+      <form action={formAction} onChange={() => setHayCambios(true)} onSubmit={() => { setHayCambios(false); setEnviando(true); }} className={MODAL_FORM_CLASS}>
         <ModalBody className="space-y-4">
           {editando && <input type="hidden" name="id" value={editando.id} />}
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="space-y-2">
-              <label htmlFor="codigo" className="text-sm font-medium">Código</label>
+              <label htmlFor="codigo" className="text-sm font-medium">Código <span className="text-destructive">*</span></label>
               <input
                 id="codigo" name="codigo" required defaultValue={editando?.codigo ?? ""} placeholder="KPI-PROD-01"
                 onInput={(e) => { const el = e.currentTarget; el.value = el.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""); }}
                 className={INPUT + " font-mono"}
               />
             </div>
-            <div className="col-span-2 space-y-2">
-              <label htmlFor="nombre" className="text-sm font-medium">Nombre</label>
+            <div className="space-y-2 sm:col-span-2">
+              <label htmlFor="nombre" className="text-sm font-medium">Nombre <span className="text-destructive">*</span></label>
               <input id="nombre" name="nombre" required defaultValue={editando?.nombre ?? ""} className={INPUT} />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
-              <label htmlFor="procesoId" className="text-sm font-medium">Proceso</label>
+              <label htmlFor="procesoId" className="text-sm font-medium">Proceso <span className="text-destructive">*</span></label>
               <select id="procesoId" name="procesoId" required defaultValue={editando?.procesoId ?? ""} className={INPUT}>
                 <option value="">Elegí un proceso…</option>
                 {procesos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
@@ -109,7 +123,7 @@ export function IndicadorFormModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <label htmlFor="descripcion" className="text-sm font-medium">Descripción <span className="text-muted-foreground">(opc.)</span></label>
               <textarea id="descripcion" name="descripcion" rows={2} defaultValue={editando?.descripcion ?? ""} className={INPUT} />
@@ -122,12 +136,12 @@ export function IndicadorFormModal({
 
           <div className="rounded-md border border-border bg-muted/20 p-4 space-y-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Meta y evaluación</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-2">
                 <label htmlFor="unidad" className="text-sm font-medium">Unidad</label>
                 <input id="unidad" name="unidad" defaultValue={editando?.unidad ?? ""} placeholder="%, kg, días…" className={INPUT} />
               </div>
-              <div className="col-span-2 space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <label htmlFor="sentido" className="text-sm font-medium">Sentido</label>
                 <select id="sentido" name="sentido" value={sentido} onChange={(e) => setSentido(e.target.value)} className={INPUT}>
                   <option value="mayor_mejor">Mayor es mejor (ej: % cumplimiento)</option>
@@ -155,6 +169,8 @@ export function IndicadorFormModal({
             )}
           </div>
 
+          {editando ? <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">Si cambiás la meta o el sentido, las mediciones históricas se conservan pero su estado de cumplimiento se recalculará con el nuevo criterio.</p> : null}
+
           <div className="space-y-2 pb-3">
             <label htmlFor="periodicidad" className="text-sm font-medium">Periodicidad de medición</label>
             <select id="periodicidad" name="periodicidad" defaultValue={editando?.periodicidad ?? "mensual"} className={INPUT}>
@@ -165,7 +181,7 @@ export function IndicadorFormModal({
         <ModalFooter>
           <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
           <div className="flex gap-3">
-            <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
+            <Button type="button" variant="outline" onClick={cerrar} disabled={enviando} className="flex-1">Cancelar</Button>
             <SubmitButton edicion={!!editando} />
           </div>
         </ModalFooter>

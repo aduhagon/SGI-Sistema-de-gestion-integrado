@@ -83,19 +83,46 @@ export function GestionMediciones({ indicadorId, mediciones, meta, unidad }: {
   const [abierto, setAbierto] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
   const [estado, formAction] = useFormState<EstadoMedicion, FormData>(registrarMedicion, null);
+  const hoy = new Date().toISOString().slice(0, 10);
+  const [periodo, setPeriodo] = useState(hoy);
+  const [valor, setValor] = useState("");
+  const [comentario, setComentario] = useState("");
+  const [hayCambios, setHayCambios] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [errorLocal, setErrorLocal] = useState<string | null>(null);
 
   useEffect(() => {
-    if (estado?.ok) { setAbierto(false); router.refresh(); }
+    if (estado?.ok) { setEnviando(false); setHayCambios(false); setAbierto(false); setValor(""); setComentario(""); router.refresh(); }
+    else if (estado && !estado.ok) { setEnviando(false); setHayCambios(true); }
   }, [estado, router]);
 
   async function quitar(id: string) {
+    if (!window.confirm("¿Eliminar esta medición? El historial del indicador se actualizará.")) return;
     setEliminando(id);
     const r = await eliminarMedicion(id, indicadorId);
     setEliminando(null);
     if (r?.ok) router.refresh();
   }
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  function cerrarMedicion() {
+    if (enviando) return;
+    if (hayCambios && !window.confirm("Hay datos sin guardar. ¿Querés cerrar y descartarlos?")) return;
+    setHayCambios(false); setErrorLocal(null); setValor(""); setComentario(""); setPeriodo(hoy); setAbierto(false);
+  }
+
+  function validarEnvio(event: React.FormEvent<HTMLFormElement>) {
+    if (mediciones.some((medicion) => medicion.periodo === periodo)) {
+      event.preventDefault();
+      setErrorLocal("Ya existe una medición para este período. Elegí otro período.");
+      return;
+    }
+    if (valor.trim() === "") {
+      event.preventDefault();
+      setErrorLocal("Ingresá el valor medido.");
+      return;
+    }
+    setErrorLocal(null); setHayCambios(false); setEnviando(true);
+  }
 
   return (
     <div className="space-y-5">
@@ -144,32 +171,33 @@ export function GestionMediciones({ indicadorId, mediciones, meta, unidad }: {
         </div>
       )}
 
-      <ModalShell abierto={abierto} onClose={() => setAbierto(false)} maxWidth="max-w-md">
+      <ModalShell abierto={abierto} onClose={cerrarMedicion} maxWidth="max-w-md">
         <ModalHeader>
           <h2 className="font-serif text-2xl font-semibold tracking-tight">Registrar medición</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Meta: <strong className="text-foreground">{meta !== null ? `${meta}${unidad ? ` ${unidad}` : ""}` : "sin meta definida"}</strong>{mediciones[0] ? <> · Último valor: <strong className="text-foreground">{mediciones[0].valor}{unidad ? ` ${unidad}` : ""}</strong></> : null}</p>
         </ModalHeader>
-        <form action={formAction} className={MODAL_FORM_CLASS}>
+        <form action={formAction} onSubmit={validarEnvio} onChange={() => setHayCambios(true)} className={MODAL_FORM_CLASS}>
           <ModalBody className="space-y-4">
             <input type="hidden" name="indicadorId" value={indicadorId} />
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <label htmlFor="periodo" className="text-sm font-medium">Período</label>
-                <input id="periodo" name="periodo" type="date" required defaultValue={hoy} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                <label htmlFor="periodo" className="text-sm font-medium">Período <span className="text-destructive">*</span></label>
+                <input id="periodo" name="periodo" type="date" required value={periodo} onChange={(e) => setPeriodo(e.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
               </div>
               <div className="space-y-2">
-                <label htmlFor="valor" className="text-sm font-medium">Valor {unidad ? <span className="text-muted-foreground">({unidad})</span> : null}</label>
-                <input id="valor" name="valor" type="number" step="any" required className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+                <label htmlFor="valor" className="text-sm font-medium">Valor <span className="text-destructive">*</span> {unidad ? <span className="text-muted-foreground">({unidad})</span> : null}</label>
+                <input id="valor" name="valor" type="number" step="any" required value={valor} onChange={(e) => setValor(e.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
               </div>
             </div>
             <div className="space-y-2 pb-3">
               <label htmlFor="comentario" className="text-sm font-medium">Comentario <span className="text-muted-foreground">(opcional)</span></label>
-              <textarea id="comentario" name="comentario" rows={2} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+              <textarea id="comentario" name="comentario" rows={2} value={comentario} onChange={(e) => setComentario(e.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
             </div>
           </ModalBody>
           <ModalFooter>
-            <ModalError mensaje={estado && !estado.ok ? estado.error : null} />
+            <ModalError mensaje={errorLocal ?? (estado && !estado.ok ? estado.error : null)} />
             <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={() => setAbierto(false)} className="flex-1">Cancelar</Button>
+              <Button type="button" variant="outline" onClick={cerrarMedicion} disabled={enviando} className="flex-1">Cancelar</Button>
               <div className="flex-1"><SubmitButton /></div>
             </div>
           </ModalFooter>
