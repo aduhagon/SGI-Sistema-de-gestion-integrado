@@ -18,7 +18,7 @@ export function PlanTratamiento({ nc, usuarios, verificadores, puedeGestionar }:
   const router = useRouter();
   useEffect(() => { if (estado?.ok) { setAbierto(false); router.refresh(); } }, [estado, router]);
   const nombre = (id: string | null) => usuarios.find((u) => u.id === id)?.nombre ?? "Sin asignar";
-  return <section className="mb-8 border-y border-border py-5">
+  return <section id="tratamiento" className="mb-8 scroll-mt-24 border-y border-border py-5">
     <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-sm font-semibold">Plan de tratamiento</h2>{puedeGestionar && <Button size="sm" variant="outline" onClick={() => setAbierto(true)}><Pencil className="h-4 w-4" />Editar plan</Button>}</div>
     <dl className="grid gap-4 text-sm sm:grid-cols-2">
       <div><dt className="text-muted-foreground">Responsable</dt><dd>{nombre(nc.responsableId)}</dd></div>

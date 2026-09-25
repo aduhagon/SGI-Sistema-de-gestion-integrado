@@ -18,12 +18,14 @@ export function TrazabilidadProceso({
   requisitos,
   riesgos,
   ncs,
+  puedeGestionar = false,
 }: {
   procesoId: string;
   controles: Control[];
   requisitos: RequisitoAplicable[];
   riesgos: Riesgo[];
   ncs: NCLista[];
+  puedeGestionar?: boolean;
 }) {
   const riesgosCubiertos = new Set(controles.flatMap((control) => control.riesgos.map((riesgo) => riesgo.id)));
   const requisitosCubiertos = new Set(controles.flatMap((control) => control.requisitos.map((requisito) => requisito.id)));
@@ -38,10 +40,12 @@ export function TrazabilidadProceso({
         <div>
           <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">Trazabilidad del proceso</h2>
         </div>
-        <Link href={`/controles?proceso=${procesoId}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
-          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-          Gestionar controles
-        </Link>
+        {puedeGestionar && (
+          <Link href={`/controles?proceso=${procesoId}`} className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            Gestionar controles
+          </Link>
+        )}
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-4">

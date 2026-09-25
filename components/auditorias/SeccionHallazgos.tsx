@@ -65,7 +65,7 @@ export function SeccionHallazgos({
   const [abierto, setAbierto] = useState(false);
 
   return (
-    <section>
+    <section id="hallazgo" className="scroll-mt-24">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Hallazgos {hallazgos.length > 0 && `(${hallazgos.length})`}
@@ -84,7 +84,7 @@ export function SeccionHallazgos({
             const meta = TIPO_META[h.tipo] ?? TIPO_META.observacion;
             const Icon = meta.icon;
             return (
-              <div key={h.id} className="rounded-lg border border-border bg-card p-4">
+              <div id={`hallazgo-${h.id}`} key={h.id} className="scroll-mt-24 rounded-lg border border-border bg-card p-4">
                 <div className="flex items-start gap-3">
                   <div
                     className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md"

@@ -66,6 +66,28 @@ const ORDEN_MODULO = [
   "documentos",
 ];
 
+const SECCION_POR_MODULO: Record<string, string> = {
+  no_conformidades: "descripcion",
+  tratamiento: "tratamiento",
+  acciones: "acciones",
+  verificaciones: "eficacia",
+  cierres: "cierre",
+};
+
+function destinoAccion(modulo: string, url: string, entidadId: string): string {
+  if (modulo === "aprobaciones") return `/aprobaciones?resolver=${entidadId}`;
+  if (modulo === "acuses") return `/acuses?firmar=${entidadId}`;
+  if (modulo === "hallazgos" && url.startsWith("/auditorias/")) {
+    return `${url.split("#")[0]}#hallazgo-${entidadId}`;
+  }
+  if (modulo === "auditorias" && url.startsWith("/auditorias/")) {
+    return `${url.split("#")[0]}#acciones-auditoria`;
+  }
+  const seccion = SECCION_POR_MODULO[modulo];
+  if (!seccion || !url.startsWith("/ncs/")) return url;
+  return `${url.split("#")[0]}#${seccion}`;
+}
+
 /**
  * Devuelve los pendientes del usuario actual, agrupados por módulo.
  * La función fn_pendientes_usuario ya calcula el nivel de escalamiento
@@ -113,7 +135,7 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
       fechaLimite: f.fecha_limite,
       diasRestantes: f.dias_restantes,
       nivel: f.nivel as NivelPendiente,
-      urlDestino: f.url_destino,
+      urlDestino: destinoAccion(f.modulo, f.url_destino, f.entidad_id),
     }));
 
   items.push(...(await obtenerPendientesControles(supabase, usuarioId, zona)));
@@ -151,7 +173,7 @@ async function obtenerPendientesRequisitosLegales(zona: string): Promise<Pendien
       fechaLimite: null,
       diasRestantes: null,
       nivel: criticos > 0 ? "advertencia" : "recordatorio",
-      urlDestino: "/requisitos-legales",
+      urlDestino: "/requisitos-legales?estado=sin-evaluar",
     });
   }
 
@@ -167,7 +189,7 @@ async function obtenerPendientesRequisitosLegales(zona: string): Promise<Pendien
       fechaLimite: requisito.proximaEvaluacion,
       diasRestantes,
       nivel: diasRestantes < 0 ? "vencido" : diasRestantes === 0 ? "vencido_hoy" : diasRestantes <= 7 ? "advertencia" : "recordatorio",
-      urlDestino: `/requisitos-legales?requisito=${requisito.id}`,
+      urlDestino: `/requisitos-legales?evaluar=${requisito.id}`,
     });
   }
   return pendientes;

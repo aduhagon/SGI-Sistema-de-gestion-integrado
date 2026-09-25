@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Clock, FileText, ArrowRight, Hourglass, FileSearch } from "lucide-react";
 import type { AprobacionPendiente } from "@/lib/api/aprobaciones";
@@ -11,9 +11,10 @@ type Props = {
   aprobacion: AprobacionPendiente;
   // si es false, la tarjeta es solo informativa (en espera de N1)
   accionable: boolean;
+  autoAbrir?: boolean;
 };
 
-export function AprobacionCard({ aprobacion, accionable }: Props) {
+export function AprobacionCard({ aprobacion, accionable, autoAbrir = false }: Props) {
   const [dialogAbierto, setDialogAbierto] = useState(false);
   const [decisionInicial, setDecisionInicial] = useState<
     "aprobado" | "rechazado" | null
@@ -24,12 +25,18 @@ export function AprobacionCard({ aprobacion, accionable }: Props) {
     setDialogAbierto(true);
   }
 
+  useEffect(() => {
+    if (accionable && autoAbrir) abrir(null);
+    // Solo se abre automáticamente al ingresar desde el pendiente.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const vencido =
     aprobacion.plazoObjetivo && new Date(aprobacion.plazoObjetivo) < new Date();
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-card p-5 transition-shadow hover:shadow-sm">
+      <div id={`aprobacion-${aprobacion.aprobacionId}`} className="scroll-mt-24 rounded-lg border border-border bg-card p-5 transition-shadow hover:shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">

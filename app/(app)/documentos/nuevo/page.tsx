@@ -3,7 +3,7 @@ import { ChevronLeft } from "lucide-react";
 import { obtenerDatosForm } from "@/lib/api/documentos";
 import { DocumentForm } from "@/components/documentos/DocumentForm";
 
-export default async function NuevoDocumentoPage() {
+export default async function NuevoDocumentoPage({ searchParams }: { searchParams?: { proceso?: string } }) {
   const { tipos, procesos, normas, paises } = await obtenerDatosForm();
 
   return (
@@ -30,7 +30,7 @@ export default async function NuevoDocumentoPage() {
         </p>
       </header>
 
-      <DocumentForm tipos={tipos} procesos={procesos} normas={normas} paises={paises} />
+      <DocumentForm tipos={tipos} procesos={procesos} normas={normas} paises={paises} procesoInicial={searchParams?.proceso} />
     </div>
   );
 }

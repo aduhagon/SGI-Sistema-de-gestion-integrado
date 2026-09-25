@@ -92,8 +92,7 @@ export function GestionControles({
     if (!controlId) return;
     const control = controles.find((item) => item.id === controlId);
     if (control) {
-      setEditando(control);
-      setFormAbierto(true);
+      setEjecutando(control);
       router.replace("/controles", { scroll: false });
     }
   }, [controles, router, searchParams]);

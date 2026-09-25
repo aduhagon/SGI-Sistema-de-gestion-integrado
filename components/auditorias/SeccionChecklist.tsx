@@ -84,7 +84,7 @@ export function SeccionChecklist({
   const completados = items.filter((i) => i.resultado !== "pendiente").length;
 
   return (
-    <section className="mb-8">
+    <section id="checklist-auditoria" className="mb-8 scroll-mt-24">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
           <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />

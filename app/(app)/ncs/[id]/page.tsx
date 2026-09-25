@@ -119,7 +119,7 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
         </>}
       </section>}
 
-      <section className="mb-8">
+      <section id="descripcion" className="mb-8 scroll-mt-24">
         <h2 className="mb-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">Descripción</h2>
         <p className="text-sm leading-relaxed text-foreground">{nc.descripcion}</p>
       </section>
@@ -164,7 +164,7 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
         revisionTratamiento={nc.revisionTratamiento}
       />
 
-      {permisos.puedeGestionar && <div className="mt-8 flex flex-col items-start gap-3 border-t border-border pt-5">
+      {permisos.puedeGestionar && <div id="cierre" className="mt-8 flex scroll-mt-24 flex-col items-start gap-3 border-t border-border pt-5">
         {permisos.bloqueoCierre ? <p className="text-sm text-amber-700">{permisos.bloqueoCierre}</p> : <BotonCerrar entidadId={nc.id} accionCerrar={cerrarNC} etiqueta="NC" campoLabel="Motivo de cierre" placeholder="Conclusión del tratamiento" notaValidacion="Eficacia verificada para el tratamiento vigente." />}
       </div>}
 

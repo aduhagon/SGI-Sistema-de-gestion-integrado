@@ -75,7 +75,7 @@ export function GestionAcciones({ ncId, acciones, usuarios, puedeGestionar, usua
   }
 
   return (
-    <section>
+    <section id="acciones" className="scroll-mt-24">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Acciones {acciones.length > 0 && `(${acciones.length})`}

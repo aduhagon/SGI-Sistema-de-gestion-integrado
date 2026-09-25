@@ -51,7 +51,7 @@ export function VerificacionEficaciaSection({ ncId, verificaciones, acciones, pu
   const accionesCompletadas = acciones.filter((a) => a.estado === "completada");
 
   return (
-    <section>
+    <section id="eficacia" className="scroll-mt-24">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
           <ShieldCheck className="h-3.5 w-3.5" />Verificación de eficacia

@@ -155,6 +155,7 @@ export function ControlFormModal({
   const [requisitoIds, setRequisitoIds] = useState(control?.requisitos.map((item) => item.id) ?? []);
   const [documentoIds, setDocumentoIds] = useState(control?.documentos.map((item) => item.id) ?? []);
   const [indicadorIds, setIndicadorIds] = useState(control?.indicadores.map((item) => item.id) ?? []);
+  const [hayCambios, setHayCambios] = useState(false);
 
   const riesgosProceso = opciones.riesgos.filter((riesgo) => riesgo.procesoId === procesoId);
   const indicadoresProceso = opciones.indicadores.filter((indicador) => indicador.procesoId === procesoId);
@@ -166,6 +167,7 @@ export function ControlFormModal({
 
   useEffect(() => {
     if (estado?.ok) {
+      setHayCambios(false);
       onSaved();
       onClose();
     }
@@ -177,6 +179,20 @@ export function ControlFormModal({
     // Solo se ejecuta al cambiar de proceso para limpiar vinculos incoherentes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [procesoId]);
+
+  useEffect(() => {
+    function advertir(evento: BeforeUnloadEvent) {
+      if (!hayCambios) return;
+      evento.preventDefault();
+    }
+    window.addEventListener("beforeunload", advertir);
+    return () => window.removeEventListener("beforeunload", advertir);
+  }, [hayCambios]);
+
+  function intentarCerrar() {
+    if (hayCambios && !window.confirm("Hay cambios sin guardar. ¿Querés cerrar y descartarlos?")) return;
+    onClose();
+  }
 
   function validar(actual: number): string | null {
     if (actual === 0) {
@@ -217,7 +233,7 @@ export function ControlFormModal({
   }
 
   return (
-    <ModalShell abierto onClose={onClose} maxWidth="max-w-3xl">
+    <ModalShell abierto onClose={intentarCerrar} maxWidth="max-w-3xl">
       <ModalHeader>
         <h2 className="font-serif text-2xl font-semibold tracking-tight">
           {control ? "Editar control" : "Nuevo control"}
@@ -251,7 +267,7 @@ export function ControlFormModal({
         </div>
       </ModalHeader>
 
-      <form action={formAction} onSubmit={validarEnvio} className={MODAL_FORM_CLASS}>
+      <form action={formAction} onSubmit={validarEnvio} onChangeCapture={() => setHayCambios(true)} className={MODAL_FORM_CLASS}>
         <ModalBody className="space-y-4 pb-3">
           {control && <input type="hidden" name="id" value={control.id} />}
           <input type="hidden" name="riesgoIds" value={JSON.stringify(riesgoIds)} />
@@ -262,7 +278,7 @@ export function ControlFormModal({
           <div hidden={paso !== 0} className="space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-2">
-                <label htmlFor="codigo" className="text-sm font-medium">Código</label>
+                <label htmlFor="codigo" className="text-sm font-medium">Código <span className="text-destructive" aria-hidden="true">*</span></label>
                 <input
                   id="codigo"
                   name="codigo"
@@ -274,12 +290,12 @@ export function ControlFormModal({
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <label htmlFor="nombre" className="text-sm font-medium">Nombre</label>
+                <label htmlFor="nombre" className="text-sm font-medium">Nombre <span className="text-destructive" aria-hidden="true">*</span></label>
                 <input id="nombre" name="nombre" value={nombre} onChange={(evento) => setNombre(evento.target.value)} className={INPUT} required />
               </div>
             </div>
             <div className="space-y-2">
-              <label htmlFor="procesoId" className="text-sm font-medium">Proceso</label>
+              <label htmlFor="procesoId" className="text-sm font-medium">Proceso <span className="text-destructive" aria-hidden="true">*</span></label>
               <select id="procesoId" name="procesoId" value={procesoId} onChange={(evento) => setProcesoId(evento.target.value)} className={INPUT} required>
                 <option value="">Elegí un proceso…</option>
                 {opciones.procesos.map((proceso) => <option key={proceso.id} value={proceso.id}>{proceso.codigo} - {proceso.nombre}</option>)}
@@ -327,13 +343,13 @@ export function ControlFormModal({
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-2">
-                <label htmlFor="periodicidad" className="text-sm font-medium">Frecuencia</label>
+              <label htmlFor="periodicidad" className="text-sm font-medium">Frecuencia <span className="text-destructive" aria-hidden="true">*</span></label>
                 <select id="periodicidad" name="periodicidad" value={periodicidad} onChange={(evento) => setPeriodicidad(evento.target.value)} className={INPUT}>
                   {periodicidadesControl.map((valor) => <option key={valor} value={valor}>{PERIODICIDAD_LABEL[valor]}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <label htmlFor="proximaEjecucion" className="text-sm font-medium">Próxima ejecución</label>
+                <label htmlFor="proximaEjecucion" className="text-sm font-medium">Próxima ejecución {periodicidad !== "ad_hoc" && <span className="text-destructive" aria-hidden="true">*</span>}</label>
                 <input id="proximaEjecucion" name="proximaEjecucion" type="date" disabled={periodicidad === "ad_hoc"} defaultValue={control?.proximaEjecucion ?? ""} className={INPUT} />
               </div>
               <div className="space-y-2">
@@ -372,7 +388,7 @@ export function ControlFormModal({
             {paso > 0 ? (
               <Button type="button" variant="outline" onClick={() => { setPaso((actual) => actual - 1); setErrorPaso(null); }}><ArrowLeft className="h-4 w-4" />Atrás</Button>
             ) : (
-              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={intentarCerrar}>Cancelar</Button>
             )}
             <div className="flex-1" />
             {paso === PASOS.length - 1 ? <SubmitButton edicion={Boolean(control)} /> : <Button type="button" onClick={avanzar}>Siguiente<ArrowRight className="h-4 w-4" /></Button>}

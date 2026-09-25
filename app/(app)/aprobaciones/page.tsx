@@ -30,7 +30,7 @@ const TITULO: Record<Vista, string> = {
 export default async function AprobacionesPage({
   searchParams,
 }: {
-  searchParams: { vista?: string };
+  searchParams: { vista?: string; resolver?: string };
 }) {
   const [usuarioId, perfil] = await Promise.all([
     obtenerUsuarioActualId(),
@@ -86,7 +86,7 @@ export default async function AprobacionesPage({
       )}
       {vista === "proceso" && <AprobacionesPorProceso grupos={porProceso} />}
       {vista === "usuario" && <AprobacionesPorUsuario usuarios={porUsuario} />}
-      {vista === "mias" && <MisPendientes paraDecidir={paraDecidir} enEsperaN1={enEsperaN1} />}
+      {vista === "mias" && <MisPendientes paraDecidir={paraDecidir} enEsperaN1={enEsperaN1} resolverId={searchParams?.resolver} />}
     </div>
   );
 }
@@ -94,9 +94,11 @@ export default async function AprobacionesPage({
 function MisPendientes({
   paraDecidir,
   enEsperaN1,
+  resolverId,
 }: {
   paraDecidir: Awaited<ReturnType<typeof obtenerBandejaAprobaciones>>["paraDecidir"];
   enEsperaN1: Awaited<ReturnType<typeof obtenerBandejaAprobaciones>>["enEsperaN1"];
+  resolverId?: string;
 }) {
   return (
     <>
@@ -113,7 +115,7 @@ function MisPendientes({
         {paraDecidir.length > 0 ? (
           <div className="space-y-3">
             {paraDecidir.map((a) => (
-              <AprobacionCard key={a.aprobacionId} aprobacion={a} accionable />
+              <AprobacionCard key={a.aprobacionId} aprobacion={a} accionable autoAbrir={a.aprobacionId === resolverId} />
             ))}
           </div>
         ) : (

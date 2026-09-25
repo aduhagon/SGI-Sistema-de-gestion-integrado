@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Clock, FileText, PenLine, CheckCircle2 } from "lucide-react";
 import type { AcusePendiente, AcuseCompletado } from "@/lib/api/acuses";
@@ -8,18 +8,22 @@ import { Button } from "@/components/ui/button";
 import { FirmaDialog } from "./FirmaDialog";
 
 type Props =
-  | { acuse: AcusePendiente; completado?: false }
-  | { acuse: AcuseCompletado; completado: true };
+  | { acuse: AcusePendiente; completado?: false; autoAbrir?: boolean }
+  | { acuse: AcuseCompletado; completado: true; autoAbrir?: false };
 
-export function AcuseCard({ acuse, completado }: Props) {
+export function AcuseCard({ acuse, completado, autoAbrir = false }: Props) {
   const [abierto, setAbierto] = useState(false);
+
+  useEffect(() => {
+    if (!completado && autoAbrir) setAbierto(true);
+  }, [autoAbrir, completado]);
 
   const vencido =
     !completado && acuse.plazoObjetivo && new Date(acuse.plazoObjetivo) < new Date();
 
   return (
     <>
-      <div className="rounded-lg border border-border bg-card p-5 transition-shadow hover:shadow-sm">
+      <div id={`acuse-${acuse.acuseId}`} className="scroll-mt-24 rounded-lg border border-border bg-card p-5 transition-shadow hover:shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">

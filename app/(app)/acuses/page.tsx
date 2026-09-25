@@ -6,7 +6,7 @@ import { AcuseCard } from "@/components/acuses/AcuseCard";
 
 export const dynamic = "force-dynamic";
 
-export default async function AcusesPage() {
+export default async function AcusesPage({ searchParams }: { searchParams?: { firmar?: string } }) {
   const usuarioId = await obtenerUsuarioActualId();
 
   if (!usuarioId) {
@@ -62,7 +62,7 @@ export default async function AcusesPage() {
         {pendientes.length > 0 ? (
           <div className="space-y-3">
             {pendientes.map((a) => (
-              <AcuseCard key={a.acuseId} acuse={a} />
+              <AcuseCard key={a.acuseId} acuse={a} autoAbrir={a.acuseId === searchParams?.firmar} />
             ))}
           </div>
         ) : (

@@ -69,6 +69,7 @@ type Props = {
   procesos: Proceso[];
   normas: Norma[];
   paises: Pais[];
+  procesoInicial?: string;
 };
 
 const NIVEL_LABELS: Record<number, string> = {
@@ -86,7 +87,7 @@ const PASOS = [
 
 const TOTAL_PASOS = PASOS.length;
 
-export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
+export function DocumentForm({ tipos, procesos, normas, paises, procesoInicial = "" }: Props) {
   const [pending, startTransition] = useTransition();
   const [estado, setEstado] = useState<EstadoForm>(null);
   const [archivo, setArchivo] = useState<File | null>(null);
@@ -99,7 +100,9 @@ export function DocumentForm({ tipos, procesos, normas, paises }: Props) {
 
   const [paisCodigo, setPaisCodigo] = useState(paises[0]?.codigo ?? "A");
   const [tipoId, setTipoId] = useState<string>("");
-  const [procesoId, setProcesoId] = useState<string>("");
+  const [procesoId, setProcesoId] = useState<string>(
+    procesos.some((proceso) => proceso.id === procesoInicial) ? procesoInicial : "",
+  );
   const [padreId, setPadreId] = useState<string>("");
   const [codigo, setCodigo] = useState<string>("");
   const [codigoEditadoManualmente, setCodigoEditadoManualmente] = useState(false);

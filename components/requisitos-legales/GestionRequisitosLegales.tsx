@@ -95,6 +95,11 @@ export function GestionRequisitosLegales({
   const [filtroNorma, setFiltroNorma] = useState<string>(searchParams.get("norma") ?? "__todas__");
   const [vista, setVista] = useState<"lista" | "proceso">(searchParams.get("vista") === "proceso" ? "proceso" : "lista");
   const [busquedaListado, setBusquedaListado] = useState(searchParams.get("q") ?? "");
+  const [filtroEstado, setFiltroEstado] = useState<"todos" | "sin-evaluar">(
+    searchParams.get("estado") === "sin-evaluar" ? "sin-evaluar" : "todos",
+  );
+  const [hayCambiosForm, setHayCambiosForm] = useState(false);
+  const [hayCambiosEval, setHayCambiosEval] = useState(false);
 
   const [estadoForm, accionForm] = useFormState<EstadoReqLegal, FormData>(
     guardarRequisitoLegal,
@@ -108,6 +113,7 @@ export function GestionRequisitosLegales({
   // Cerrar diálogos al guardar con éxito.
   useEffect(() => {
     if (estadoForm?.ok) {
+      setHayCambiosForm(false);
       setAbierto(false);
       setEditando(null);
       setProcesosSel([]);
@@ -115,22 +121,50 @@ export function GestionRequisitosLegales({
     }
   }, [estadoForm]);
   useEffect(() => {
-    if (estadoEval?.ok) setEvaluando(null);
+    if (estadoEval?.ok) {
+      setHayCambiosEval(false);
+      setEvaluando(null);
+    }
   }, [estadoEval]);
 
   useEffect(() => {
-    const requisito = requisitos.find((item) => item.id === searchParams.get("requisito"));
-    if (requisito) abrirEdicion(requisito);
+    function advertir(evento: BeforeUnloadEvent) {
+      if (!hayCambiosForm && !hayCambiosEval) return;
+      evento.preventDefault();
+    }
+    window.addEventListener("beforeunload", advertir);
+    return () => window.removeEventListener("beforeunload", advertir);
+  }, [hayCambiosForm, hayCambiosEval]);
+
+  function cerrarFormulario() {
+    if (hayCambiosForm && !window.confirm("Hay cambios sin guardar. ¿Querés cerrar y descartarlos?")) return;
+    setHayCambiosForm(false);
+    setAbierto(false);
+  }
+
+  function cerrarEvaluacion() {
+    if (hayCambiosEval && !window.confirm("Hay cambios sin guardar. ¿Querés cerrar y descartarlos?")) return;
+    setHayCambiosEval(false);
+    setEvaluando(null);
+  }
+
+  useEffect(() => {
+    const requisitoEditar = requisitos.find((item) => item.id === searchParams.get("requisito"));
+    const requisitoEvaluar = requisitos.find((item) => item.id === searchParams.get("evaluar"));
+    if (requisitoEvaluar) setEvaluando(requisitoEvaluar);
+    else if (requisitoEditar) abrirEdicion(requisitoEditar);
     // El vínculo profundo se procesa solo al ingresar a la pantalla.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function actualizarUrl(cambios: { norma?: string; vista?: "lista" | "proceso"; q?: string }) {
+  function actualizarUrl(cambios: { norma?: string; vista?: "lista" | "proceso"; q?: string; estado?: "todos" | "sin-evaluar" }) {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("requisito");
+    params.delete("evaluar");
     if (cambios.norma !== undefined) cambios.norma === "__todas__" ? params.delete("norma") : params.set("norma", cambios.norma);
     if (cambios.vista !== undefined) cambios.vista === "lista" ? params.delete("vista") : params.set("vista", cambios.vista);
     if (cambios.q !== undefined) cambios.q.trim() ? params.set("q", cambios.q.trim()) : params.delete("q");
+    if (cambios.estado !== undefined) cambios.estado === "sin-evaluar" ? params.set("estado", "sin-evaluar") : params.delete("estado");
     router.replace(`/requisitos-legales${params.size ? `?${params.toString()}` : ""}`, { scroll: false });
   }
 
@@ -140,6 +174,7 @@ export function GestionRequisitosLegales({
     setBusquedaNorma("");
     setProcesosSel([]);
     setNormasSel([]);
+    setHayCambiosForm(false);
     setAbierto(true);
   }
   function abrirEdicion(r: RequisitoLegal) {
@@ -148,16 +183,19 @@ export function GestionRequisitosLegales({
     setBusquedaNorma("");
     setProcesosSel(r.procesos.map((p) => p.id));
     setNormasSel(r.normas.map((n) => n.id));
+    setHayCambiosForm(false);
     setAbierto(true);
   }
 
   function toggleProceso(id: string) {
+    setHayCambiosForm(true);
     setProcesosSel((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
     );
   }
 
   function toggleNorma(id: string) {
+    setHayCambiosForm(true);
     setNormasSel((prev) =>
       prev.includes(id) ? prev.filter((n) => n !== id) : [...prev, id],
     );
@@ -170,10 +208,13 @@ export function GestionRequisitosLegales({
       : filtroNorma === "__sin__"
         ? requisitos.filter((r) => r.normas.length === 0)
         : requisitos.filter((r) => r.normas.some((n) => n.id === filtroNorma));
+  const requisitosPorEstado = filtroEstado === "sin-evaluar"
+    ? requisitosPorNorma.filter((requisito) => !requisito.ultimaEvaluacion)
+    : requisitosPorNorma;
   const terminoListado = busquedaListado.trim().toLocaleLowerCase("es");
   const requisitosFiltrados = terminoListado
-    ? requisitosPorNorma.filter((r) => `${r.codigo} ${r.titulo} ${r.referencia ?? ""}`.toLocaleLowerCase("es").includes(terminoListado))
-    : requisitosPorNorma;
+    ? requisitosPorEstado.filter((r) => `${r.codigo} ${r.titulo} ${r.referencia ?? ""}`.toLocaleLowerCase("es").includes(terminoListado))
+    : requisitosPorEstado;
 
   // URL de descarga del Excel, respetando el filtro de norma activo.
   const urlExport =
@@ -490,6 +531,21 @@ export function GestionRequisitosLegales({
         </div>
       )}
 
+      <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Filtrar por estado de evaluación">
+        <span className="text-xs text-muted-foreground">Evaluación:</span>
+        {([['todos', 'Todos'], ['sin-evaluar', 'Sin evaluar']] as const).map(([valor, etiqueta]) => (
+          <button
+            key={valor}
+            type="button"
+            onClick={() => { setFiltroEstado(valor); actualizarUrl({ estado: valor }); }}
+            aria-pressed={filtroEstado === valor}
+            className={`rounded-full px-3 py-1 text-xs transition-colors ${filtroEstado === valor ? "bg-primary text-primary-foreground" : "border border-border bg-background text-muted-foreground hover:bg-muted"}`}
+          >
+            {etiqueta}
+          </button>
+        ))}
+      </div>
+
       {requisitosFiltrados.length === 0 ? (
         vacio
       ) : vista === "lista" ? (
@@ -529,13 +585,13 @@ export function GestionRequisitosLegales({
       )}
 
       {/* Diálogo alta/edición */}
-      <ModalShell abierto={abierto} onClose={() => setAbierto(false)} maxWidth="max-w-3xl">
+      <ModalShell abierto={abierto} onClose={cerrarFormulario} maxWidth="max-w-3xl">
         <ModalHeader>
           <h2 className="font-serif text-2xl font-semibold tracking-tight">
             {editando ? "Editar requisito legal" : "Nuevo requisito legal"}
           </h2>
         </ModalHeader>
-        <form action={accionForm} className={MODAL_FORM_CLASS}>
+        <form action={accionForm} onChangeCapture={() => setHayCambiosForm(true)} className={MODAL_FORM_CLASS}>
           <ModalBody className="space-y-4">
                 {editando && <input type="hidden" name="id" value={editando.id} />}
                 {procesosSel.map((p) => (
@@ -548,7 +604,7 @@ export function GestionRequisitosLegales({
                 <div className="grid gap-3 sm:grid-cols-3">
                   <div className="space-y-2">
                     <label htmlFor="codigo" className="text-sm font-medium">
-                      Código
+                      Código <span className="text-destructive" aria-hidden="true">*</span>
                     </label>
                     <input
                       id="codigo"
@@ -560,7 +616,7 @@ export function GestionRequisitosLegales({
                   </div>
                   <div className="space-y-2 sm:col-span-2">
                     <label htmlFor="tipo" className="text-sm font-medium">
-                      Tipo
+                      Tipo <span className="text-destructive" aria-hidden="true">*</span>
                     </label>
                     <select
                       id="tipo"
@@ -580,7 +636,7 @@ export function GestionRequisitosLegales({
 
                 <div className="space-y-2">
                   <label htmlFor="titulo" className="text-sm font-medium">
-                    Título
+                    Título <span className="text-destructive" aria-hidden="true">*</span>
                   </label>
                   <input
                     id="titulo"
@@ -806,7 +862,7 @@ export function GestionRequisitosLegales({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setAbierto(false)}
+                onClick={cerrarFormulario}
                 className="flex-1"
               >
                 Cancelar
@@ -819,7 +875,7 @@ export function GestionRequisitosLegales({
 
       {/* Diálogo evaluación de cumplimiento */}
       {evaluando && (
-        <ModalShell abierto onClose={() => setEvaluando(null)} maxWidth="max-w-md">
+        <ModalShell abierto onClose={cerrarEvaluacion} maxWidth="max-w-md">
           <ModalHeader>
             <h2 className="font-serif text-2xl font-semibold tracking-tight">
               Evaluar cumplimiento
@@ -829,13 +885,13 @@ export function GestionRequisitosLegales({
               {evaluando.titulo}
             </p>
           </ModalHeader>
-          <form action={accionEval} className={MODAL_FORM_CLASS}>
+          <form action={accionEval} onChangeCapture={() => setHayCambiosEval(true)} className={MODAL_FORM_CLASS}>
             <ModalBody className="space-y-4">
                 <input type="hidden" name="requisitoLegalId" value={evaluando.id} />
 
                 <div className="space-y-2">
                   <label htmlFor="estado" className="text-sm font-medium">
-                    Estado de cumplimiento
+                    Estado de cumplimiento <span className="text-destructive" aria-hidden="true">*</span>
                   </label>
                   <select
                     id="estado"
@@ -874,7 +930,7 @@ export function GestionRequisitosLegales({
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <label htmlFor="fechaEvaluacion" className="text-sm font-medium">
-                      Fecha
+                      Fecha <span className="text-destructive" aria-hidden="true">*</span>
                     </label>
                     <input
                       id="fechaEvaluacion"
@@ -932,7 +988,7 @@ export function GestionRequisitosLegales({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setEvaluando(null)}
+                  onClick={cerrarEvaluacion}
                   className="flex-1"
                 >
                   Cancelar

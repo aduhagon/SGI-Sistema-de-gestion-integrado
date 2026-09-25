@@ -88,10 +88,25 @@ export function GestionRiesgos({ riesgos, procesos, puestos, controlesPorRiesgo,
   const [procesoId, setProcesoId] = useState("");
   const [normasSel, setNormasSel] = useState<string[]>([]);
   const [errorPaso, setErrorPaso] = useState<string | null>(null);
+  const [hayCambios, setHayCambios] = useState(false);
 
   useEffect(() => {
-    if (estado?.ok) { setAbierto(false); setEditando(null); router.refresh(); }
+    if (estado?.ok) { setHayCambios(false); setAbierto(false); setEditando(null); router.refresh(); }
   }, [estado, router]);
+
+  useEffect(() => {
+    function advertir(evento: BeforeUnloadEvent) {
+      if (!abierto || !hayCambios) return;
+      evento.preventDefault();
+    }
+    window.addEventListener("beforeunload", advertir);
+    return () => window.removeEventListener("beforeunload", advertir);
+  }, [abierto, hayCambios]);
+
+  function cerrarFormulario() {
+    if (hayCambios && !window.confirm("Hay cambios sin guardar. ¿Querés cerrar y descartarlos?")) return;
+    setAbierto(false);
+  }
 
   function abrir(r: Riesgo | null) {
     setEditando(r);
@@ -104,6 +119,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos, controlesPorRiesgo,
     setNormasSel(r ? (normasPorRiesgo[r.id] ?? []).map((n) => n.versionNormaId) : []);
     setPaso(0);
     setErrorPaso(null);
+    setHayCambios(false);
     setAbierto(true);
   }
 
@@ -164,6 +180,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos, controlesPorRiesgo,
       const err = validarPaso(i);
       if (err) { e.preventDefault(); setPaso(i); setErrorPaso(err); return; }
     }
+    setHayCambios(false);
   }
   const enUltimo = paso === PASOS.length - 1;
 
@@ -260,7 +277,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos, controlesPorRiesgo,
         </div>
       )}
 
-      <ModalShell abierto={abierto} onClose={() => setAbierto(false)} maxWidth="max-w-2xl">
+      <ModalShell abierto={abierto} onClose={cerrarFormulario} maxWidth="max-w-2xl">
         <ModalHeader>
           <h2 className="font-serif text-2xl font-semibold tracking-tight">{editando ? "Editar riesgo" : "Nuevo riesgo"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">El nivel se calcula con probabilidad × impacto.</p>
@@ -292,7 +309,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos, controlesPorRiesgo,
           </div>
         </ModalHeader>
 
-        <form action={formAction} onSubmit={onSubmitGuard} className={MODAL_FORM_CLASS}>
+        <form action={formAction} onSubmit={onSubmitGuard} onChangeCapture={() => setHayCambios(true)} className={MODAL_FORM_CLASS}>
           <ModalBody className="pb-3">
             {editando && <input type="hidden" name="id" value={editando.id} />}
 
@@ -300,7 +317,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos, controlesPorRiesgo,
                 <div hidden={paso !== 0} className="space-y-4">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <label htmlFor="codigo" className="text-sm font-medium">Código</label>
+                      <label htmlFor="codigo" className="text-sm font-medium">Código <span className="text-destructive" aria-hidden="true">*</span></label>
                       <input id="codigo" name="codigo" required value={codigo} placeholder="R-COM-01"
                         onChange={(e) => setCodigo(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
                         className={INPUT + " font-mono"} />
@@ -315,13 +332,13 @@ export function GestionRiesgos({ riesgos, procesos, puestos, controlesPorRiesgo,
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="titulo" className="text-sm font-medium">Título</label>
+                    <label htmlFor="titulo" className="text-sm font-medium">Título <span className="text-destructive" aria-hidden="true">*</span></label>
                     <input id="titulo" name="titulo" required value={titulo} onChange={(e) => setTitulo(e.target.value)} className={INPUT} />
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <label htmlFor="procesoId" className="text-sm font-medium">Proceso</label>
+                      <label htmlFor="procesoId" className="text-sm font-medium">Proceso <span className="text-destructive" aria-hidden="true">*</span></label>
                       <select id="procesoId" name="procesoId" required value={procesoId} onChange={(e) => setProcesoId(e.target.value)} className={INPUT}>
                         <option value="">Elegí un proceso…</option>
                         {procesos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
@@ -531,7 +548,7 @@ export function GestionRiesgos({ riesgos, procesos, puestos, controlesPorRiesgo,
               {paso > 0 ? (
                 <Button type="button" variant="outline" onClick={retroceder}><ArrowLeft className="h-4 w-4" />Atrás</Button>
               ) : (
-                <Button type="button" variant="outline" onClick={() => setAbierto(false)}>Cancelar</Button>
+                <Button type="button" variant="outline" onClick={cerrarFormulario}>Cancelar</Button>
               )}
               <div className="flex-1" />
               {enUltimo ? (

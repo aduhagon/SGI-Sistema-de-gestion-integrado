@@ -183,15 +183,17 @@ export default async function AuditoriaDetallePage({ params, searchParams }: Pro
       )}
 
       {/* Barra de acciones del flujo. */}
-      <BarraFlujoAuditoria
-        auditoriaId={params.id}
-        estado={estado}
-        esLider={permisos.esLider}
-        esMiembroEquipo={permisos.esMiembroEquipo}
-        esSgiOAdmin={permisos.esSgiOAdmin}
-        checklistPendientes={checklistPendientes}
-        emitidoPorMi={emitidoPorMi}
-      />
+      <div id="acciones-auditoria" className="scroll-mt-24">
+        <BarraFlujoAuditoria
+          auditoriaId={params.id}
+          estado={estado}
+          esLider={permisos.esLider}
+          esMiembroEquipo={permisos.esMiembroEquipo}
+          esSgiOAdmin={permisos.esSgiOAdmin}
+          checklistPendientes={checklistPendientes}
+          emitidoPorMi={emitidoPorMi}
+        />
+      </div>
 
       {aud.objetivo && (
         <section className="mb-8">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertOctagon, ChevronLeft, FileText, Gauge, Plus, ShieldAlert, ShieldCheck, Workflow } from "lucide-react";
+import { AlertOctagon, ChevronLeft, FileText, Gauge, Plus, ShieldAlert, ShieldCheck, UserRoundCheck, Workflow } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { listarDocumentosPorProceso } from "@/lib/api/documentos";
 import { listarNCsPorProceso } from "@/lib/api/ncs";
@@ -20,6 +20,7 @@ import { TrazabilidadProceso } from "@/components/procesos/TrazabilidadProceso";
 import { obtenerParticipacionesDeProceso } from "@/lib/api/participaciones";
 import { listarFormulariosErpDeProceso } from "@/lib/api/integracionErp";
 import { MetricCard, MetricGrid } from "@/components/ui/page";
+import { obtenerContextoLayout } from "@/lib/api/contexto-layout";
 
 const TIPO_LABEL: Record<string, string> = {
   estrategico: "Proceso estratégico",
@@ -64,7 +65,7 @@ export default async function ProcesoDetallePage({ params }: Props) {
     notFound();
   }
 
-  const [participaciones, ncs, riesgos, indicadores, formulariosErp, controles, requisitosAplicables] = await Promise.all([
+  const [participaciones, ncs, riesgos, indicadores, formulariosErp, controles, requisitosAplicables, contexto] = await Promise.all([
     obtenerParticipacionesDeProceso(proceso.id),
     listarNCsPorProceso(proceso.id),
     listarRiesgos(proceso.id),
@@ -72,6 +73,7 @@ export default async function ProcesoDetallePage({ params }: Props) {
     listarFormulariosErpDeProceso(proceso.id),
     listarControles(proceso.id),
     listarRequisitosAplicables(proceso.id),
+    obtenerContextoLayout(),
   ]);
 
   // ¿Este proceso del SGI tiene un flujograma vinculado?
@@ -91,6 +93,23 @@ export default async function ProcesoDetallePage({ params }: Props) {
   const riesgosAltos = riesgos.filter((riesgo) => riesgo.nivel === "alto" || riesgo.nivel === "extremo").length;
   const controlesSinEvidencia = controles.filter((control) => !control.ultimaEjecucion).length;
   const indicadoresFueraMeta = indicadores.filter((indicador) => indicador.cumplimiento === "incumple").length;
+  const rolesUsuario = participaciones
+    .filter((participacion) => participacion.usuarioId === contexto.usuarioId)
+    .map((participacion) => participacion.rol);
+  const esResponsable = rolesUsuario.includes("responsable_proceso");
+  const puedeGestionarProceso = contexto.esAdminSgi || contexto.esSuperadmin || esResponsable;
+  const puedeCrearDocumento = puedeGestionarProceso || rolesUsuario.includes("elaborador");
+  const etiquetaRol = contexto.esAdminSgi || contexto.esSuperadmin
+    ? "Administración SGI"
+    : esResponsable
+      ? "Responsable del proceso"
+      : rolesUsuario.includes("elaborador")
+        ? "Elaborador"
+        : rolesUsuario.includes("aprobador_n2") || rolesUsuario.includes("aprobador_n1")
+          ? "Aprobador"
+          : rolesUsuario.includes("lector")
+            ? "Lector"
+            : null;
 
   return (
     <div className="mx-auto max-w-5xl p-6 sm:p-8 lg:p-10">
@@ -118,6 +137,12 @@ export default async function ProcesoDetallePage({ params }: Props) {
               {proceso.codigo}
             </Badge>
             <Badge variant="muted">{tipoLabel}</Badge>
+            {etiquetaRol && (
+              <Badge variant="outline" className="gap-1.5 border-primary/30 bg-primary/5 text-primary">
+                <UserRoundCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                {etiquetaRol}
+              </Badge>
+            )}
           </div>
           {tieneFlujograma && (
             <Link
@@ -199,6 +224,7 @@ export default async function ProcesoDetallePage({ params }: Props) {
         controles={controles}
         requisitos={requisitosAplicables}
         riesgos={riesgos}
+        puedeGestionar={puedeGestionarProceso}
       />
 
       <IntegracionErpProceso codigoProceso={proceso.codigo} formularios={formulariosErp} />
@@ -215,13 +241,15 @@ export default async function ProcesoDetallePage({ params }: Props) {
                 : `${documentos.length} ${documentos.length === 1 ? "documento" : "documentos"} en este proceso.`}
             </p>
           </div>
-          <Link
-            href="/documentos/nuevo"
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-          >
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            Nuevo
-          </Link>
+          {puedeCrearDocumento && (
+            <Link
+              href={`/documentos/nuevo?proceso=${proceso.id}`}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              Nuevo documento
+            </Link>
+          )}
         </div>
 
         {documentos.length === 0 ? (

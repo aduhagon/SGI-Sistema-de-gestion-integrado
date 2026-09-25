@@ -66,7 +66,7 @@ export function SeccionEquipo({ auditoriaId, equipo, candidatos, puedeGestionar,
   const disponibles = candidatos.filter((c) => !yaEnEquipo.has(c.usuarioId));
 
   return (
-    <section className="mb-8">
+    <section id="equipo-auditor" className="mb-8 scroll-mt-24">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
           <Users className="h-3.5 w-3.5" aria-hidden="true" />
