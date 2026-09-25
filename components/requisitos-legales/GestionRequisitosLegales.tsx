@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useFormState, useFormStatus } from "react-dom";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   Pencil,
@@ -13,6 +14,7 @@ import {
   LayoutList,
   FolderTree,
   GitBranch,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
@@ -78,6 +80,8 @@ export function GestionRequisitosLegales({
   codigoSugerido,
   marcoLegal,
 }: Props) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [abierto, setAbierto] = useState(false);
   const [editando, setEditando] = useState<RequisitoLegal | null>(null);
   const [evaluando, setEvaluando] = useState<RequisitoLegal | null>(null);
@@ -88,8 +92,9 @@ export function GestionRequisitosLegales({
   const [normasSel, setNormasSel] = useState<string[]>([]);
   const [normaLegalId, setNormaLegalId] = useState("");
   const [busquedaNorma, setBusquedaNorma] = useState("");
-  const [filtroNorma, setFiltroNorma] = useState<string>("__todas__");
-  const [vista, setVista] = useState<"lista" | "proceso">("lista");
+  const [filtroNorma, setFiltroNorma] = useState<string>(searchParams.get("norma") ?? "__todas__");
+  const [vista, setVista] = useState<"lista" | "proceso">(searchParams.get("vista") === "proceso" ? "proceso" : "lista");
+  const [busquedaListado, setBusquedaListado] = useState(searchParams.get("q") ?? "");
 
   const [estadoForm, accionForm] = useFormState<EstadoReqLegal, FormData>(
     guardarRequisitoLegal,
@@ -112,6 +117,22 @@ export function GestionRequisitosLegales({
   useEffect(() => {
     if (estadoEval?.ok) setEvaluando(null);
   }, [estadoEval]);
+
+  useEffect(() => {
+    const requisito = requisitos.find((item) => item.id === searchParams.get("requisito"));
+    if (requisito) abrirEdicion(requisito);
+    // El vínculo profundo se procesa solo al ingresar a la pantalla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function actualizarUrl(cambios: { norma?: string; vista?: "lista" | "proceso"; q?: string }) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("requisito");
+    if (cambios.norma !== undefined) cambios.norma === "__todas__" ? params.delete("norma") : params.set("norma", cambios.norma);
+    if (cambios.vista !== undefined) cambios.vista === "lista" ? params.delete("vista") : params.set("vista", cambios.vista);
+    if (cambios.q !== undefined) cambios.q.trim() ? params.set("q", cambios.q.trim()) : params.delete("q");
+    router.replace(`/requisitos-legales${params.size ? `?${params.toString()}` : ""}`, { scroll: false });
+  }
 
   function abrirNuevo() {
     setEditando(null);
@@ -143,12 +164,16 @@ export function GestionRequisitosLegales({
   }
 
   // Filtro por norma (en cliente). "__todas__" = sin filtro; "__sin__" = sin norma.
-  const requisitosFiltrados =
+  const requisitosPorNorma =
     filtroNorma === "__todas__"
       ? requisitos
       : filtroNorma === "__sin__"
         ? requisitos.filter((r) => r.normas.length === 0)
         : requisitos.filter((r) => r.normas.some((n) => n.id === filtroNorma));
+  const terminoListado = busquedaListado.trim().toLocaleLowerCase("es");
+  const requisitosFiltrados = terminoListado
+    ? requisitosPorNorma.filter((r) => `${r.codigo} ${r.titulo} ${r.referencia ?? ""}`.toLocaleLowerCase("es").includes(terminoListado))
+    : requisitosPorNorma;
 
   // URL de descarga del Excel, respetando el filtro de norma activo.
   const urlExport =
@@ -342,7 +367,7 @@ export function GestionRequisitosLegales({
           </p>
           <button
             type="button"
-            onClick={() => setFiltroNorma("__todas__")}
+            onClick={() => { setFiltroNorma("__todas__"); setBusquedaListado(""); actualizarUrl({ norma: "__todas__", q: "" }); }}
             className="mt-2 text-xs text-primary underline-offset-2 hover:underline"
           >
             Ver todos
@@ -382,7 +407,7 @@ export function GestionRequisitosLegales({
           <div className="col-span-2 flex rounded-md border border-border p-0.5 sm:col-span-1">
             <button
               type="button"
-              onClick={() => setVista("lista")}
+              onClick={() => { setVista("lista"); actualizarUrl({ vista: "lista" }); }}
               className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${
                 vista === "lista"
                   ? "bg-muted font-medium text-foreground"
@@ -395,7 +420,7 @@ export function GestionRequisitosLegales({
             </button>
             <button
               type="button"
-              onClick={() => setVista("proceso")}
+              onClick={() => { setVista("proceso"); actualizarUrl({ vista: "proceso" }); }}
               className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded px-2.5 py-1 text-xs transition-colors ${
                 vista === "proceso"
                   ? "bg-muted font-medium text-foreground"
@@ -425,6 +450,18 @@ export function GestionRequisitosLegales({
         </div>
       </div>
 
+      <label className="relative mb-4 block max-w-xl">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <span className="sr-only">Buscar requisitos legales</span>
+        <input
+          type="search"
+          value={busquedaListado}
+          onChange={(event) => { setBusquedaListado(event.target.value); actualizarUrl({ q: event.target.value }); }}
+          placeholder="Buscar por código, título o referencia"
+          className="h-11 w-full rounded-md border border-input bg-background pl-10 pr-3 text-sm"
+        />
+      </label>
+
       {/* Filtro por norma */}
       {normas.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -439,7 +476,7 @@ export function GestionRequisitosLegales({
               <button
                 key={f.id}
                 type="button"
-                onClick={() => setFiltroNorma(f.id)}
+                onClick={() => { setFiltroNorma(f.id); actualizarUrl({ norma: f.id }); }}
                 className={`rounded-full px-3 py-1 text-xs transition-colors ${
                   activo
                     ? "bg-primary text-primary-foreground"

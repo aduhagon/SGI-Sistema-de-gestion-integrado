@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import * as XLSX from "xlsx";
 import {
   crearProcesoFlujograma, crearSubproceso, importarRelevamiento,
   type FilaImport,
@@ -90,8 +89,9 @@ export function ImportarExcel({ subprocesoId }: { subprocesoId: string }) {
     if (!file) return;
     setNombreArchivo(file.name);
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
+        const XLSX = await import("xlsx");
         const data = new Uint8Array(ev.target?.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: "array" });
         const hoja = wb.Sheets[wb.SheetNames[0]];

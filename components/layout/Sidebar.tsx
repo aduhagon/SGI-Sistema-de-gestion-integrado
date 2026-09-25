@@ -66,14 +66,12 @@ type NavHijo = {
 //   analisis      -> vistas agregadas de solo lectura
 //   admin         -> parametrización
 //
-// OJO con las rutas: /tablero es la pantalla de bienvenida ("Buenos días…")
-// y /dashboard es el mapa de calor cuyo propio <h1> dice "Tablero de control".
-// Los labels de acá reflejan lo que cada pantalla realmente muestra.
+// /dashboard es el inicio personal y /tablero es la vista agregada del SGI.
 const navItems: NavItem[] = [
   // Mi trabajo — lo pendiente del usuario.
   // Aprobaciones y Acuses cuelgan de Mis pendientes: son las dos bandejas
   // donde el usuario resuelve lo que Mis pendientes le muestra.
-  { href: "/tablero", label: "Inicio", icon: Home, section: "trabajo" },
+  { href: "/dashboard", label: "Inicio", icon: Home, section: "trabajo" },
   {
     href: "/mis-pendientes",
     label: "Centro de pendientes",
@@ -104,9 +102,9 @@ const navItems: NavItem[] = [
   { href: "/indicadores", label: "Indicadores",      icon: Gauge,          section: "control", modulo: "indicadores" },
 
   // Análisis — vistas agregadas, solo lectura
-  { href: "/cumplimiento", label: "Cumplimiento",       icon: Grid3x3,    section: "analisis", modulo: "cumplimiento" },
+  { href: "/cumplimiento", label: "Cobertura documental", icon: Grid3x3, section: "analisis", modulo: "cumplimiento" },
   { href: "/busqueda-normativa", label: "Búsqueda normativa", icon: FileSearch, section: "analisis", modulo: "documentos" },
-  { href: "/dashboard",    label: "Tablero de control", icon: LayoutGrid, section: "analisis" },
+  { href: "/tablero", label: "Estado del SGI", icon: LayoutGrid, section: "analisis" },
 
   // Sistema
   { href: "/configuracion", label: "Configuración",             icon: Settings,           section: "admin" },

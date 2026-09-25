@@ -8,7 +8,7 @@ import type { NodoCumplimiento } from "@/lib/api/matriz";
 // Umbrales del semáforo (acordados con O&M):
 //   rojo  < 50%   → hueco serio, mirar primero
 //   ámbar 50–84%  → parcial, en progreso
-//   verde ≥ 85%   → cubierto a nivel auditable
+//   verde ≥ 85%   → cobertura documental alta
 type Estado = "rojo" | "ambar" | "verde";
 
 function estadoDe(pct: number): Estado {
@@ -274,7 +274,7 @@ export default function ArbolCumplimiento({
         <div className="grid grid-cols-1 gap-x-8 gap-y-2 text-xs text-muted-foreground sm:grid-cols-2">
           <span className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#e11d48" }} />
-            Cumplimiento bajo — menos del 50%
+            Cobertura documental baja — menos del 50%
           </span>
           <span className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#d97706" }} />
@@ -282,7 +282,7 @@ export default function ArbolCumplimiento({
           </span>
           <span className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#059669" }} />
-            Cubierto — 85% o más
+            Cobertura documental alta — 85% o más
           </span>
           <span className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
@@ -326,10 +326,11 @@ export default function ArbolCumplimiento({
         </div>
 
         <p className="mt-3 border-t border-border pt-2.5 text-[11px] leading-relaxed text-muted-foreground">
-          Cada subpunto cuenta como cubierto (cobertura total), medio cubierto (parcial) o
-          sin cubrir. Cuando un subpunto tiene varios documentos, se toma el de mayor
+          Cada subpunto cuenta como documentado (cobertura total), parcialmente documentado o
+          sin cobertura. Cuando un subpunto tiene varios documentos, se toma el de mayor
           cobertura: tener más documentos no eleva artificialmente el porcentaje. Un
-          documento en borrador o en aprobación todavía no es evidencia vigente para auditoría.
+          documento en borrador o en aprobación todavía no es evidencia vigente. Esta matriz no
+          reemplaza la verificación de que el requisito se aplique efectivamente en la operación.
         </p>
       </div>
     </div>

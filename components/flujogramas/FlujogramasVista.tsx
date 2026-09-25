@@ -156,7 +156,6 @@ export function FlujogramasVista({
       });
   }, [procesos, procSgiInfo]);
 
-  const TIPO_ORDEN: Record<string, number> = { estrategico: 0, operativo: 1, apoyo: 2, sin_tipo: 3 };
   const TIPO_LABEL: Record<string, string> = {
     estrategico: "Procesos estratégicos", operativo: "Procesos principales",
     apoyo: "Procesos de apoyo", sin_tipo: "Sin clasificar",
@@ -167,7 +166,8 @@ export function FlujogramasVista({
       if (!m.has(g.tipo)) m.set(g.tipo, []);
       m.get(g.tipo)!.push(g);
     }
-    return Array.from(m.entries()).sort((a, b) => (TIPO_ORDEN[a[0]] ?? 9) - (TIPO_ORDEN[b[0]] ?? 9));
+    const ordenTipo: Record<string, number> = { estrategico: 0, operativo: 1, apoyo: 2, sin_tipo: 3 };
+    return Array.from(m.entries()).sort((a, b) => (ordenTipo[a[0]] ?? 9) - (ordenTipo[b[0]] ?? 9));
   }, [gruposSgi]);
 
   const crumbs = useMemo(() => {

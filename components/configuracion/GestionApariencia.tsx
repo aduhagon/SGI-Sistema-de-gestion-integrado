@@ -342,7 +342,7 @@ export default function GestionApariencia({ temas: temasIniciales, activoIdInici
                 ))}
               </nav>
               <main className="flex-1 p-[18px]">
-                <div className="text-lg font-serif font-bold tracking-tight text-foreground">Panorama de cumplimiento</div>
+                <div className="text-lg font-serif font-bold tracking-tight text-foreground">Panorama de cobertura documental</div>
                 <div className="text-[12.5px] text-muted-foreground mt-0.5 mb-4">ISO 9001 · 14001 · 45001 · BRCGS · BPA · GlobalG.A.P.</div>
                 <div className="grid grid-cols-3 gap-2.5 mb-4">
                   {[["94%", "Cobertura"], ["7", "NC abiertas"], ["111", "Riesgos"]].map(([n, l]) => (

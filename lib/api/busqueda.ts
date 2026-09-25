@@ -14,6 +14,9 @@ export type ResultadosAgrupados = {
   procesos: ResultadoBusqueda[];
   auditorias: ResultadoBusqueda[];
   noConformidades: ResultadoBusqueda[];
+  riesgos: ResultadoBusqueda[];
+  controles: ResultadoBusqueda[];
+  requisitosLegales: ResultadoBusqueda[];
   total: number;
 };
 
@@ -23,6 +26,9 @@ const VACIO: ResultadosAgrupados = {
   procesos: [],
   auditorias: [],
   noConformidades: [],
+  riesgos: [],
+  controles: [],
+  requisitosLegales: [],
   total: 0,
 };
 
@@ -39,7 +45,7 @@ export async function buscarGlobal(texto: string): Promise<ResultadosAgrupados> 
   const patron = `%${t}%`;
   const LIMITE = 8;
 
-  const [docs, reqs, procs, auds, ncs] = await Promise.all([
+  const [docs, reqs, procs, auds, ncs, riesgosRes, controlesRes, legalesRes] = await Promise.all([
     supabase
       .from("documentos")
       .select("id, codigo, titulo, estado_actual")
@@ -49,7 +55,7 @@ export async function buscarGlobal(texto: string): Promise<ResultadosAgrupados> 
     supabase
       .from("requisitos")
       .select(
-        `id, clausula, titulo,
+        `id, clausula, titulo, version_norma_id,
          versiones_norma:versiones_norma!requisitos_version_norma_id_fkey (
            normas:normas!versiones_norma_norma_id_fkey (codigo)
          )`,
@@ -78,6 +84,9 @@ export async function buscarGlobal(texto: string): Promise<ResultadosAgrupados> 
       .is("eliminado_en", null)
       .or(`codigo.ilike.${patron},titulo.ilike.${patron}`)
       .limit(LIMITE),
+    supabase.from("riesgos").select("id, codigo, titulo, estado").eq("activo", true).is("eliminado_en", null).or(`codigo.ilike.${patron},titulo.ilike.${patron}`).limit(LIMITE),
+    supabase.from("controles").select("id, codigo, nombre, estado").eq("activo", true).is("eliminado_en", null).or(`codigo.ilike.${patron},nombre.ilike.${patron}`).limit(LIMITE),
+    supabase.from("requisitos_legales").select("id, codigo, titulo, tipo, referencia").is("eliminado_en", null).or(`codigo.ilike.${patron},titulo.ilike.${patron},referencia.ilike.${patron}`).limit(LIMITE),
   ]);
 
   const documentos: ResultadoBusqueda[] = (docs.data ?? []).map((d: any) => ({
@@ -95,7 +104,7 @@ export async function buscarGlobal(texto: string): Promise<ResultadosAgrupados> 
       ? `${r.versiones_norma.normas.codigo} · cláusula ${r.clausula}`
       : `Cláusula ${r.clausula}`,
     codigo: r.clausula,
-    href: `/cumplimiento`,
+    href: r.version_norma_id ? `/cumplimiento?norma=${r.version_norma_id}` : "/cumplimiento",
   }));
 
   const procesos: ResultadoBusqueda[] = (procs.data ?? []).map((p: any) => ({
@@ -103,7 +112,7 @@ export async function buscarGlobal(texto: string): Promise<ResultadosAgrupados> 
     titulo: p.nombre,
     subtitulo: p.tipo,
     codigo: p.codigo,
-    href: `/procesos`,
+    href: `/procesos/${encodeURIComponent(p.codigo)}`,
   }));
 
   const auditorias: ResultadoBusqueda[] = (auds.data ?? []).map((a: any) => ({
@@ -121,6 +130,9 @@ export async function buscarGlobal(texto: string): Promise<ResultadosAgrupados> 
     codigo: n.codigo,
     href: `/ncs/${n.id}`,
   }));
+  const riesgos: ResultadoBusqueda[] = (riesgosRes.data ?? []).map((r: any) => ({ id: r.id, titulo: r.titulo, subtitulo: r.estado, codigo: r.codigo, href: `/riesgos?riesgo=${r.id}` }));
+  const controles: ResultadoBusqueda[] = (controlesRes.data ?? []).map((c: any) => ({ id: c.id, titulo: c.nombre, subtitulo: c.estado, codigo: c.codigo, href: `/controles?control=${c.id}` }));
+  const requisitosLegales: ResultadoBusqueda[] = (legalesRes.data ?? []).map((r: any) => ({ id: r.id, titulo: r.titulo, subtitulo: [r.tipo, r.referencia].filter(Boolean).join(" · "), codigo: r.codigo, href: `/requisitos-legales?requisito=${r.id}` }));
 
   return {
     documentos,
@@ -128,11 +140,17 @@ export async function buscarGlobal(texto: string): Promise<ResultadosAgrupados> 
     procesos,
     auditorias,
     noConformidades,
+    riesgos,
+    controles,
+    requisitosLegales,
     total:
       documentos.length +
       requisitos.length +
       procesos.length +
       auditorias.length +
-      noConformidades.length,
+      noConformidades.length +
+      riesgos.length +
+      controles.length +
+      requisitosLegales.length,
   };
 }

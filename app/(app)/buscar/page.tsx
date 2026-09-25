@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, FileText, BookOpen, Network, ClipboardCheck, AlertOctagon } from "lucide-react";
+import { Search, FileText, BookOpen, Network, ClipboardCheck, AlertOctagon, Scale, ShieldAlert, ShieldCheck } from "lucide-react";
 import { buscarGlobal, type ResultadoBusqueda } from "@/lib/api/busqueda";
 import { Badge } from "@/components/ui/badge";
 
@@ -13,6 +13,9 @@ const GRUPOS = [
   { key: "procesos", label: "Procesos", icon: Network },
   { key: "auditorias", label: "Auditorías", icon: ClipboardCheck },
   { key: "noConformidades", label: "No conformidades", icon: AlertOctagon },
+  { key: "riesgos", label: "Riesgos", icon: ShieldAlert },
+  { key: "controles", label: "Controles", icon: ShieldCheck },
+  { key: "requisitosLegales", label: "Requisitos legales", icon: Scale },
 ] as const;
 
 export default async function BuscarPage({ searchParams }: Props) {
@@ -30,7 +33,7 @@ export default async function BuscarPage({ searchParams }: Props) {
           <p className="mt-3 text-base text-muted-foreground">
             {resultados.total === 0
               ? "No se encontraron coincidencias."
-              : `${resultados.total} ${resultados.total === 1 ? "resultado" : "resultados"} en documentos, requisitos, procesos, auditorías y no conformidades.`}
+              : `${resultados.total} ${resultados.total === 1 ? "resultado" : "resultados"} en los principales módulos del SGI.`}
           </p>
         )}
       </header>
@@ -41,7 +44,7 @@ export default async function BuscarPage({ searchParams }: Props) {
           <p className="font-medium text-foreground">Escribí algo en la barra de arriba</p>
           <p className="mt-1 max-w-md text-sm text-muted-foreground">
             Buscá por código (A-MP-05, 8.4, AUD-2026) o por texto en documentos,
-            requisitos, procesos, auditorías y no conformidades.
+            requisitos, procesos, riesgos, controles, auditorías y no conformidades.
           </p>
         </div>
       )}

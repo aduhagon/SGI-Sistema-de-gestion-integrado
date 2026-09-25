@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, FileText, Plus, Workflow } from "lucide-react";
+import { AlertOctagon, ChevronLeft, FileText, Gauge, Plus, ShieldAlert, ShieldCheck, Workflow } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { listarDocumentosPorProceso } from "@/lib/api/documentos";
 import { listarNCsPorProceso } from "@/lib/api/ncs";
@@ -19,6 +19,7 @@ import { IntegracionErpProceso } from "@/components/procesos/IntegracionErpProce
 import { TrazabilidadProceso } from "@/components/procesos/TrazabilidadProceso";
 import { obtenerParticipacionesDeProceso } from "@/lib/api/participaciones";
 import { listarFormulariosErpDeProceso } from "@/lib/api/integracionErp";
+import { MetricCard, MetricGrid } from "@/components/ui/page";
 
 const TIPO_LABEL: Record<string, string> = {
   estrategico: "Proceso estratégico",
@@ -86,6 +87,10 @@ export default async function ProcesoDetallePage({ params }: Props) {
   const Icon = getProcessIcon(proceso.icono);
   const color = proceso.color_hex ?? "#475569";
   const tipoLabel = TIPO_LABEL[proceso.tipo] ?? proceso.tipo;
+  const ncsAbiertas = ncs.filter((nc) => !["cerrada", "aceptado_riesgo"].includes(nc.estado)).length;
+  const riesgosAltos = riesgos.filter((riesgo) => riesgo.nivel === "alto" || riesgo.nivel === "extremo").length;
+  const controlesSinEvidencia = controles.filter((control) => !control.ultimaEjecucion).length;
+  const indicadoresFueraMeta = indicadores.filter((indicador) => indicador.cumplimiento === "incumple").length;
 
   return (
     <div className="mx-auto max-w-5xl p-6 sm:p-8 lg:p-10">
@@ -133,6 +138,16 @@ export default async function ProcesoDetallePage({ params }: Props) {
           )}
         </div>
       </header>
+
+      <section className="mb-10" aria-label="Resumen ejecutivo del proceso">
+        <MetricGrid>
+          <MetricCard value={documentos.length} label="Documentos" icon={<FileText className="h-4 w-4" />} />
+          <MetricCard value={riesgosAltos} label="Riesgos altos" tone={riesgosAltos ? "danger" : "success"} icon={<ShieldAlert className="h-4 w-4" />} />
+          <MetricCard value={controlesSinEvidencia} label="Controles sin evidencia" tone={controlesSinEvidencia ? "warning" : "success"} icon={<ShieldCheck className="h-4 w-4" />} />
+          <MetricCard value={indicadoresFueraMeta} label="Indicadores fuera de meta" tone={indicadoresFueraMeta ? "danger" : "success"} icon={<Gauge className="h-4 w-4" />} />
+          <MetricCard value={ncsAbiertas} label="NC abiertas" tone={ncsAbiertas ? "danger" : "success"} icon={<AlertOctagon className="h-4 w-4" />} />
+        </MetricGrid>
+      </section>
 
       {proceso.descripcion && (
         <section className="mb-10">

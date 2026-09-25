@@ -129,7 +129,7 @@ export default async function DashboardPage() {
           id="sgi-heading"
           className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground mb-4"
         >
-          Estado del Sistema de Gestión Integrado
+          Contexto del Sistema de Gestión Integrado
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

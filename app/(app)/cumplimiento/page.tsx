@@ -28,10 +28,10 @@ export default async function CumplimientoPage({ searchParams }: Props) {
       <div className="mx-auto max-w-5xl p-6 sm:p-8 lg:p-10">
         <header className="mb-8">
           <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            Cumplimiento multinorma
+            Cobertura documental multinorma
           </p>
           <h1 className="font-serif text-4xl font-semibold tracking-tight">
-            Matriz de cumplimiento
+            Matriz de cobertura documental
           </h1>
         </header>
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
@@ -59,15 +59,15 @@ export default async function CumplimientoPage({ searchParams }: Props) {
       <div className="mx-auto max-w-5xl p-6 sm:p-8 lg:p-10">
         <header className="mb-8">
           <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            Cumplimiento multinorma
+            Cobertura documental multinorma
           </p>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h1 className="mb-3 font-serif text-4xl font-semibold tracking-tight">
-                Panorama de cumplimiento
+                Panorama de cobertura documental
               </h1>
               <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
-                Estado de cobertura de todas las normas del SGI. Elegí una norma para ver
+                Estado de la evidencia documental asociada a todas las normas del SGI. Elegí una norma para ver
                 el detalle requisito por requisito.
               </p>
             </div>
@@ -85,7 +85,7 @@ export default async function CumplimientoPage({ searchParams }: Props) {
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-border bg-card p-5">
             <div className="text-xs uppercase tracking-wider text-muted-foreground">
-              Cobertura global
+              Cobertura documental global
             </div>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="font-serif text-3xl font-semibold">{pctGlobal}%</span>
@@ -191,16 +191,16 @@ export default async function CumplimientoPage({ searchParams }: Props) {
           ← Volver al panorama
         </Link>
         <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-          Cumplimiento multinorma
+          Cobertura documental multinorma
         </p>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="mb-3 font-serif text-4xl font-semibold tracking-tight">
-              Matriz de cumplimiento
+              Matriz de cobertura documental
             </h1>
             <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
-              Qué documento cubre cada requisito de la norma. Los requisitos sin documento
-              asociado son huecos de cumplimiento que conviene resolver antes de una auditoría.
+              Qué documento se vinculó como evidencia de cada requisito. Esta vista mide cobertura documental,
+              no confirma por sí sola la implementación efectiva del requisito.
             </p>
           </div>
           <div className="flex gap-2">
@@ -249,7 +249,7 @@ export default async function CumplimientoPage({ searchParams }: Props) {
           <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="rounded-lg border border-border bg-card p-5">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                Cumplimiento
+                Cobertura documental
               </div>
               <div className="mt-1 flex items-baseline gap-2">
                 <span className="font-serif text-3xl font-semibold">{pct}%</span>
@@ -273,7 +273,7 @@ export default async function CumplimientoPage({ searchParams }: Props) {
                 {Math.round((arbol.totalHojas - arbol.hojasCubiertas) * 10) / 10}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                Huecos de cumplimiento documental
+                Brechas de cobertura documental
               </p>
             </div>
 

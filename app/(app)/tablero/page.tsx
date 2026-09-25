@@ -2,6 +2,7 @@ import { obtenerMapaCalorProcesos, obtenerNormasParaTablero } from "@/lib/api/ma
 import { MapaCalor } from "@/components/tablero/MapaCalor";
 import { FiltroNorma } from "@/components/tablero/FiltroNorma";
 import { LayoutGrid } from "lucide-react";
+import { PageContainer, PageHeader } from "@/components/ui/page";
 
 export const dynamic = "force-dynamic";
 
@@ -18,23 +19,10 @@ export default async function TableroControlPage({
   const normaActiva = normas.find((n) => n.id === normaId) ?? null;
 
   return (
-    <div className="mx-auto max-w-6xl p-6 sm:p-8 lg:p-10">
-      <header className="mb-6">
-        <p className="mb-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-          Sistema de Gestión Integrado
-        </p>
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="font-serif text-3xl font-semibold tracking-tight">
-            Tablero de control
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Peor estado entre NC, documentos, indicadores y riesgos por proceso.
-          </p>
-        </div>
-        <div className="mt-4">
-          <FiltroNorma normas={normas} />
-        </div>
-      </header>
+    <PageContainer width="wide">
+      <PageHeader eyebrow="Análisis transversal" title="Estado del SGI" description="Muestra la señal más crítica de cada proceso entre no conformidades, documentos, indicadores y riesgos.">
+        <FiltroNorma normas={normas} />
+      </PageHeader>
 
       {procesos.length > 0 ? (
         <MapaCalor procesos={procesos} />
@@ -63,6 +51,6 @@ export default async function TableroControlPage({
           <li>• <span className="text-muted-foreground font-medium">Sin datos:</span> el proceso todavía no tiene NC, documentos, indicadores ni riesgos cargados.</li>
         </ul>
       </footer>
-    </div>
+    </PageContainer>
   );
 }

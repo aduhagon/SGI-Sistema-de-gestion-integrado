@@ -13,7 +13,6 @@ import {
   ArrowUpDown,
   Download,
 } from "lucide-react";
-import ExcelJS from "exceljs";
 import type { DocumentSummary } from "@/lib/api/documentos";
 import { StatusDot } from "@/components/documentos/StatusDot";
 import { obsoletarDocumentosEnLote } from "@/app/(app)/documentos/obsoletar-lote-actions";
@@ -109,6 +108,7 @@ export function GrillaDocumentosSeleccionable({
 
   // Exportar a Excel (ExcelJS): si hay selección, exporta lo tildado; si no, lo visible/filtrado.
   async function exportarExcel() {
+    const ExcelJS = (await import("exceljs")).default;
     const fuente =
       seleccion.size > 0
         ? documentosOrdenados.filter((d) => seleccion.has(d.id))

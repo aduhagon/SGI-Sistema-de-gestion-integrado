@@ -109,7 +109,7 @@ export function TopBar({ userEmail, usuarioId }: Props) {
                 type="text"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar documentos, requisitos, procesos…"
+                placeholder="Buscar documentos, riesgos, controles, requisitos…"
                 aria-label="Buscar en el SGI"
                 className="flex-1 bg-transparent text-sidebar-foreground placeholder:text-sidebar-accent/80 outline-none"
               />
