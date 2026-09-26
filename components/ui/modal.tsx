@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 /**
  * Cáscara compartida para todos los modales del SGI.
@@ -41,6 +41,8 @@ export function ModalShell({
   maxWidth?: string;
   children: ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -51,12 +53,33 @@ export function ModalShell({
     }
   }, [abierto, onClose]);
 
+  useEffect(() => {
+    if (!abierto) return;
+
+    const focoAnterior = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const overflowAnterior = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const panel = panelRef.current;
+    const primerControl = panel?.querySelector<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    (primerControl ?? panel)?.focus();
+
+    return () => {
+      document.body.style.overflow = overflowAnterior;
+      focoAnterior?.focus();
+    };
+  }, [abierto]);
+
   if (!abierto) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-label="Ventana de diálogo">
       <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className={`relative z-10 flex h-[100dvh] max-h-[100dvh] w-full ${maxWidth} flex-col overflow-hidden border border-border bg-card shadow-2xl sm:h-auto sm:max-h-[85vh] sm:rounded-xl`}
       >
         {children}

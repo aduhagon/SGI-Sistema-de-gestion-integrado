@@ -40,6 +40,14 @@
   h1, h2, h3 {
     @apply font-serif tracking-tight;
   }
+  button,
+  [role="button"],
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
 }
 
 @media (max-width: 640px) {
@@ -47,6 +55,17 @@
   select,
   textarea {
     font-size: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

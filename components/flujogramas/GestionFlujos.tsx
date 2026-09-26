@@ -15,31 +15,35 @@ export function CrearProceso({ procesosSgi }: { procesosSgi: { id: string; nombr
   return (
     <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nuevo flujograma</p>
-      <div className="flex flex-wrap items-end gap-2">
+      <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => {
+        e.preventDefault();
+        if (pending || !titulo.trim()) return;
+        start(async () => {
+          const r = await crearProcesoFlujograma(titulo, procId || null);
+          setMsg(r.ok ? "Flujograma creado." : r.error ?? "No se pudo crear el flujograma.");
+          if (r.ok) setTitulo("");
+        });
+      }}>
         <div className="min-w-[200px] flex-1">
-          <label className="text-xs text-muted-foreground">Nombre del flujograma</label>
-          <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="ej. Recepción de mercadería" className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm" />
+          <label htmlFor="nuevo-flujograma-titulo" className="text-xs text-muted-foreground">Nombre del flujograma <span className="text-destructive" aria-hidden="true">*</span></label>
+          <input id="nuevo-flujograma-titulo" required value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ej.: Recepción de mercadería" className="mt-1 min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
         </div>
-        <div>
-          <label className="text-xs text-muted-foreground">Proceso del SGI</label>
-          <select value={procId} onChange={(e) => setProcId(e.target.value)} className="mt-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm">
+        <div className="min-w-[200px] flex-1 sm:flex-none">
+          <label htmlFor="nuevo-flujograma-proceso" className="text-xs text-muted-foreground">Proceso del SGI <span className="text-muted-foreground">(opcional)</span></label>
+          <select id="nuevo-flujograma-proceso" value={procId} onChange={(e) => setProcId(e.target.value)} className="mt-1 min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
             <option value="">— vincular luego —</option>
             {procesosSgi.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
           </select>
         </div>
         <button
+          type="submit"
           disabled={pending || !titulo.trim()}
-          onClick={() => start(async () => {
-            const r = await crearProcesoFlujograma(titulo, procId || null);
-            setMsg(r.ok ? "Flujograma creado." : r.error ?? "Error");
-            if (r.ok) setTitulo("");
-          })}
-          className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          className="min-h-11 w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50 sm:w-auto"
         >
           {pending ? "Creando…" : "Crear flujograma"}
         </button>
-      </div>
-      {msg && <p className="mt-2 text-xs text-muted-foreground">{msg}</p>}
+      </form>
+      {msg && <p role="status" aria-live="polite" className="mt-2 text-xs text-muted-foreground">{msg}</p>}
     </div>
   );
 }
@@ -51,24 +55,28 @@ export function CrearSubproceso({ procesoFlujogramaId }: { procesoFlujogramaId: 
   const [msg, setMsg] = useState<string | null>(null);
   return (
     <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/20 p-3">
-      <div className="flex flex-wrap items-end gap-2">
+      <form className="flex flex-wrap items-end gap-2" onSubmit={(e) => {
+        e.preventDefault();
+        if (pending || !titulo.trim()) return;
+        start(async () => {
+          const r = await crearSubproceso(procesoFlujogramaId, titulo);
+          setMsg(r.ok ? "Subproceso creado." : r.error ?? "No se pudo crear el subproceso.");
+          if (r.ok) setTitulo("");
+        });
+      }}>
         <div className="min-w-[180px] flex-1">
-          <label className="text-xs text-muted-foreground">Nuevo subproceso (etapa)</label>
-          <input value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="ej. Control de calidad" className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm" />
+          <label htmlFor={`nuevo-subproceso-${procesoFlujogramaId}`} className="text-xs text-muted-foreground">Nuevo subproceso (etapa) <span className="text-destructive" aria-hidden="true">*</span></label>
+          <input id={`nuevo-subproceso-${procesoFlujogramaId}`} required value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ej.: Control de calidad" className="mt-1 min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
         </div>
         <button
+          type="submit"
           disabled={pending || !titulo.trim()}
-          onClick={() => start(async () => {
-            const r = await crearSubproceso(procesoFlujogramaId, titulo);
-            setMsg(r.ok ? "Subproceso creado." : r.error ?? "Error");
-            if (r.ok) setTitulo("");
-          })}
-          className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          className="min-h-11 w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50 sm:w-auto"
         >
           {pending ? "Creando…" : "Agregar subproceso"}
         </button>
-      </div>
-      {msg && <p className="mt-2 text-xs text-muted-foreground">{msg}</p>}
+      </form>
+      {msg && <p role="status" aria-live="polite" className="mt-2 text-xs text-muted-foreground">{msg}</p>}
     </div>
   );
 }
@@ -139,8 +147,9 @@ export function ImportarExcel({ subprocesoId }: { subprocesoId: string }) {
         Columnas: <span className="font-mono">{COLUMNAS.join(", ")}</span>. Obligatorias: id_paso, titulo.
         Usá la plantilla MSU_Plantilla_Procesos.xlsx.
       </p>
-      <input type="file" accept=".xlsx,.xls" onChange={onArchivo} className="text-sm" />
-      {error && <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
+      <label htmlFor={`archivo-flujo-${subprocesoId}`} className="sr-only">Seleccionar archivo Excel para importar</label>
+      <input id={`archivo-flujo-${subprocesoId}`} type="file" accept=".xlsx,.xls" onChange={onArchivo} className="min-h-11 max-w-full text-sm" />
+      {error && <p role="alert" className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
 
       {filas.length > 0 && (
         <div className="mt-3">
@@ -176,7 +185,7 @@ export function ImportarExcel({ subprocesoId }: { subprocesoId: string }) {
           </div>
         </div>
       )}
-      {resultado && <p className="mt-2 rounded-md bg-green-50 px-3 py-2 text-xs text-green-700">{resultado}</p>}
+      {resultado && <p role="status" aria-live="polite" className="mt-2 rounded-md bg-green-50 px-3 py-2 text-xs text-green-700">{resultado}</p>}
     </div>
   );
 }
