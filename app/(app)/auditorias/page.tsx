@@ -5,7 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AuditoriaFilters } from "@/components/auditorias/AuditoriaFilters";
-import { MetricCard, MetricGrid } from "@/components/ui/page";
+import { EmptyState, MetricCard, MetricGrid } from "@/components/ui/page";
 
 export const dynamic = "force-dynamic";
 
@@ -132,20 +132,14 @@ export default async function AuditoriasPage({ searchParams }: Props) {
           )})}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
-          <ClipboardCheck className="mb-4 h-10 w-10 text-muted-foreground" aria-hidden="true" />
-          <p className="font-medium text-foreground">{hayFiltros ? "No hay coincidencias" : "No hay auditorías planificadas"}</p>
-          <p className="mt-1 max-w-md text-sm text-muted-foreground">
-            {hayFiltros ? "Probá con otra búsqueda o limpiá los filtros activos." : "Planificá tu primera auditoría interna o externa para empezar a registrar hallazgos y dar seguimiento al SGI."}
-          </p>
-          {!hayFiltros ? <Link
-            href="/auditorias/nueva"
-            className={cn(buttonVariants({ variant: "default" }), "mt-6")}
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Nueva auditoría
-          </Link> : null}
-        </div>
+        <EmptyState
+          icon={<ClipboardCheck className="h-5 w-5" aria-hidden="true" />}
+          title={hayFiltros ? "No hay coincidencias" : "No hay auditorías planificadas"}
+          description={hayFiltros ? "Probá con otra búsqueda o eliminá los filtros activos." : "Planificá tu primera auditoría interna o externa para registrar hallazgos y dar seguimiento al SGI."}
+          action={hayFiltros
+            ? <Link href="/auditorias" className={cn(buttonVariants({ variant: "outline" }))}>Limpiar filtros</Link>
+            : <Link href="/auditorias/nueva" className={cn(buttonVariants({ variant: "default" }))}><Plus className="h-4 w-4" aria-hidden="true" />Nueva auditoría</Link>}
+        />
       )}
     </div>
   );

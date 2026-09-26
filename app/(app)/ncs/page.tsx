@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { obtenerZonaHoraria } from "@/lib/api/ajustes";
 import { estaVencida, formatearFechaCorta } from "@/lib/fechas";
 import { NCFilters } from "@/components/ncs/NCFilters";
+import { EmptyState } from "@/components/ui/page";
 
 export const dynamic = "force-dynamic";
 
@@ -208,14 +209,14 @@ function ListaNC({
 }) {
   if (ncs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
-        <AlertOctagon className="mb-4 h-10 w-10 text-muted-foreground" aria-hidden="true" />
-        <p className="font-medium text-foreground">{hayFiltros ? "No hay coincidencias" : "No hay no conformidades registradas"}</p>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">
-          {hayFiltros ? "Probá con otra búsqueda o limpiá los filtros activos." : "Cuando se detecte un incumplimiento (en una auditoría, un reclamo o un control interno), abrí una no conformidad para gestionarla hasta su cierre."}
-        </p>
-        {!hayFiltros ? <div className="mt-6">{slotNuevaNC}</div> : null}
-      </div>
+      <EmptyState
+        icon={<AlertOctagon className="h-5 w-5" aria-hidden="true" />}
+        title={hayFiltros ? "No hay coincidencias" : "No hay no conformidades registradas"}
+        description={hayFiltros ? "Probá con otra búsqueda o eliminá los filtros activos." : "Cuando detectes un incumplimiento, abrí una no conformidad para gestionarla hasta su cierre."}
+        action={hayFiltros
+          ? <Link href="/ncs?vista=ncs" className={cn(buttonVariants({ variant: "outline" }))}>Limpiar filtros</Link>
+          : slotNuevaNC}
+      />
     );
   }
   return (
@@ -264,13 +265,14 @@ function ListaNC({
 function ListaObservaciones({ observaciones, zona, hayFiltros }: { observaciones: Awaited<ReturnType<typeof obtenerObservaciones>>; zona: string; hayFiltros: boolean }) {
   if (observaciones.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
-        <Eye className="mb-4 h-10 w-10 text-muted-foreground" aria-hidden="true" />
-        <p className="font-medium text-foreground">{hayFiltros ? "No hay coincidencias" : "No hay observaciones registradas"}</p>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">
-          {hayFiltros ? "Probá con otra búsqueda o limpiá los filtros activos." : "Las observaciones y oportunidades de mejora se registran durante las auditorías. Cuando existan, vas a poder darles seguimiento desde acá."}
-        </p>
-      </div>
+      <EmptyState
+        icon={<Eye className="h-5 w-5" aria-hidden="true" />}
+        title={hayFiltros ? "No hay coincidencias" : "No hay observaciones registradas"}
+        description={hayFiltros ? "Probá con otra búsqueda o eliminá los filtros activos." : "Las observaciones y oportunidades de mejora se registran durante las auditorías y se gestionan desde acá."}
+        action={hayFiltros
+          ? <Link href="/ncs?vista=observaciones" className={cn(buttonVariants({ variant: "outline" }))}>Limpiar filtros</Link>
+          : <Link href="/auditorias" className={cn(buttonVariants({ variant: "outline" }))}>Ir a auditorías</Link>}
+      />
     );
   }
   return (

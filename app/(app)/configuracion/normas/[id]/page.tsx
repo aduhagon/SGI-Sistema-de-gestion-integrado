@@ -10,7 +10,9 @@ import {
 import { GestionVersionesNorma } from "@/components/configuracion/GestionVersionesNorma";
 import { GestionRelacionesNorma } from "@/components/configuracion/GestionRelacionesNorma";
 import { listarRequisitosLegales } from "@/lib/api/requisitos-legales";
-import { PageContainer } from "@/components/ui/page";
+import { EmptyState, PageContainer } from "@/components/ui/page";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -83,10 +85,12 @@ export default async function NormaDetallePage({ params }: Props) {
           )}
 
           {requisitos.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border px-5 py-8 text-center">
-              <Scale className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
-              <p className="text-sm font-medium">No hay requisitos derivados cargados</p>
-            </div>
+            <EmptyState
+              icon={<Scale className="h-5 w-5" aria-hidden="true" />}
+              title="No hay requisitos derivados cargados"
+              description="Creá las obligaciones concretas que surgen de esta norma legal para luego asignarlas a procesos y certificaciones."
+              action={<Link href="/requisitos-legales" className={cn(buttonVariants({ variant: "default" }))}>Gestionar requisitos legales</Link>}
+            />
           ) : (
             <div className="divide-y rounded-lg border border-border">
               {requisitos.map((requisito) => (

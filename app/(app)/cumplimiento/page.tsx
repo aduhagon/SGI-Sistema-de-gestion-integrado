@@ -7,6 +7,9 @@ import {
 } from "@/lib/api/matriz";
 import ArbolCumplimiento from "@/components/cumplimiento/ArbolCumplimiento";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/page";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -34,14 +37,12 @@ export default async function CumplimientoPage({ searchParams }: Props) {
             Matriz de cobertura documental
           </h1>
         </header>
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
-          <FileWarning className="mb-4 h-10 w-10 text-muted-foreground" aria-hidden="true" />
-          <p className="font-medium text-foreground">No hay requisitos cargados todavía</p>
-          <p className="mt-1 max-w-md text-sm text-muted-foreground">
-            La matriz cruza los requisitos de cada norma con los documentos que los
-            cubren. Cargá los requisitos de al menos una norma para empezar.
-          </p>
-        </div>
+        <EmptyState
+          icon={<FileWarning className="h-5 w-5" aria-hidden="true" />}
+          title="No hay requisitos cargados todavía"
+          description="La matriz cruza los requisitos de cada norma con los documentos que los cubren. Cargá los requisitos de al menos una norma para empezar."
+          action={<Link href="/configuracion/normas" className={cn(buttonVariants({ variant: "default" }))}>Gestionar normas</Link>}
+        />
       </div>
     );
   }
