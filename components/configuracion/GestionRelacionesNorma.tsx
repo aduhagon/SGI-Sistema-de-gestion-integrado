@@ -12,6 +12,7 @@ import {
   type EstadoConfig,
 } from "@/app/(app)/configuracion/normas/actions";
 import { Button } from "@/components/ui/button";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import {
   ModalBody,
   ModalError,
@@ -56,6 +57,7 @@ export function GestionRelacionesNorma({
   const [abierto, setAbierto] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
+  const [aEliminar, setAEliminar] = useState<RelacionNorma | null>(null);
   const [estado, formAction] = useFormState<EstadoConfig, FormData>(
     guardarRelacionNorma,
     null,
@@ -68,12 +70,13 @@ export function GestionRelacionesNorma({
     }
   }, [estado, router]);
 
-  async function quitar(id: string) {
+  async function quitar() {
+    if (!aEliminar) return;
     setErrorLocal(null);
-    setEliminando(id);
-    const resultado = await eliminarRelacionNorma(id, normaId);
+    setEliminando(aEliminar.id);
+    const resultado = await eliminarRelacionNorma(aEliminar.id, normaId);
     setEliminando(null);
-    if (resultado?.ok) router.refresh();
+    if (resultado?.ok) { setAEliminar(null); router.refresh(); }
     else setErrorLocal(resultado?.error ?? "No se pudo quitar la relación.");
   }
 
@@ -155,7 +158,7 @@ export function GestionRelacionesNorma({
                 </div>
                 <button
                   type="button"
-                  onClick={() => quitar(relacion.id)}
+                  onClick={() => { setErrorLocal(null); setAEliminar(relacion); }}
                   disabled={eliminando === relacion.id}
                   className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                   title="Quitar relación"
@@ -234,6 +237,7 @@ export function GestionRelacionesNorma({
           </form>
         </ModalShell>
       )}
+      <ConfirmActionDialog abierto={aEliminar !== null} titulo="Quitar relación normativa" registro={aEliminar ? `${aEliminar.etiqueta}: ${aEliminar.normaRelacionada.codigo} · ${aEliminar.normaRelacionada.nombreCorto}` : ""} descripcion="Se quitará únicamente el vínculo entre las normas; las normas y sus requisitos se conservarán. La acción quedará registrada en la bitácora." confirmLabel="Quitar relación" procesando={eliminando !== null} error={errorLocal} onConfirmar={quitar} onCancelar={() => { setAEliminar(null); setErrorLocal(null); }} />
     </section>
   );
 }

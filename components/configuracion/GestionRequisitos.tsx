@@ -8,6 +8,7 @@ import type { Requisito } from "@/lib/api/normativa";
 import { guardarRequisito, eliminarRequisito, type EstadoNormativa } from "@/app/(app)/configuracion/normas/version/[id]/requisito-actions";
 import { Button } from "@/components/ui/button";
 import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 
 function SubmitButton({ edicion }: { edicion: boolean }) {
   const { pending } = useFormStatus();
@@ -25,6 +26,8 @@ export function GestionRequisitos({ versionId, requisitos }: { versionId: string
   const [oblig, setOblig] = useState(true);
   const [critico, setCritico] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
+  const [aEliminar, setAEliminar] = useState<Requisito | null>(null);
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
   const [filtro, setFiltro] = useState("");
   const [estado, formAction] = useFormState<EstadoNormativa, FormData>(guardarRequisito, null);
 
@@ -39,11 +42,12 @@ export function GestionRequisitos({ versionId, requisitos }: { versionId: string
     setAbierto(true);
   }
 
-  async function quitar(id: string) {
-    setEliminando(id);
-    const r = await eliminarRequisito(id, versionId);
+  async function quitar() {
+    if (!aEliminar) return;
+    setEliminando(aEliminar.id); setErrorEliminar(null);
+    const r = await eliminarRequisito(aEliminar.id, versionId);
     setEliminando(null);
-    if (r?.ok) router.refresh();
+    if (r?.ok) { setAEliminar(null); router.refresh(); } else setErrorEliminar(r?.error ?? "No se pudo eliminar el requisito. No se realizó ningún cambio.");
   }
 
   const filtrados = useMemo(() => {
@@ -91,7 +95,7 @@ export function GestionRequisitos({ versionId, requisitos }: { versionId: string
                       <button onClick={() => abrir(r)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Editar" aria-label="Editar">
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => quitar(r.id)} disabled={eliminando === r.id} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title="Eliminar" aria-label="Eliminar">
+                      <button onClick={() => { setErrorEliminar(null); setAEliminar(r); }} disabled={eliminando === r.id} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={`Eliminar requisito ${r.clausula}`} aria-label={`Eliminar requisito ${r.clausula}`}>
                         {eliminando === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                       </button>
                     </div>
@@ -157,6 +161,7 @@ export function GestionRequisitos({ versionId, requisitos }: { versionId: string
           </form>
         </ModalShell>
       )}
+      <ConfirmActionDialog abierto={aEliminar !== null} titulo="Eliminar requisito normativo" registro={aEliminar ? `${aEliminar.clausula} · ${aEliminar.titulo}` : ""} descripcion="El requisito solo podrá eliminarse si no tiene documentos, evaluaciones o coberturas vinculadas. Su eliminación puede modificar los indicadores de cumplimiento." procesando={eliminando !== null} error={errorEliminar} onConfirmar={quitar} onCancelar={() => { setAEliminar(null); setErrorEliminar(null); }} />
     </div>
   );
 }

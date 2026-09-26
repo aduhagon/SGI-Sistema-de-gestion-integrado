@@ -9,6 +9,7 @@ import type { VersionNorma } from "@/lib/api/normativa";
 import { guardarVersionNorma, eliminarVersionNorma, type EstadoNormativa } from "@/app/(app)/configuracion/normas/[id]/version-actions";
 import { Button } from "@/components/ui/button";
 import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 
 function SubmitButton({ edicion }: { edicion: boolean }) {
   const { pending } = useFormStatus();
@@ -25,6 +26,8 @@ export function GestionVersionesNorma({ normaId, versiones }: { normaId: string;
   const [abierto, setAbierto] = useState(false);
   const [actual, setActual] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
+  const [aEliminar, setAEliminar] = useState<VersionNorma | null>(null);
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
   const [estado, formAction] = useFormState<EstadoNormativa, FormData>(guardarVersionNorma, null);
 
   useEffect(() => {
@@ -37,11 +40,12 @@ export function GestionVersionesNorma({ normaId, versiones }: { normaId: string;
     setAbierto(true);
   }
 
-  async function quitar(id: string) {
-    setEliminando(id);
-    const r = await eliminarVersionNorma(id, normaId);
+  async function quitar() {
+    if (!aEliminar) return;
+    setEliminando(aEliminar.id); setErrorEliminar(null);
+    const r = await eliminarVersionNorma(aEliminar.id, normaId);
     setEliminando(null);
-    if (r?.ok) router.refresh();
+    if (r?.ok) { setAEliminar(null); router.refresh(); } else setErrorEliminar(r?.error ?? "No se pudo eliminar la versión. No se realizó ningún cambio.");
   }
 
   const fmt = (f: string | null) => f ? new Date(f + "T00:00:00").toLocaleDateString("es-AR", { year: "numeric", month: "short" }) : null;
@@ -78,7 +82,7 @@ export function GestionVersionesNorma({ normaId, versiones }: { normaId: string;
                 <button onClick={() => abrir(v)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Editar" aria-label="Editar">
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
-                <button onClick={() => quitar(v.id)} disabled={eliminando === v.id} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title="Eliminar" aria-label="Eliminar">
+                <button onClick={() => { setErrorEliminar(null); setAEliminar(v); }} disabled={eliminando === v.id} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={`Eliminar versión ${v.version}`} aria-label={`Eliminar versión ${v.version}`}>
                   {eliminando === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                 </button>
               </div>
@@ -136,6 +140,7 @@ export function GestionVersionesNorma({ normaId, versiones }: { normaId: string;
           </form>
         </ModalShell>
       )}
+      <ConfirmActionDialog abierto={aEliminar !== null} titulo="Eliminar versión de norma" registro={aEliminar ? `Versión ${aEliminar.version}${aEliminar.nombreVersion ? ` · ${aEliminar.nombreVersion}` : ""}` : ""} descripcion="La versión solo podrá eliminarse si no tiene requisitos o relaciones activas. Si es la versión vigente, revisá primero cuál debe reemplazarla." procesando={eliminando !== null} error={errorEliminar} onConfirmar={quitar} onCancelar={() => { setAEliminar(null); setErrorEliminar(null); }} />
     </div>
   );
 }
