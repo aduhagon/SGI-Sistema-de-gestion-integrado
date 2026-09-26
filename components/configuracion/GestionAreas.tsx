@@ -8,6 +8,7 @@ import type { Area } from "@/lib/api/configuracion";
 import { guardarArea, eliminarArea, type EstadoConfig } from "@/app/(app)/configuracion/areas/actions";
 import { Button } from "@/components/ui/button";
 import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 
 function SubmitButton({ edicion }: { edicion: boolean }) {
   const { pending } = useFormStatus();
@@ -41,6 +42,8 @@ export function GestionAreas({ areas, gerencias }: { areas: Area[]; gerencias: G
   const [editando, setEditando] = useState<Area | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
+  const [aEliminar, setAEliminar] = useState<Area | null>(null);
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
   const [estado, formAction] = useFormState<EstadoConfig, FormData>(guardarArea, null);
 
   // Agrupar las áreas por gerencia. Las gerencias mismas (código GER-*) y las
@@ -85,11 +88,12 @@ export function GestionAreas({ areas, gerencias }: { areas: Area[]; gerencias: G
   function abrirNueva() { setEditando(null); setAbierto(true); }
   function abrirEdicion(a: Area) { setEditando(a); setAbierto(true); }
 
-  async function quitar(id: string) {
-    setEliminando(id);
-    const r = await eliminarArea(id);
+  async function quitar() {
+    if (!aEliminar) return;
+    setEliminando(aEliminar.id); setErrorEliminar(null);
+    const r = await eliminarArea(aEliminar.id);
     setEliminando(null);
-    if (r?.ok) router.refresh();
+    if (r?.ok) { setAEliminar(null); router.refresh(); } else setErrorEliminar(r?.error ?? "No se pudo eliminar el área. No se realizó ningún cambio.");
   }
 
   return (
@@ -106,7 +110,7 @@ export function GestionAreas({ areas, gerencias }: { areas: Area[]; gerencias: G
               titulo={grupo.titulo}
               areas={grupo.areas}
               onEditar={abrirEdicion}
-              onEliminar={quitar}
+              onEliminar={(id) => { const area = areas.find((item) => item.id === id); if (area) { setErrorEliminar(null); setAEliminar(area); } }}
               eliminando={eliminando}
             />
           ))}
@@ -182,6 +186,7 @@ export function GestionAreas({ areas, gerencias }: { areas: Area[]; gerencias: G
           </form>
         </ModalShell>
       )}
+      <ConfirmActionDialog abierto={aEliminar !== null} titulo="Eliminar área" registro={aEliminar ? `${aEliminar.codigo} · ${aEliminar.nombre}` : ""} descripcion="El área solo podrá eliminarse si no tiene puestos, personas u otras relaciones activas. Esta acción quedará registrada en la bitácora." procesando={eliminando !== null} error={errorEliminar} onConfirmar={quitar} onCancelar={() => { setAEliminar(null); setErrorEliminar(null); }} />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import type { TipoDocumental } from "@/lib/api/configuracion";
 import { guardarTipoDocumental, eliminarTipoDocumental, type EstadoConfig } from "@/app/(app)/configuracion/tipos/actions";
 import { Button } from "@/components/ui/button";
 import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 
 const FRECUENCIAS = ["trimestral", "semestral", "anual", "bienal", "trienal", "quinquenal", "ad_hoc", "sin_revision"];
 const CRITICIDADES = ["critico", "alto", "medio", "bajo"];
@@ -30,6 +31,8 @@ export function GestionTiposDocumentales({ tipos }: { tipos: TipoDocumental[] })
   const [editando, setEditando] = useState<TipoDocumental | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
+  const [aEliminar, setAEliminar] = useState<TipoDocumental | null>(null);
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
   const [estado, formAction] = useFormState<EstadoConfig, FormData>(guardarTipoDocumental, null);
 
   // Estado local de la configuración de aprobación (controla qué controles se ven).
@@ -50,11 +53,12 @@ export function GestionTiposDocumentales({ tipos }: { tipos: TipoDocumental[] })
     if (estado?.ok) { setAbierto(false); setEditando(null); router.refresh(); }
   }, [estado, router]);
 
-  async function quitar(id: string) {
-    setEliminando(id);
-    const r = await eliminarTipoDocumental(id);
+  async function quitar() {
+    if (!aEliminar) return;
+    setEliminando(aEliminar.id); setErrorEliminar(null);
+    const r = await eliminarTipoDocumental(aEliminar.id);
     setEliminando(null);
-    if (r?.ok) router.refresh();
+    if (r?.ok) { setAEliminar(null); router.refresh(); } else setErrorEliminar(r?.error ?? "No se pudo eliminar el tipo documental. No se realizó ningún cambio.");
   }
 
   return (
@@ -96,7 +100,7 @@ export function GestionTiposDocumentales({ tipos }: { tipos: TipoDocumental[] })
                       <button onClick={() => { setEditando(t); setAbierto(true); }} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Editar" aria-label="Editar">
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => quitar(t.id)} disabled={eliminando === t.id} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title="Eliminar" aria-label="Eliminar">
+                      <button onClick={() => { setErrorEliminar(null); setAEliminar(t); }} disabled={eliminando === t.id} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={`Eliminar ${t.nombre}`} aria-label={`Eliminar ${t.nombre}`}>
                         {eliminando === t.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                       </button>
                     </div>
@@ -262,6 +266,7 @@ export function GestionTiposDocumentales({ tipos }: { tipos: TipoDocumental[] })
           </form>
         </ModalShell>
       )}
+      <ConfirmActionDialog abierto={aEliminar !== null} titulo="Eliminar tipo documental" registro={aEliminar ? `${aEliminar.codigo} · ${aEliminar.nombre}` : ""} descripcion="El tipo solo podrá eliminarse si no está utilizado por documentos. Esta acción quedará registrada en la bitácora." procesando={eliminando !== null} error={errorEliminar} onConfirmar={quitar} onCancelar={() => { setAEliminar(null); setErrorEliminar(null); }} />
     </div>
   );
 }
