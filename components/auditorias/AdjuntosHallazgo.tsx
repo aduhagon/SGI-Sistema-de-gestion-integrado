@@ -37,19 +37,30 @@ export function AdjuntosHallazgo({ auditoriaId, hallazgoId, adjuntos, puedeAdjun
     fd.set("auditoriaId", auditoriaId);
     fd.set("hallazgoId", hallazgoId);
     fd.set("archivo", file);
-    const r = await subirAdjuntoHallazgo(null, fd);
-    setSubiendo(false);
-    if (fileRef.current) fileRef.current.value = "";
-    if (r && !r.ok) { setError(r.error); return; }
-    router.refresh();
+    try {
+      const r = await subirAdjuntoHallazgo(null, fd);
+      if (r && !r.ok) { setError(`${r.error} No se adjuntó el archivo.`); return; }
+      router.refresh();
+    } catch {
+      setError("No se pudo conectar con el servidor. No se adjuntó el archivo; volvé a intentar.");
+    } finally {
+      setSubiendo(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   }
 
   async function quitar(id: string) {
     setQuitando(id);
-    const r = await quitarAdjuntoHallazgo(auditoriaId, id);
-    setQuitando(null);
-    if (r && !r.ok) { setError(r.error); return; }
-    router.refresh();
+    setError(null);
+    try {
+      const r = await quitarAdjuntoHallazgo(auditoriaId, id);
+      if (r && !r.ok) { setError(`${r.error} El archivo continúa adjunto.`); return; }
+      router.refresh();
+    } catch {
+      setError("No se pudo conectar con el servidor. El archivo continúa adjunto; volvé a intentar.");
+    } finally {
+      setQuitando(null);
+    }
   }
 
   if (adjuntos.length === 0 && !puedeAdjuntar) return null;
@@ -94,7 +105,7 @@ export function AdjuntosHallazgo({ auditoriaId, hallazgoId, adjuntos, puedeAdjun
           </>
         )}
       </div>
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-xs text-destructive">{error}</p>}
     </div>
   );
 }

@@ -16,10 +16,13 @@ export function BotonCrearNC({ hallazgoId }: { hallazgoId: string }) {
   async function crear() {
     setError(null);
     setCreando(true);
-    // Si la action tiene éxito hace redirect (no vuelve). Si falla, devuelve error.
-    const r = await crearNCDesdeHallazgo(hallazgoId);
-    if (r && !r.ok) {
-      setError(r.error);
+    try {
+      // Si la action tiene éxito hace redirect (no vuelve). Si falla, devuelve error.
+      const r = await crearNCDesdeHallazgo(hallazgoId);
+      if (r && !r.ok) setError(`${r.error} No se creó ninguna no conformidad.`);
+    } catch {
+      setError("No se pudo conectar con el servidor. El hallazgo no fue modificado; volvé a intentar.");
+    } finally {
       setCreando(false);
     }
   }
@@ -44,7 +47,7 @@ export function BotonCrearNC({ hallazgoId }: { hallazgoId: string }) {
           </>
         )}
       </button>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }

@@ -3,6 +3,9 @@ import { ChevronLeft, ShieldAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerNCsOperativas } from "@/lib/api/ncReportes";
 import { ReporteNCOperativo } from "@/components/ncs/ReporteNCOperativo";
+import { ErrorState, PageContainer } from "@/components/ui/page";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -31,11 +34,14 @@ export default async function ReporteNCPage() {
 
   if ("error" in resultado) {
     return (
-      <div className="mx-auto max-w-2xl p-6 sm:p-8 lg:p-10">
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
-          No se pudo cargar el reporte: {resultado.error}
-        </div>
-      </div>
+      <PageContainer width="standard">
+        <ErrorState
+          title="No se pudo generar el reporte"
+          description="Las no conformidades no fueron modificadas. Podés volver a intentar o regresar al listado."
+          detail={resultado.error}
+          action={<div className="flex flex-wrap justify-center gap-2"><Link href="/ncs/reportes" className={cn(buttonVariants({ variant: "default" }))}>Reintentar</Link><Link href="/ncs" className={cn(buttonVariants({ variant: "outline" }))}>Volver a no conformidades</Link></div>}
+        />
+      </PageContainer>
     );
   }
 

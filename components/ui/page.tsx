@@ -112,3 +112,24 @@ export function EmptyState({
     </div>
   );
 }
+
+export function ErrorState({
+  title = "No se pudo cargar la información",
+  description,
+  detail,
+  action,
+}: {
+  title?: string;
+  description: string;
+  detail?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-10 text-center">
+      <p className="font-medium text-foreground">{title}</p>
+      <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">{description}</p>
+      {detail ? <details className="mx-auto mt-3 max-w-lg text-left text-xs text-muted-foreground"><summary className="cursor-pointer text-center">Ver detalle técnico</summary><p className="mt-2 break-words rounded-md bg-background/70 p-3 font-mono">{detail}</p></details> : null}
+      {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
+    </div>
+  );
+}

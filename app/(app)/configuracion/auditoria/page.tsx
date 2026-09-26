@@ -3,7 +3,9 @@ import { ChevronLeft, ShieldAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerResumen } from "@/lib/api/auditoria";
 import VisorAuditoria from "@/components/configuracion/VisorAuditoria";
-import { PageContainer, PageHeader } from "@/components/ui/page";
+import { ErrorState, PageContainer, PageHeader } from "@/components/ui/page";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -33,11 +35,14 @@ export default async function AuditoriaPage() {
   const resumen = await obtenerResumen();
   if ("error" in resumen) {
     return (
-      <div className="mx-auto max-w-2xl p-6 sm:p-8 lg:p-10">
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
-          No se pudo cargar el resumen de auditoría: {resumen.error}
-        </div>
-      </div>
+      <PageContainer width="standard">
+        <ErrorState
+          title="No se pudo cargar la bitácora"
+          description="No se modificó ningún registro. Podés volver a intentar o regresar a Configuración."
+          detail={resumen.error}
+          action={<div className="flex flex-wrap justify-center gap-2"><Link href="/configuracion/auditoria" className={cn(buttonVariants({ variant: "default" }))}>Reintentar</Link><Link href="/configuracion" className={cn(buttonVariants({ variant: "outline" }))}>Volver a configuración</Link></div>}
+        />
+      </PageContainer>
     );
   }
 
