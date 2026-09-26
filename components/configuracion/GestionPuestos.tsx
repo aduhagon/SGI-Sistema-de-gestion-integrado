@@ -9,6 +9,7 @@ import type { Puesto } from "@/lib/api/configuracion";
 import { guardarPuesto, eliminarPuesto, type EstadoConfig } from "@/app/(app)/configuracion/puestos/actions";
 import { Button } from "@/components/ui/button";
 import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 
 type AreaOpcion = { id: string; codigo: string; nombre: string };
 
@@ -26,6 +27,8 @@ export function GestionPuestos({ puestos, areas }: { puestos: Puesto[]; areas: A
   const [editando, setEditando] = useState<Puesto | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
+  const [aEliminar, setAEliminar] = useState<Puesto | null>(null);
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
   const [estado, formAction] = useFormState<EstadoConfig, FormData>(guardarPuesto, null);
 
   const arbol = useMemo(() => construirArbol(puestos), [puestos]);
@@ -34,11 +37,13 @@ export function GestionPuestos({ puestos, areas }: { puestos: Puesto[]; areas: A
     if (estado?.ok) { setAbierto(false); setEditando(null); router.refresh(); }
   }, [estado, router]);
 
-  async function quitar(id: string) {
-    setEliminando(id);
-    const r = await eliminarPuesto(id);
+  async function quitar() {
+    if (!aEliminar) return;
+    setEliminando(aEliminar.id); setErrorEliminar(null);
+    const r = await eliminarPuesto(aEliminar.id);
     setEliminando(null);
-    if (r?.ok) router.refresh();
+    if (r?.ok) { setAEliminar(null); router.refresh(); }
+    else setErrorEliminar(r?.error ?? "No se pudo eliminar el puesto. No se realizó ningún cambio.");
   }
 
   return (
@@ -55,7 +60,7 @@ export function GestionPuestos({ puestos, areas }: { puestos: Puesto[]; areas: A
               titulo={ger.titulo}
               areas={ger.areas}
               onEditar={(p) => { setEditando(p); setAbierto(true); }}
-              onEliminar={quitar}
+              onEliminar={(id) => { const puesto = puestos.find((item) => item.id === id); if (puesto) { setErrorEliminar(null); setAEliminar(puesto); } }}
               eliminando={eliminando}
             />
           ))}
@@ -133,6 +138,7 @@ export function GestionPuestos({ puestos, areas }: { puestos: Puesto[]; areas: A
           </form>
         </ModalShell>
       )}
+      <ConfirmActionDialog abierto={aEliminar !== null} titulo="Eliminar puesto" registro={aEliminar ? `${aEliminar.codigo} · ${aEliminar.nombre}` : ""} descripcion="El puesto solo podrá eliminarse si no tiene personas, responsabilidades o relaciones jerárquicas activas. Esta acción quedará registrada en la bitácora." procesando={eliminando !== null} error={errorEliminar} onConfirmar={quitar} onCancelar={() => { setAEliminar(null); setErrorEliminar(null); }} />
     </div>
   );
 }

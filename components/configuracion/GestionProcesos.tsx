@@ -8,6 +8,7 @@ import type { ProcesoCatalogo } from "@/lib/api/configuracion";
 import { guardarProceso, eliminarProceso, type EstadoConfig } from "@/app/(app)/configuracion/procesos/actions";
 import { Button } from "@/components/ui/button";
 import { ModalShell, ModalHeader, ModalBody, ModalFooter, ModalError, MODAL_FORM_CLASS } from "@/components/ui/modal";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 
 const BANDAS: { valor: string; etiqueta: string }[] = [
   { valor: "estrategico", etiqueta: "Estratégicos" },
@@ -29,17 +30,21 @@ export function GestionProcesos({ procesos }: { procesos: ProcesoCatalogo[] }) {
   const [editando, setEditando] = useState<ProcesoCatalogo | null>(null);
   const [abierto, setAbierto] = useState(false);
   const [eliminando, setEliminando] = useState<string | null>(null);
+  const [aEliminar, setAEliminar] = useState<ProcesoCatalogo | null>(null);
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
   const [estado, formAction] = useFormState<EstadoConfig, FormData>(guardarProceso, null);
 
   useEffect(() => {
     if (estado?.ok) { setAbierto(false); setEditando(null); router.refresh(); }
   }, [estado, router]);
 
-  async function quitar(id: string) {
-    setEliminando(id);
-    const r = await eliminarProceso(id);
+  async function quitar() {
+    if (!aEliminar) return;
+    setEliminando(aEliminar.id); setErrorEliminar(null);
+    const r = await eliminarProceso(aEliminar.id);
     setEliminando(null);
-    if (r?.ok) router.refresh();
+    if (r?.ok) { setAEliminar(null); router.refresh(); }
+    else setErrorEliminar(r?.error ?? "No se pudo eliminar el proceso. No se realizó ningún cambio.");
   }
 
   // Candidatos a proceso padre: todos menos el que se está editando.
@@ -76,7 +81,7 @@ export function GestionProcesos({ procesos }: { procesos: ProcesoCatalogo[] }) {
                               <button onClick={() => { setEditando(p); setAbierto(true); }} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title="Editar" aria-label="Editar">
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
-                              <button onClick={() => quitar(p.id)} disabled={eliminando === p.id} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title="Eliminar" aria-label="Eliminar">
+                              <button onClick={() => { setErrorEliminar(null); setAEliminar(p); }} disabled={eliminando === p.id} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={`Eliminar ${p.nombre}`} aria-label={`Eliminar ${p.nombre}`}>
                                 {eliminando === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                               </button>
                             </div>
@@ -163,6 +168,7 @@ export function GestionProcesos({ procesos }: { procesos: ProcesoCatalogo[] }) {
           </form>
         </ModalShell>
       )}
+      <ConfirmActionDialog abierto={aEliminar !== null} titulo="Eliminar proceso" registro={aEliminar ? `${aEliminar.codigo} · ${aEliminar.nombre}` : ""} descripcion="El proceso solo podrá eliminarse si no tiene documentos, riesgos, controles u otras relaciones activas. Esta acción quedará registrada en la bitácora." procesando={eliminando !== null} error={errorEliminar} onConfirmar={quitar} onCancelar={() => { setAEliminar(null); setErrorEliminar(null); }} />
     </div>
   );
 }
