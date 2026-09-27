@@ -515,8 +515,8 @@ export function EditarMetadataForm({ documento, normas, tipos, procesos }: Props
       </Section>
 
       <Section
-        titulo="Cobertura normativa"
-        descripcion="Normas que cubre este documento. La primera seleccionada queda como principal."
+        titulo="Certificaciones y estándares"
+        descripcion="Certificaciones o estándares para los que aplica este documento. La primera selección queda como principal."
       >
         <div className="flex flex-wrap gap-2">
           {normas.map((n) => {

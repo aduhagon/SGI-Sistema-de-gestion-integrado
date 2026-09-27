@@ -255,6 +255,13 @@ export function GestionRequisitosLegales({
         <td className="px-4 py-2.5 text-muted-foreground hidden md:table-cell">
           {ETIQUETA_TIPO[r.tipo as keyof typeof ETIQUETA_TIPO] ?? r.tipo}
         </td>
+        <td className="hidden px-4 py-2.5 md:table-cell">
+          {r.normaLegalNombre ? (
+            <span className="text-sm text-foreground">{r.normaLegalNombre}</span>
+          ) : (
+            <span className="text-muted-foreground/50">Sin vincular</span>
+          )}
+        </td>
         <td className="px-4 py-2.5 hidden md:table-cell">
           {r.normas.length > 0 ? (
             <div className="flex flex-wrap gap-1">
@@ -346,7 +353,12 @@ export function GestionRequisitosLegales({
               {r.referencia && <p className="mt-1 break-words text-sm text-muted-foreground">{r.referencia}</p>}
               <div className="mt-3 flex flex-wrap gap-1.5 text-xs text-muted-foreground">
                 <span className="rounded-full bg-muted px-2 py-1">{ETIQUETA_TIPO[r.tipo as keyof typeof ETIQUETA_TIPO] ?? r.tipo}</span>
-                {r.normas.map((n) => <span key={n.id} className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">{n.nombre}</span>)}
+                {r.normaLegalNombre ? (
+                  <span className="rounded-full bg-sky-100 px-2 py-1 text-sky-800">{r.normaLegalNombre}</span>
+                ) : (
+                  <span className="rounded-full border border-dashed border-border px-2 py-1">Sin marco legal</span>
+                )}
+                {r.normas.map((n) => <span key={n.id} className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">Certificación: {n.nombre}</span>)}
                 {mostrarProcesos && r.procesos.map((p) => <span key={p.id} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">{p.codigo || p.nombre}</span>)}
               </div>
               <div className="mt-3 grid grid-cols-[1fr_1fr_auto] gap-2">
@@ -372,7 +384,10 @@ export function GestionRequisitosLegales({
                 Tipo
               </th>
               <th className="px-4 py-2.5 font-medium text-muted-foreground hidden md:table-cell">
-                Normas
+                Marco legal
+              </th>
+              <th className="px-4 py-2.5 font-medium text-muted-foreground hidden md:table-cell">
+                Certificaciones
               </th>
               {mostrarProcesos && (
                 <th className="px-4 py-2.5 font-medium text-muted-foreground hidden lg:table-cell">
@@ -506,7 +521,7 @@ export function GestionRequisitosLegales({
       {/* Filtro por norma */}
       {normas.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground">Norma:</span>
+          <span className="text-xs text-muted-foreground">Certificación:</span>
           {[
             { id: "__todas__", nombre: "Todas" },
             ...normas,
@@ -591,7 +606,12 @@ export function GestionRequisitosLegales({
             {editando ? "Editar requisito legal" : "Nuevo requisito legal"}
           </h2>
         </ModalHeader>
-        <form action={accionForm} onChangeCapture={() => setHayCambiosForm(true)} className={MODAL_FORM_CLASS}>
+        <form
+          key={editando?.id ?? "nuevo"}
+          action={accionForm}
+          onChangeCapture={() => setHayCambiosForm(true)}
+          className={MODAL_FORM_CLASS}
+        >
           <ModalBody className="space-y-4">
                 {editando && <input type="hidden" name="id" value={editando.id} />}
                 {procesosSel.map((p) => (
@@ -702,24 +722,29 @@ export function GestionRequisitosLegales({
                   </div>
                 </div>
 
-                <section className="space-y-3 rounded-lg border border-border p-4">
-                  <label htmlFor="normaLegalId" className="text-sm font-semibold">Marco legal: ley, decreto o resolución de origen</label>
+                <section className="space-y-3 rounded-lg border border-sky-200 bg-sky-50/40 p-3 sm:p-4">
+                  <div>
+                    <label htmlFor="normaLegalId" className="text-sm font-semibold">Ley, decreto o resolución de origen</label>
+                    <p className="mt-1 text-xs text-muted-foreground">Esta es la disposición legal que genera el requisito.</p>
+                  </div>
                   <select id="normaLegalId" name="normaLegalId" value={normaLegalId}
                     onChange={(e) => setNormaLegalId(e.target.value)}
-                    className="w-full min-w-0 rounded-md border border-input bg-background px-3 py-3 text-sm">
+                    className="min-h-11 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm">
                     <option value="">Sin vincular</option>
                     {marcoLegal.map((n) => <option key={n.id} value={n.id}>{n.nombre}</option>)}
                   </select>
                   {marcoLegal.filter((n) => n.id === normaLegalId).map((n) => (
-                    <div key={n.id} className="space-y-2 text-sm">
-                      <p className="font-medium">Relaciones legales</p>
+                    <div key={n.id} className="space-y-2 rounded-md border border-sky-200 bg-background p-3 text-sm">
+                      <p className="font-medium">Normas relacionadas</p>
                       {n.relaciones.length ? n.relaciones.map((r) => (
-                        <p key={r.id}>{r.etiqueta} <strong>{r.normaRelacionada.nombreCorto}</strong></p>
+                        <div key={r.id} className="flex flex-col gap-0.5 border-t border-border py-2 first:border-t-0 first:pt-0 sm:flex-row sm:items-baseline sm:gap-2">
+                          <span className="text-xs text-muted-foreground">{r.etiqueta}</span>
+                          <strong className="break-words">{r.normaRelacionada.nombreCorto}</strong>
+                        </div>
                       )) : <p className="text-muted-foreground">Sin relaciones registradas.</p>}
-                      <a href={`/configuracion/normas/${n.id}`} target="_blank" rel="noreferrer" className="inline-block py-2 text-primary underline">Gestionar relaciones legales (otra pestaña)</a>
+                      <a href={`/configuracion/normas/${n.id}`} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-primary underline underline-offset-2">Gestionar relaciones legales</a>
                     </div>
                   ))}
-                  <p className="text-xs text-muted-foreground">Elegí la disposición que origina esta obligación. Sus relaciones se comparten entre todos sus requisitos.</p>
                 </section>
 
                 {/* Multi-select de normas (N:M) */}
@@ -885,7 +910,7 @@ export function GestionRequisitosLegales({
               {evaluando.titulo}
             </p>
           </ModalHeader>
-          <form action={accionEval} onChangeCapture={() => setHayCambiosEval(true)} className={MODAL_FORM_CLASS}>
+          <form key={evaluando.id} action={accionEval} onChangeCapture={() => setHayCambiosEval(true)} className={MODAL_FORM_CLASS}>
             <ModalBody className="space-y-4">
                 <input type="hidden" name="requisitoLegalId" value={evaluando.id} />
 

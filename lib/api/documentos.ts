@@ -202,7 +202,7 @@ export async function obtenerDatosForm() {
         .order("codigo_numerico"),
       supabase
         .from("normas")
-        .select("id, codigo, nombre_corto, nombre_completo")
+        .select("id, codigo, nombre_corto, nombre_completo, ambito")
         .eq("activo", true)
         .order("orden_visualizacion"),
       supabase
@@ -215,7 +215,11 @@ export async function obtenerDatosForm() {
   return {
     tipos: tipos ?? [],
     procesos: procesos ?? [],
-    normas: normas ?? [],
+    // La cobertura documental usa certificaciones y estándares. Las leyes,
+    // decretos y resoluciones se gestionan desde los requisitos legales.
+    normas: (normas ?? [])
+      .filter((norma) => !norma.ambito?.startsWith("Marco legal"))
+      .map(({ ambito: _ambito, ...norma }) => norma),
     paises: paises ?? [],
   };
 }

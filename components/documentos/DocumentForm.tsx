@@ -568,8 +568,8 @@ export function DocumentForm({ tipos, procesos, normas, paises, procesoInicial =
 
         <div className="mt-6">
           <Section
-            titulo="Cobertura normativa"
-            descripcion="Qué normas cubre este documento. Podés seleccionar múltiples."
+            titulo="Certificaciones y estándares"
+            descripcion="Indicá para qué certificaciones o estándares aplica este documento. Podés seleccionar varios."
           >
             <div className="flex flex-wrap gap-2">
               {normas.map((n) => {
@@ -596,8 +596,8 @@ export function DocumentForm({ tipos, procesos, normas, paises, procesoInicial =
             {normasSeleccionadas.size > 0 && (
               <p className="text-xs text-muted-foreground mt-3">
                 {normasSeleccionadas.size}{" "}
-                {normasSeleccionadas.size === 1 ? "norma seleccionada" : "normas seleccionadas"}.
-                La primera seleccionada queda como norma principal.
+                {normasSeleccionadas.size === 1 ? "certificación seleccionada" : "certificaciones seleccionadas"}.
+                La primera seleccionada queda como principal.
               </p>
             )}
           </Section>

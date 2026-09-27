@@ -9,6 +9,7 @@ export type EstadoCumplimiento =
 
 export type RequisitoLegal = {
   normaLegalId: string | null;
+  normaLegalNombre: string | null;
   id: string;
   codigo: string;
   titulo: string;
@@ -48,6 +49,21 @@ export async function listarRequisitosLegales(
   if (filas.length === 0) return [];
 
   const ids = filas.map((r) => r.id);
+
+  // Disposición legal de origen (ley, decreto, resolución, etc.).
+  const normaLegalIds = [
+    ...new Set(filas.map((r) => r.norma_id).filter(Boolean)),
+  ];
+  const nombreNormaLegal = new Map<string, string>();
+  if (normaLegalIds.length > 0) {
+    const { data: normasLegales } = await supabase
+      .from("normas")
+      .select("id, nombre_corto")
+      .in("id", normaLegalIds);
+    for (const norma of (normasLegales ?? []) as any[]) {
+      nombreNormaLegal.set(norma.id, norma.nombre_corto);
+    }
+  }
 
   // Normas asociadas (N:M vía requisito_legal_norma -> versiones_norma -> normas).
   // Self-join resuelto en memoria (PostgREST poco fiable con joins encadenados).
@@ -149,6 +165,7 @@ export async function listarRequisitosLegales(
     return {
       id: r.id,
       normaLegalId: r.norma_id,
+      normaLegalNombre: r.norma_id ? (nombreNormaLegal.get(r.norma_id) ?? null) : null,
       codigo: r.codigo,
       titulo: r.titulo,
       descripcion: r.descripcion,
