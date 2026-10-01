@@ -6,6 +6,11 @@ on:
 
 permissions:
   contents: read
+  issues: write
+
+concurrency:
+  group: production-smoke
+  cancel-in-progress: true
 
 jobs:
   smoke-test:
@@ -17,7 +22,6 @@ jobs:
     timeout-minutes: 10
     env:
       E2E_BASE_URL: https://sig-gestordocumental.vercel.app
-
     steps:
       - name: Descargar versión publicada
         uses: actions/checkout@v6
@@ -38,3 +42,71 @@ jobs:
 
       - name: Verificar producción sin modificar datos
         run: npx playwright test --project=public tests/e2e/production-smoke.spec.ts
+
+      - name: Abrir o actualizar alerta por falla
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = '[Producción] Verificación automática fallida';
+            const runUrl = 'https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
+            const body = [
+              'La verificación automática detectó un problema en producción.',
+              '',
+              '- Ejecución: ' + runUrl,
+              '- Commit: ' + context.sha,
+              '- Detectado: ' + new Date().toISOString(),
+              '',
+              'Revisar el detalle de la ejecución antes de realizar cambios manuales.'
+            ].join('\n');
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            const existing = issues.find(issue => !issue.pull_request && issue.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body
+              });
+            }
+
+      - name: Cerrar alerta al recuperarse producción
+        if: success()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = '[Producción] Verificación automática fallida';
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            const matching = issues.filter(issue => !issue.pull_request && issue.title === title);
+            for (const issue of matching) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: 'Producción volvió a superar la verificación automática. Se cierra esta alerta.'
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed'
+              });
+            }
