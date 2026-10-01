@@ -32,7 +32,7 @@ export default defineConfig({
     {
       name: "desktop",
       dependencies: ["setup"],
-      testIgnore: /public\.spec\.ts/,
+      testIgnore: /(public|production-smoke)\.spec\.ts/,
       use: {
         ...devices["Desktop Chrome"],
         storageState: ".playwright/auth/admin.json",
@@ -41,7 +41,7 @@ export default defineConfig({
     {
       name: "mobile",
       dependencies: ["setup"],
-      testIgnore: /public\.spec\.ts/,
+      testIgnore: /(public|production-smoke)\.spec\.ts/,
       use: {
         ...devices["Pixel 7"],
         storageState: ".playwright/auth/admin.json",
