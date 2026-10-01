@@ -1,0 +1,40 @@
+name: Verificación de producción
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      E2E_BASE_URL: https://sig-gestordocumental.vercel.app
+
+    steps:
+      - name: Descargar versión publicada
+        uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar navegador
+        run: npx playwright install --with-deps chromium
+
+      - name: Verificar producción sin modificar datos
+        run: npx playwright test --project=public tests/e2e/production-smoke.spec.ts
