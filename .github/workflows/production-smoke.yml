@@ -8,6 +8,10 @@ permissions:
   contents: read
   issues: write
 
+concurrency:
+  group: production-smoke
+  cancel-in-progress: true
+
 jobs:
   smoke-test:
     if: >-
@@ -55,7 +59,7 @@ jobs:
               '',
               'Revisar el detalle de la ejecución antes de realizar cambios manuales.'
             ].join('\n');
-            const { data: issues } = await github.rest.issues.listForRepo({
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
@@ -84,7 +88,7 @@ jobs:
         with:
           script: |
             const title = '[Producción] Verificación automática fallida';
-            const { data: issues } = await github.rest.issues.listForRepo({
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               state: 'open',
