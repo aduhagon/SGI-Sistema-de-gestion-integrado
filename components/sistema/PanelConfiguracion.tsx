@@ -427,6 +427,8 @@ function ModuloRow({ modulo }: { modulo: ModuloSistema }) {
               (on ? "translate-x-6" : "translate-x-1")
             }
           />
+"use client";
+        
         </button>
       </div>
     </li>
@@ -471,48 +473,7 @@ function SeccionNormas({
     >
       <div className="space-y-5">
         <label className="flex items-center justify-between gap-4">
-          <div>
-            <span className="text-sm font-medium">Sistema multinorma</span>
-            <p className="text-xs text-muted-foreground">
-              Si está activo, podés gestionar y comparar varias normas a la vez.
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={multinorma}
-            onClick={() => setMultinorma((v) => !v)}
-            className={
-              "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors " +
-              (multinorma ? "bg-emerald-500" : "bg-muted-foreground/30")
-            }
-          >
-            <span
-              className={
-                "inline-block h-4 w-4 transform rounded-full bg-white transition-transform " +
-                (multinorma ? "translate-x-6" : "translate-x-1")
-              }
-            />
-          </button>
-        </label>
-
-        <div>
-          <p className="mb-2 text-sm font-medium">Normas activas</p>
-          <div className="flex flex-wrap gap-2">
-            {normasDisponibles.map((n) => {
-              const sel = activas.includes(n.codigo);
-              return (
-                <button
-                  key={n.codigo}
-                  type="button"
-                  onClick={() => toggleNorma(n.codigo)}
-                  className={
-                    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors " +
-                    (sel
-                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
-                      : "border-border text-muted-foreground hover:bg-muted/50")
-                  }
-                >
+"use client";
                   {sel && <Check className="h-3 w-3" />}
                   {n.codigo}
                 </button>
