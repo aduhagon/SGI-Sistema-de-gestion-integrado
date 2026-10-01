@@ -327,7 +327,6 @@ function SeccionNormas({
           <MensajeGuardado estado={estado} />
         </div>
 
-        <SaludCorreo salud={salud} />
       </div>
     </Bloque>
   );
@@ -425,6 +424,7 @@ function SeccionCorreo({ config, salud }: { config: ConfiguracionSistema; salud:
           </button>
           <MensajeGuardado estado={estado} />
         </div>
+        <SaludCorreo salud={salud} />
       </div>
     </Bloque>
   );
