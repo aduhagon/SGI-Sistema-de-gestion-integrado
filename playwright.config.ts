@@ -22,7 +22,7 @@ export default defineConfig({
   projects: [
     {
       name: "public",
-      testMatch: /public\.spec\.ts/,
+      testMatch: /(public|production-smoke)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     {
