@@ -16,21 +16,24 @@ import type {
   ConfiguracionSistema,
   ModuloSistema,
 } from "@/lib/api/config-sistema";
+import type { SaludCorreo as SaludCorreoTipo } from "@/lib/api/correo-salud";
 import { setConfiguracion, setModulo } from "@/app/(app)/sistema/config-actions";
+import { SaludCorreo } from "@/components/sistema/SaludCorreo";
 
 type Props = {
   config: ConfiguracionSistema;
   modulos: ModuloSistema[];
   normasDisponibles: { codigo: string; nombre: string }[];
+  saludCorreo: SaludCorreoTipo;
 };
 
-export function PanelConfiguracion({ config, modulos, normasDisponibles }: Props) {
+export function PanelConfiguracion({ config, modulos, normasDisponibles, saludCorreo }: Props) {
   return (
     <div className="space-y-8">
       <SeccionOrganizacion config={config} />
       <SeccionModulos modulos={modulos} />
       <SeccionNormas config={config} normasDisponibles={normasDisponibles} />
-      <SeccionCorreo config={config} />
+      <SeccionCorreo config={config} salud={saludCorreo} />
     </div>
   );
 }
@@ -323,13 +326,14 @@ function SeccionNormas({
           </button>
           <MensajeGuardado estado={estado} />
         </div>
+
       </div>
     </Bloque>
   );
 }
 
 /* ----- Correo ----- */
-function SeccionCorreo({ config }: { config: ConfiguracionSistema }) {
+function SeccionCorreo({ config, salud }: { config: ConfiguracionSistema; salud: SaludCorreoTipo }) {
   const router = useRouter();
   const [habilitado, setHabilitado] = useState(config.correoEnvioHabilitado);
   const [from, setFrom] = useState(config.correoFrom);
@@ -420,6 +424,7 @@ function SeccionCorreo({ config }: { config: ConfiguracionSistema }) {
           </button>
           <MensajeGuardado estado={estado} />
         </div>
+        <SaludCorreo salud={salud} />
       </div>
     </Bloque>
   );

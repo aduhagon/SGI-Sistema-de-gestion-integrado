@@ -7,7 +7,7 @@ export type ResultadoConfig =
   | { ok: true; mensaje: string }
   | { ok: false; error: string };
 
-/** Guarda una clave de configuración (la validación de superadmin la hace la base). */
+/** Guarda una clave de configuraciÃ³n (la validaciÃ³n de superadmin la hace la base). */
 export async function setConfiguracion(
   clave: string,
   valor: unknown,
@@ -25,7 +25,7 @@ export async function setConfiguracion(
   return { ok: true, mensaje: fila.mensaje };
 }
 
-/** Habilita/deshabilita un módulo. */
+/** Habilita/deshabilita un mÃ³dulo. */
 export async function setModulo(
   codigo: string,
   habilitado: boolean,
@@ -41,4 +41,21 @@ export async function setModulo(
   revalidatePath("/sistema");
   revalidatePath("/", "layout");
   return { ok: true, mensaje: fila.mensaje };
+}
+
+/** Reintenta solamente los correos fallidos del resumen de la semana actual. */
+export async function reintentarCorreosSemana(): Promise<ResultadoConfig> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_correo_reintentar_resumen_semana");
+  if (error) return { ok: false, error: error.message };
+
+  const resultado = data as { reactivados?: number; reintentados?: number } | null;
+  const reactivados = resultado?.reactivados ?? 0;
+  const reintentados = resultado?.reintentados ?? 0;
+  revalidatePath("/sistema");
+
+  if (reactivados === 0) {
+    return { ok: true, mensaje: "No habÃ­a correos fallidos de esta semana para reintentar." };
+  }
+  return { ok: true, mensaje: `Se reactivaron ${reactivados} correo(s) y se iniciaron ${reintentados} reintento(s).` };
 }
