@@ -18,7 +18,7 @@ test("producción responde y permite llegar al inicio de sesión", async ({ page
   await expect(page.getByRole("heading", { name: "Iniciar sesión" })).toBeVisible();
   await expect(page.getByLabel("Email corporativo")).toBeEditable();
   await expect(page.getByLabel("Contraseña")).toBeEditable();
-  await expect(page.getByRole("button", { name: /iniciar sesión/i })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Ingresar" })).toBeEnabled();
 
   expect(browserErrors, "Errores críticos del navegador: " + browserErrors.join(" | ")).toEqual([]);
 });
