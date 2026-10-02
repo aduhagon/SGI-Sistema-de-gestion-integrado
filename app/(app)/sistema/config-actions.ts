@@ -7,7 +7,7 @@ export type ResultadoConfig =
   | { ok: true; mensaje: string }
   | { ok: false; error: string };
 
-/** Guarda una clave de configuraciÃ³n (la validaciÃ³n de superadmin la hace la base). */
+/** Guarda una clave de configuración (la validación de superadmin la hace la base). */
 export async function setConfiguracion(
   clave: string,
   valor: unknown,
@@ -25,7 +25,7 @@ export async function setConfiguracion(
   return { ok: true, mensaje: fila.mensaje };
 }
 
-/** Habilita/deshabilita un mÃ³dulo. */
+/** Habilita/deshabilita un módulo. */
 export async function setModulo(
   codigo: string,
   habilitado: boolean,
@@ -55,7 +55,7 @@ export async function reintentarCorreosSemana(): Promise<ResultadoConfig> {
   revalidatePath("/sistema");
 
   if (reactivados === 0) {
-    return { ok: true, mensaje: "No habÃ­a correos fallidos de esta semana para reintentar." };
+    return { ok: true, mensaje: "No había correos fallidos de esta semana para reintentar." };
   }
   return { ok: true, mensaje: `Se reactivaron ${reactivados} correo(s) y se iniciaron ${reintentados} reintento(s).` };
 }
