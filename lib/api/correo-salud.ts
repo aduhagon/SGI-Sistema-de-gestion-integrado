@@ -8,6 +8,8 @@ export type SaludCorreo = {
     activo?: boolean;
     programacion?: string;
     ultimaEjecucion?: string | null;
+    proximaEjecucion?: string | null;
+    vigente?: boolean;
     ultimaFinalizacion?: string | null;
     ultimoEstado?: string | null;
     ultimoMensaje?: string | null;
