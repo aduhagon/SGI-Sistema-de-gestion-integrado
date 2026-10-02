@@ -28,9 +28,7 @@ const findings = [];
 
 for (const root of roots) {
   for (const file of await collectFiles(root)) {
-    const lines = (await readFile(file, "utf8")).split(/
-?
-/);
+    const lines = (await readFile(file, "utf8")).split(/\r?\n/);
     lines.forEach((line, index) => {
       const sequence = damagedSequences.find((candidate) => line.includes(candidate));
       if (sequence) findings.push(`${file}:${index + 1} contiene "${sequence}"`);
