@@ -1,0 +1,27 @@
+name: Calidad de textos
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  encoding:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v6
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Verificar caracteres dañados
+        run: npm run check:encoding
