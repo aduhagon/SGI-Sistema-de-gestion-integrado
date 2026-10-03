@@ -22,6 +22,8 @@ jobs:
     timeout-minutes: 10
     env:
       E2E_BASE_URL: https://sig-gestordocumental.vercel.app
+      E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
     steps:
       - name: Descargar versión publicada
         uses: actions/checkout@v6
@@ -40,8 +42,8 @@ jobs:
       - name: Instalar navegador
         run: npx playwright install --with-deps chromium
 
-      - name: Verificar producción sin modificar datos
-        run: npx playwright test --project=public tests/e2e/production-smoke.spec.ts
+      - name: Verificar recorridos críticos de producción
+        run: npm run test:e2e
 
       - name: Abrir o actualizar alerta por falla
         if: failure()
@@ -51,12 +53,13 @@ jobs:
             const title = '[Producción] Verificación automática fallida';
             const runUrl = 'https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId;
             const body = [
-              'La verificación automática detectó un problema en producción.',
+              'La barrera automática detectó una falla en un recorrido crítico de producción.',
               '',
               '- Ejecución: ' + runUrl,
               '- Commit: ' + context.sha,
               '- Detectado: ' + new Date().toISOString(),
               '',
+              'La prueba cubre acceso, documentos, marco legal, cumplimiento y navegación crítica en escritorio y celular.',
               'Revisar el detalle de la ejecución antes de realizar cambios manuales.'
             ].join('\n');
             const issues = await github.paginate(github.rest.issues.listForRepo, {
