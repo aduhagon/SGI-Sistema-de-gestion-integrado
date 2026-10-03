@@ -13,12 +13,30 @@ setup("autenticar cuenta E2E", async ({ page }) => {
     );
   }
 
+  const failedRequests: string[] = [];
+  page.on("requestfailed", (request) => {
+    const url = new URL(request.url());
+    failedRequests.push(`${url.origin}${url.pathname}: ${request.failure()?.errorText ?? "error desconocido"}`);
+  });
+
   await page.goto("/login");
   await page.getByLabel("Email corporativo").fill(email);
   await page.getByLabel("Contraseña").fill(password);
   await page.getByRole("button", { name: "Ingresar" }).click();
 
-  await expect(page).not.toHaveURL(/\/login(?:\?|$)/);
+  try {
+    await expect(page).not.toHaveURL(/\/login(?:\?|$)/, { timeout: 15_000 });
+  } catch (navigationError) {
+    const alert = page.getByRole("alert").filter({ hasText: /\S/ }).first();
+    if (await alert.isVisible()) {
+      const networkDetail = failedRequests.length > 0
+        ? ` Solicitudes fallidas: ${failedRequests.join("; ")}`
+        : "";
+      throw new Error(`El SGI rechazó el acceso E2E: ${await alert.innerText()}.${networkDetail}`);
+    }
+
+    throw navigationError;
+  }
   await mkdir(".playwright/auth", { recursive: true });
   await page.context().storageState({ path: authFile });
 });
