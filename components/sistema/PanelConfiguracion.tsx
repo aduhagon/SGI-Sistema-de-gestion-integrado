@@ -14,6 +14,7 @@ import {
   Lock,
   AlertCircle,
   ArchiveRestore,
+  Cable,
 } from "lucide-react";
 import type {
   ConfiguracionSistema,
@@ -43,9 +44,76 @@ export function PanelConfiguracion({ config, modulos, normasDisponibles, saludCo
       <SeccionNormas config={config} normasDisponibles={normasDisponibles} />
       <SeccionReglasOperativas config={config} />
       <SeccionContinuidad config={config} />
+      <SeccionIntegraciones config={config} />
       <SeccionCorreo config={config} salud={saludCorreo} />
     </div>
   );
+}
+
+/* ----- Integraciones ----- */
+function SeccionIntegraciones({ config }: { config: ConfiguracionSistema }) {
+  const router = useRouter();
+  const [responsable, setResponsable] = useState(config.integracionesResponsable);
+  const [supabase, setSupabase] = useState(config.supabaseRotacionFecha);
+  const [vercel, setVercel] = useState(config.vercelRotacionFecha);
+  const [correo, setCorreo] = useState(config.correoRotacionFecha);
+  const [monitoreo, setMonitoreo] = useState(config.monitoreoRotacionFecha);
+  const [estado, setEstado] = useState<"ok" | "error" | null>(null);
+  const [mensaje, setMensaje] = useState("");
+  const [pending, start] = useTransition();
+
+  function guardar() {
+    setEstado(null);
+    setMensaje("");
+    start(async () => {
+      for (const [clave, valor] of [
+        ["integraciones_responsable", responsable],
+        ["supabase_rotacion_fecha", supabase],
+        ["vercel_rotacion_fecha", vercel],
+        ["correo_rotacion_fecha", correo],
+        ["monitoreo_rotacion_fecha", monitoreo],
+      ] as const) {
+        const resultado = await setConfiguracion(clave, valor);
+        if (!resultado.ok) {
+          setEstado("error");
+          setMensaje(resultado.error);
+          return;
+        }
+      }
+      setEstado("ok");
+      setMensaje("Gobierno de integraciones actualizado.");
+      router.refresh();
+    });
+  }
+
+  return (
+    <Bloque icon={<Cable className="h-5 w-5" />} titulo="Integraciones y credenciales" descripcion="Responsable y calendario de revisión. Las claves permanecen en los gestores de secretos y nunca se muestran aquí.">
+      <div className="space-y-1.5">
+        <label htmlFor="integraciones-responsable" className="text-sm font-medium">Responsable técnico</label>
+        <input id="integraciones-responsable" type="email" value={responsable} onChange={(e) => setResponsable(e.target.value)} placeholder="soporte@empresa.com" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+      </div>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <CampoFechaRotacion id="rotacion-supabase" etiqueta="Supabase" valor={supabase} onChange={setSupabase} />
+        <CampoFechaRotacion id="rotacion-vercel" etiqueta="Vercel" valor={vercel} onChange={setVercel} />
+        <CampoFechaRotacion id="rotacion-correo" etiqueta="Proveedor de correo" valor={correo} onChange={setCorreo} />
+        <CampoFechaRotacion id="rotacion-monitoreo" etiqueta="Monitoreo / Sentry" valor={monitoreo} onChange={setMonitoreo} />
+      </div>
+      <div className="mt-4 rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+        Estas fechas son recordatorios de gobierno. No modifican ni rotan automáticamente ninguna credencial.
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <button type="button" onClick={guardar} disabled={pending} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60">
+          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Guardar
+        </button>
+        <MensajeGuardado estado={estado} />
+      </div>
+      {mensaje && <p role="status" className={`mt-2 text-xs ${estado === "error" ? "text-destructive" : "text-emerald-700"}`}>{mensaje}</p>}
+    </Bloque>
+  );
+}
+
+function CampoFechaRotacion({ id, etiqueta, valor, onChange }: { id: string; etiqueta: string; valor: string; onChange: (valor: string) => void }) {
+  return <div className="space-y-1.5"><label htmlFor={id} className="text-sm font-medium">Próxima revisión · {etiqueta}</label><input id={id} type="date" min={fechaHoy()} value={valor} onChange={(e) => onChange(e.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" /><p className="text-xs text-muted-foreground">Vacío significa que aún no fue planificada.</p></div>;
 }
 
 /* ----- Respaldo y continuidad ----- */

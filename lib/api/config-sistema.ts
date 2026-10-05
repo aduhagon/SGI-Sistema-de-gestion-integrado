@@ -52,6 +52,12 @@ export type ConfiguracionSistema = {
   continuidadProcedimientoUrl: string;
   continuidadAlertasHabilitadas: boolean;
   continuidadAlertaRepetirDias: number;
+  // integraciones (metadatos; nunca secretos)
+  integracionesResponsable: string;
+  supabaseRotacionFecha: string;
+  vercelRotacionFecha: string;
+  correoRotacionFecha: string;
+  monitoreoRotacionFecha: string;
   // crudo, por si hace falta
   raw: ConfigItem[];
 };
@@ -92,6 +98,11 @@ export async function obtenerConfiguracion(): Promise<ConfiguracionSistema> {
     continuidadProcedimientoUrl: val(items, "continuidad_procedimiento_url", ""),
     continuidadAlertasHabilitadas: val(items, "continuidad_alertas_habilitadas", false),
     continuidadAlertaRepetirDias: val(items, "continuidad_alerta_repetir_dias", 7),
+    integracionesResponsable: val(items, "integraciones_responsable", ""),
+    supabaseRotacionFecha: val(items, "supabase_rotacion_fecha", ""),
+    vercelRotacionFecha: val(items, "vercel_rotacion_fecha", ""),
+    correoRotacionFecha: val(items, "correo_rotacion_fecha", ""),
+    monitoreoRotacionFecha: val(items, "monitoreo_rotacion_fecha", ""),
     raw: items,
   };
 }

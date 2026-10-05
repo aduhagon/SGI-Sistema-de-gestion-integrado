@@ -9,6 +9,7 @@ import {
   HardDrive,
   MailCheck,
   ShieldCheck,
+  Cable,
 } from "lucide-react";
 import type { SaludCorreo } from "@/lib/api/correo-salud";
 import type { SaludSistema as SaludSistemaTipo } from "@/lib/api/sistema-salud";
@@ -85,6 +86,17 @@ export function SaludSistema({ salud, correo, continuidad }: { salud: SaludSiste
         </details>
       )}
 
+      <details className="mt-4 rounded-lg border border-border px-4 py-3">
+        <summary className="cursor-pointer text-sm font-medium">Ver estado de integraciones</summary>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <IntegracionRow nombre="Supabase" configurada={salud.integraciones.supabaseConfigurada} operativa={salud.baseDatos.operativa} rotacion={continuidad.supabaseRotacionFecha} />
+          <IntegracionRow nombre="Vercel" configurada={salud.integraciones.vercelConfigurada} operativa={salud.despliegue.entorno === "production"} rotacion={continuidad.vercelRotacionFecha} />
+          <IntegracionRow nombre="Correo" configurada={continuidad.correoEnvioHabilitado && Boolean(continuidad.correoFrom)} operativa={correoOperativo} rotacion={continuidad.correoRotacionFecha} />
+          <IntegracionRow nombre="Monitoreo" configurada={salud.integraciones.sentryConfigurado || salud.integraciones.speedInsightsConfigurado} operativa={salud.integraciones.speedInsightsConfigurado} rotacion={continuidad.monitoreoRotacionFecha} detalle={salud.integraciones.sentryConfigurado ? "Sentry y Speed Insights" : "Speed Insights; Sentry sin configurar"} />
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">Responsable: {continuidad.integracionesResponsable || "Sin asignar"}. Los secretos no se exponen en esta pantalla.</p>
+      </details>
+
       {salud.automatizaciones.jobs.length > 0 && (
         <details className="mt-4 rounded-lg border border-border px-4 py-3">
           <summary className="cursor-pointer text-sm font-medium">Ver detalle de automatizaciones</summary>
@@ -122,6 +134,18 @@ function Tarjeta({ icono: Icono, titulo, estado, valor, detalle }: { icono: type
   );
 }
 
+function IntegracionRow({ nombre, configurada, operativa, rotacion, detalle }: { nombre: string; configurada: boolean; operativa: boolean; rotacion: string; detalle?: string }) {
+  const estado: Estado = !configurada ? "advertencia" : operativa ? "ok" : "error";
+  const texto = !configurada ? "Configuración incompleta" : operativa ? "Operativa" : "Revisar";
+  const rotacionTexto = !rotacion ? "Rotación sin planificar" : new Date(`${rotacion}T12:00:00Z`).getTime() < Date.now() ? "Rotación vencida" : `Revisar ${formatearSoloFecha(rotacion)}`;
+  return (
+    <div className="flex items-start gap-3 rounded-md border border-border p-3">
+      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${estado === "ok" ? "bg-emerald-500/10 text-emerald-700" : estado === "error" ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-700"}`}><Cable className="h-4 w-4" aria-hidden="true" /></span>
+      <div className="min-w-0"><p className="text-sm font-medium">{nombre} · {texto}</p><p className="text-xs text-muted-foreground">{detalle ?? rotacionTexto}{detalle ? ` · ${rotacionTexto}` : ""}</p></div>
+    </div>
+  );
+}
+
 function EstadoPill({ estado }: { estado: Estado }) {
   const texto = estado === "ok" ? "Todo operativo" : estado === "error" ? "Requiere atención" : "Hay puntos a revisar";
   const color = estado === "ok" ? "bg-emerald-500/10 text-emerald-700" : estado === "error" ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-700";
@@ -138,6 +162,10 @@ function formatearBytes(bytes: number) {
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
   return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+}
+
+function formatearSoloFecha(valor: string) {
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium", timeZone: "America/Argentina/Buenos_Aires" }).format(new Date(`${valor}T12:00:00Z`));
 }
 
 function traducirEstado(estado?: string | null) {

@@ -34,9 +34,17 @@ export type SaludSistema = {
     rama: string | null;
     version: string | null;
   };
+  integraciones: {
+    supabaseConfigurada: boolean;
+    vercelConfigurada: boolean;
+    sentryConfigurado: boolean;
+    speedInsightsConfigurado: boolean;
+  };
 };
 
-const VACIO: Omit<SaludSistema, "despliegue"> = {
+type DiagnosticoBase = Omit<SaludSistema, "despliegue" | "integraciones">;
+
+const VACIO: DiagnosticoBase = {
   consultadoEn: new Date(0).toISOString(),
   baseDatos: { operativa: false, horaServidor: null },
   almacenamiento: { objetos: 0, bytes: 0 },
@@ -54,7 +62,7 @@ export async function obtenerSaludSistema(): Promise<SaludSistema> {
   const { data, error } = await supabase.rpc("fn_sistema_panel_salud");
   const diagnostico = error || !data
     ? VACIO
-    : data as Omit<SaludSistema, "despliegue">;
+    : data as DiagnosticoBase;
 
   return {
     ...diagnostico,
@@ -62,6 +70,12 @@ export async function obtenerSaludSistema(): Promise<SaludSistema> {
       entorno: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "desconocido",
       rama: process.env.VERCEL_GIT_COMMIT_REF ?? null,
       version: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+    },
+    integraciones: {
+      supabaseConfigurada: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+      vercelConfigurada: Boolean(process.env.VERCEL_ENV && process.env.VERCEL_URL),
+      sentryConfigurado: Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN),
+      speedInsightsConfigurado: true,
     },
   };
 }
