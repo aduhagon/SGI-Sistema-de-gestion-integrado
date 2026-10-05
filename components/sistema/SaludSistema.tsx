@@ -24,8 +24,10 @@ export function SaludSistema({ salud, correo, continuidad }: { salud: SaludSiste
     && correo.job.vigente === true
     && correo.job.ultimoEstado === "succeeded"
     && !correoConErrores;
-  const automatizacionesEstado: Estado = salud.automatizaciones.fallosSieteDias > 0
-    ? "advertencia"
+  const automatizacionesEstado: Estado = salud.automatizaciones.jobsConFallaActual > 0
+    ? "error"
+    : salud.automatizaciones.sinEjecuciones > 0
+      ? "advertencia"
     : salud.automatizaciones.total > 0 && salud.automatizaciones.activas === salud.automatizaciones.total
       ? "ok"
       : "advertencia";
@@ -58,7 +60,7 @@ export function SaludSistema({ salud, correo, continuidad }: { salud: SaludSiste
         <Tarjeta icono={Database} titulo="Base de datos" estado={salud.baseDatos.operativa ? "ok" : "error"} valor={salud.baseDatos.operativa ? "Conectada" : "Sin respuesta"} detalle={formatearFecha(salud.baseDatos.horaServidor)} />
         <Tarjeta icono={MailCheck} titulo="Correo" estado={correoOperativo ? "ok" : "advertencia"} valor={correoOperativo ? "Operativo" : "Revisar"} detalle={correo.habilitado ? `${correo.semana.enviados} enviados esta semana` : "Envíos deshabilitados"} />
         <Tarjeta icono={HardDrive} titulo="Almacenamiento" estado="ok" valor={formatearBytes(salud.almacenamiento.bytes)} detalle={`${salud.almacenamiento.objetos} archivo(s)`} />
-        <Tarjeta icono={Activity} titulo="Automatizaciones" estado={automatizacionesEstado} valor={`${salud.automatizaciones.activas} de ${salud.automatizaciones.total} activas`} detalle={salud.automatizaciones.fallosSieteDias > 0 ? `${salud.automatizaciones.fallosSieteDias} fallo(s) en 7 días` : "Sin fallos en 7 días"} />
+        <Tarjeta icono={Activity} titulo="Automatizaciones" estado={automatizacionesEstado} valor={salud.automatizaciones.jobsConFallaActual > 0 ? `${salud.automatizaciones.jobsConFallaActual} con falla actual` : `${salud.automatizaciones.activas} de ${salud.automatizaciones.total} activas`} detalle={salud.automatizaciones.recuperadas > 0 ? `${salud.automatizaciones.recuperadas} recuperada(s); historial conservado` : salud.automatizaciones.sinEjecuciones > 0 ? `${salud.automatizaciones.sinEjecuciones} pendiente(s) de primera ejecución` : "Estado actual sin fallas"} />
         <Tarjeta icono={ShieldCheck} titulo="Integridad operativa" estado={problemasIntegridad > 0 ? "advertencia" : "ok"} valor={problemasIntegridad > 0 ? `${problemasIntegridad} punto(s) a corregir` : "Sin observaciones"} detalle={salud.integridad.riesgosPuestoVacante > 0 ? `${salud.integridad.riesgosPuestoVacante} riesgo(s) con puesto vacante` : "Responsables y destinatarios consistentes"} />
         <Tarjeta
           icono={Archive}
@@ -101,21 +103,42 @@ export function SaludSistema({ salud, correo, continuidad }: { salud: SaludSiste
         <details className="mt-4 rounded-lg border border-border px-4 py-3">
           <summary className="cursor-pointer text-sm font-medium">Ver detalle de automatizaciones</summary>
           <ul className="mt-3 divide-y divide-border">
-            {salud.automatizaciones.jobs.map((job) => (
-              <li key={job.nombre} className="flex flex-col gap-1 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="font-medium">{job.nombre}</p>
-                  <p className="text-xs text-muted-foreground">{job.programacion} · {job.activa ? "Activa" : "Inactiva"}</p>
-                </div>
-                <p className="text-xs text-muted-foreground">{traducirEstado(job.ultimoEstado)} · {formatearFecha(job.ultimaEjecucion)}</p>
-              </li>
-            ))}
+            {salud.automatizaciones.jobs.map((job) => <AutomatizacionRow key={job.nombre} job={job} />)}
           </ul>
         </details>
       )}
 
       <p className="mt-4 text-[11px] text-muted-foreground">Actualizado {formatearFecha(salud.consultadoEn)}. Las evidencias de continuidad son declaradas y quedan auditadas al guardarse.</p>
     </section>
+  );
+}
+
+function AutomatizacionRow({ job }: { job: SaludSistemaTipo["automatizaciones"]["jobs"][number] }) {
+  const color = job.estadoActual === "operativa" ? "text-emerald-700 bg-emerald-500/10" : job.estadoActual === "recuperada" ? "text-blue-700 bg-blue-500/10" : job.estadoActual === "fallando" ? "text-destructive bg-destructive/10" : "text-amber-700 bg-amber-500/10";
+  return (
+    <li className="py-3 text-sm">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2"><p className="font-medium">{job.nombre}</p><span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${color}`}>{traducirEstadoActual(job.estadoActual)}</span></div>
+          <p className="mt-1 text-xs text-muted-foreground">{job.programacion} · Última: {formatearFecha(job.ultimaEjecucion)}{job.duracionSegundos !== null ? ` · ${formatearDuracion(job.duracionSegundos)}` : ""}</p>
+          {job.estadoActual === "recuperada" && <p className="mt-1 text-xs text-blue-700">Falló {formatearFecha(job.ultimoFallo)} y volvió a completar correctamente {formatearFecha(job.ultimoExito)}.</p>}
+          {job.estadoActual === "fallando" && job.ultimoMensaje && <p className="mt-1 max-w-xl break-words text-xs text-destructive">{job.ultimoMensaje}</p>}
+        </div>
+        {job.historial.length > 0 && (
+          <details className="shrink-0 sm:text-right">
+            <summary className="cursor-pointer text-xs font-medium text-primary">Últimas ejecuciones</summary>
+            <ul className="mt-2 min-w-64 space-y-1 text-left">
+              {job.historial.map((ejecucion, indice) => (
+                <li key={`${ejecucion.inicio}-${indice}`} className="rounded bg-muted/40 px-2 py-1.5 text-xs">
+                  <span className={ejecucion.estado === "succeeded" ? "text-emerald-700" : ejecucion.estado === "running" ? "text-amber-700" : "text-destructive"}>{traducirEstado(ejecucion.estado)}</span>
+                  <span className="text-muted-foreground"> · {formatearFecha(ejecucion.inicio)}{ejecucion.duracionSegundos !== null ? ` · ${formatearDuracion(ejecucion.duracionSegundos)}` : ""}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </div>
+    </li>
   );
 }
 
@@ -173,6 +196,20 @@ function traducirEstado(estado?: string | null) {
   if (estado === "failed") return "Fallida";
   if (estado === "running") return "En curso";
   return "Sin ejecución";
+}
+
+function traducirEstadoActual(estado: SaludSistemaTipo["automatizaciones"]["jobs"][number]["estadoActual"]) {
+  if (estado === "operativa") return "Operativa";
+  if (estado === "recuperada") return "Recuperada";
+  if (estado === "fallando") return "Falla actual";
+  if (estado === "en_curso") return "En curso";
+  if (estado === "sin_ejecuciones") return "Primera ejecución pendiente";
+  return "Inactiva";
+}
+
+function formatearDuracion(segundos: number) {
+  if (segundos < 1) return `${Math.round(segundos * 1000)} ms`;
+  return `${segundos.toFixed(1)} s`;
 }
 
 function capitalizar(valor: string) {

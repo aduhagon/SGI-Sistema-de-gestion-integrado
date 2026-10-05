@@ -8,6 +8,9 @@ export type SaludSistema = {
     total: number;
     activas: number;
     fallosSieteDias: number;
+    jobsConFallaActual: number;
+    sinEjecuciones: number;
+    recuperadas: number;
     jobs: Array<{
       nombre: string;
       programacion: string;
@@ -15,6 +18,19 @@ export type SaludSistema = {
       ultimoEstado: string | null;
       ultimaEjecucion: string | null;
       ultimoMensaje: string | null;
+      estadoActual: "operativa" | "recuperada" | "fallando" | "en_curso" | "sin_ejecuciones" | "inactiva";
+      ultimaFinalizacion: string | null;
+      ultimoExito: string | null;
+      ultimoFallo: string | null;
+      duracionSegundos: number | null;
+      fallosSieteDias: number;
+      historial: Array<{
+        estado: string;
+        inicio: string;
+        fin: string | null;
+        duracionSegundos: number | null;
+        mensaje: string | null;
+      }>;
     }>;
   };
   integridad: {
@@ -48,7 +64,7 @@ const VACIO: DiagnosticoBase = {
   consultadoEn: new Date(0).toISOString(),
   baseDatos: { operativa: false, horaServidor: null },
   almacenamiento: { objetos: 0, bytes: 0 },
-  automatizaciones: { total: 0, activas: 0, fallosSieteDias: 0, jobs: [] },
+  automatizaciones: { total: 0, activas: 0, fallosSieteDias: 0, jobsConFallaActual: 0, sinEjecuciones: 0, recuperadas: 0, jobs: [] },
   integridad: {
     riesgosPuestoVacante: 0,
     ncsResponsableInactivo: 0,
@@ -59,13 +75,19 @@ const VACIO: DiagnosticoBase = {
 
 export async function obtenerSaludSistema(): Promise<SaludSistema> {
   const supabase = createClient();
-  const { data, error } = await supabase.rpc("fn_sistema_panel_salud");
+  const [{ data, error }, automatizaciones] = await Promise.all([
+    supabase.rpc("fn_sistema_panel_salud"),
+    supabase.rpc("fn_sistema_automatizaciones_salud"),
+  ]);
   const diagnostico = error || !data
     ? VACIO
     : data as DiagnosticoBase;
 
   return {
     ...diagnostico,
+    automatizaciones: automatizaciones.error || !automatizaciones.data
+      ? diagnostico.automatizaciones
+      : automatizaciones.data as SaludSistema["automatizaciones"],
     despliegue: {
       entorno: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "desconocido",
       rama: process.env.VERCEL_GIT_COMMIT_REF ?? null,
