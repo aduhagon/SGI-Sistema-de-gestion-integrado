@@ -59,3 +59,33 @@ export async function reintentarCorreosSemana(): Promise<ResultadoConfig> {
   }
   return { ok: true, mensaje: `Se reactivaron ${reactivados} correo(s) y se iniciaron ${reintentados} reintento(s).` };
 }
+
+/** Actualiza el horario funcional y la programación técnica del resumen semanal. */
+export async function configurarResumenSemanal(
+  dia: number,
+  hora: string,
+): Promise<ResultadoConfig> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_configurar_resumen_semanal", {
+    p_dia: dia,
+    p_hora: hora,
+  });
+  if (error) return { ok: false, error: error.message };
+  const fila = Array.isArray(data) ? data[0] : data;
+  if (!fila?.ok) return { ok: false, error: fila?.mensaje ?? "No se pudo actualizar la programación." };
+  revalidatePath("/sistema");
+  return { ok: true, mensaje: fila.mensaje };
+}
+
+/** Encola un correo de diagnóstico sin exponer credenciales SMTP al navegador. */
+export async function enviarCorreoPrueba(destinatario: string): Promise<ResultadoConfig> {
+  const supabase = createClient();
+  const { data, error } = await supabase.rpc("fn_correo_enviar_prueba", {
+    p_destinatario: destinatario,
+  });
+  if (error) return { ok: false, error: error.message };
+  const fila = Array.isArray(data) ? data[0] : data;
+  if (!fila?.ok) return { ok: false, error: fila?.mensaje ?? "No se pudo enviar la prueba." };
+  revalidatePath("/sistema");
+  return { ok: true, mensaje: fila.mensaje };
+}

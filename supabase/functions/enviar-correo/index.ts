@@ -10,8 +10,8 @@
 //   SMTP_PORT       ej: 465                   (M365: 587)
 //   SMTP_USER       la casilla (ej: sgi@empresa.com)
 //   SMTP_PASS       App Password / contraseña de la casilla
-//   SMTP_FROM       remitente visible (ej: sgi@empresa.com)
-//   SMTP_FROM_NOMBRE  nombre visible (ej: "SGI MSU")
+//   SMTP_FROM       fallback del remitente visible
+//   SMTP_FROM_NOMBRE  fallback del nombre visible
 //   SMTP_TLS        "implicit" para puerto 465 (Gmail) | "starttls" para 587 (M365)
 //
 // Contrato (fijo, no cambia con el proveedor):
@@ -34,6 +34,21 @@ function json(body: unknown, status = 200) {
   });
 }
 
+type ConfigCorreo = Record<string, unknown>;
+
+async function leerConfiguracionCorreo(serviceRoleKey: string): Promise<ConfigCorreo> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  if (!supabaseUrl) return {};
+  const claves = "correo_from,correo_remitente_nombre,correo_reply_to";
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/configuracion_sistema?select=clave,valor&clave=in.(${claves})`,
+    { headers: { apikey: serviceRoleKey, Authorization: `Bearer ${serviceRoleKey}` } },
+  );
+  if (!response.ok) return {};
+  const filas = await response.json() as Array<{ clave: string; valor: unknown }>;
+  return Object.fromEntries(filas.map((fila) => [fila.clave, fila.valor]));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ ok: false, error: "Método no permitido." }, 405);
@@ -49,13 +64,16 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "No autorizado." }, 403);
   }
 
-  // Leer config del proveedor desde el entorno.
+  // Las credenciales del proveedor siguen en secrets; los datos visibles son
+  // administrables desde el SGI y recurren a los secrets como fallback seguro.
+  const config = await leerConfiguracionCorreo(serviceRoleKey);
   const host = Deno.env.get("SMTP_HOST");
   const port = Number(Deno.env.get("SMTP_PORT") ?? "465");
   const user = Deno.env.get("SMTP_USER");
   const pass = Deno.env.get("SMTP_PASS");
-  const from = Deno.env.get("SMTP_FROM") ?? user ?? "";
-  const fromNombre = Deno.env.get("SMTP_FROM_NOMBRE") ?? "SGI";
+  const from = String(config.correo_from || Deno.env.get("SMTP_FROM") || user || "");
+  const fromNombre = String(config.correo_remitente_nombre || Deno.env.get("SMTP_FROM_NOMBRE") || "SGI");
+  const replyTo = String(config.correo_reply_to || "");
   const tlsMode = (Deno.env.get("SMTP_TLS") ?? "implicit").toLowerCase();
 
   if (!host || !user || !pass) {
@@ -87,6 +105,7 @@ Deno.serve(async (req) => {
 
     await client.send({
       from: `${fromNombre} <${from}>`,
+      ...(replyTo ? { replyTo } : {}),
       to: para,
       subject: asunto,
       content: cuerpo ?? "",

@@ -33,6 +33,11 @@ export type ConfiguracionSistema = {
   correoEnvioHabilitado: boolean;
   correoFrom: string;
   correoRemitenteNombre: string;
+  correoReplyTo: string;
+  correoResponsableSgi: string;
+  correoAlertasTecnicas: string;
+  resumenSemanalDia: number;
+  resumenSemanalHora: string;
   // crudo, por si hace falta
   raw: ConfigItem[];
 };
@@ -55,6 +60,11 @@ export async function obtenerConfiguracion(): Promise<ConfiguracionSistema> {
     correoEnvioHabilitado: val(items, "correo_envio_habilitado", false),
     correoFrom: val(items, "correo_from", ""),
     correoRemitenteNombre: val(items, "correo_remitente_nombre", ""),
+    correoReplyTo: val(items, "correo_reply_to", ""),
+    correoResponsableSgi: val(items, "correo_responsable_sgi", ""),
+    correoAlertasTecnicas: val(items, "correo_alertas_tecnicas", ""),
+    resumenSemanalDia: val(items, "resumen_semanal_dia", 1),
+    resumenSemanalHora: val(items, "resumen_semanal_hora", "08:00"),
     raw: items,
   };
 }

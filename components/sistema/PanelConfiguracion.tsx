@@ -7,6 +7,7 @@ import {
   Boxes,
   Scale,
   Mail,
+  Send,
   Check,
   Loader2,
   Lock,
@@ -17,7 +18,12 @@ import type {
   ModuloSistema,
 } from "@/lib/api/config-sistema";
 import type { SaludCorreo as SaludCorreoTipo } from "@/lib/api/correo-salud";
-import { setConfiguracion, setModulo } from "@/app/(app)/sistema/config-actions";
+import {
+  configurarResumenSemanal,
+  enviarCorreoPrueba,
+  setConfiguracion,
+  setModulo,
+} from "@/app/(app)/sistema/config-actions";
 import { SaludCorreo } from "@/components/sistema/SaludCorreo";
 
 type Props = {
@@ -338,17 +344,43 @@ function SeccionCorreo({ config, salud }: { config: ConfiguracionSistema; salud:
   const [habilitado, setHabilitado] = useState(config.correoEnvioHabilitado);
   const [from, setFrom] = useState(config.correoFrom);
   const [nombre, setNombre] = useState(config.correoRemitenteNombre);
+  const [replyTo, setReplyTo] = useState(config.correoReplyTo);
+  const [responsable, setResponsable] = useState(config.correoResponsableSgi);
+  const [alertas, setAlertas] = useState(config.correoAlertasTecnicas);
+  const [dia, setDia] = useState(config.resumenSemanalDia);
+  const [hora, setHora] = useState(config.resumenSemanalHora);
+  const [destinoPrueba, setDestinoPrueba] = useState(config.correoAlertasTecnicas || config.correoResponsableSgi);
   const [estado, setEstado] = useState<"ok" | "error" | null>(null);
+  const [mensaje, setMensaje] = useState("");
   const [pending, start] = useTransition();
+  const [probando, startPrueba] = useTransition();
 
   function guardar() {
     setEstado(null);
     start(async () => {
-      const r1 = await setConfiguracion("correo_envio_habilitado", habilitado);
-      const r2 = await setConfiguracion("correo_from", from);
-      const r3 = await setConfiguracion("correo_remitente_nombre", nombre);
-      setEstado(r1.ok && r2.ok && r3.ok ? "ok" : "error");
-      if (r1.ok && r2.ok && r3.ok) router.refresh();
+      const resultados = await Promise.all([
+        setConfiguracion("correo_envio_habilitado", habilitado),
+        setConfiguracion("correo_from", from),
+        setConfiguracion("correo_remitente_nombre", nombre),
+        setConfiguracion("correo_reply_to", replyTo),
+        setConfiguracion("correo_responsable_sgi", responsable),
+        setConfiguracion("correo_alertas_tecnicas", alertas),
+        configurarResumenSemanal(dia, hora),
+      ]);
+      const fallo = resultados.find((resultado) => !resultado.ok);
+      setEstado(fallo ? "error" : "ok");
+      setMensaje(fallo && "error" in fallo ? fallo.error : "Configuración y programación actualizadas.");
+      if (!fallo) router.refresh();
+    });
+  }
+
+  function probar() {
+    setMensaje("");
+    startPrueba(async () => {
+      const resultado = await enviarCorreoPrueba(destinoPrueba);
+      setEstado(resultado.ok ? "ok" : "error");
+      setMensaje(resultado.ok ? resultado.mensaje : resultado.error);
+      if (resultado.ok) router.refresh();
     });
   }
 
@@ -396,6 +428,41 @@ function SeccionCorreo({ config, salud }: { config: ConfiguracionSistema; salud:
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
           />
         </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label htmlFor="correo-reply-to" className="text-sm font-medium">Responder a</label>
+            <input id="correo-reply-to" type="email" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="calidad@empresa.com" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+            <p className="text-xs text-muted-foreground">Dirección que recibirá las respuestas de los usuarios.</p>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="correo-responsable" className="text-sm font-medium">Responsable del SGI</label>
+            <input id="correo-responsable" type="email" value={responsable} onChange={(e) => setResponsable(e.target.value)} placeholder="responsable.sgi@empresa.com" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+            <p className="text-xs text-muted-foreground">Contacto funcional de referencia del sistema.</p>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="correo-alertas" className="text-sm font-medium">Alertas técnicas</label>
+          <input id="correo-alertas" type="email" value={alertas} onChange={(e) => setAlertas(e.target.value)} placeholder="soporte@empresa.com" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+          <p className="text-xs text-muted-foreground">Recibe avisos por fallas reiteradas de las automatizaciones.</p>
+        </div>
+
+        <div className="rounded-md border border-border bg-muted/20 p-4">
+          <h3 className="text-sm font-semibold">Resumen semanal</h3>
+          <p className="mt-1 text-xs text-muted-foreground">Programación según la zona horaria general del sistema.</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label htmlFor="resumen-dia" className="text-sm font-medium">Día</label>
+              <select id="resumen-dia" value={dia} onChange={(e) => setDia(Number(e.target.value))} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <option value={1}>Lunes</option><option value={2}>Martes</option><option value={3}>Miércoles</option><option value={4}>Jueves</option><option value={5}>Viernes</option><option value={6}>Sábado</option><option value={7}>Domingo</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="resumen-hora" className="text-sm font-medium">Hora</label>
+              <input id="resumen-hora" type="time" value={hora} onChange={(e) => setHora(e.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+            </div>
+          </div>
+        </div>
         <div className="space-y-1.5">
           <label htmlFor="correo-nombre" className="text-sm font-medium">Nombre del remitente</label>
           <input
@@ -423,6 +490,19 @@ function SeccionCorreo({ config, salud }: { config: ConfiguracionSistema; salud:
             Guardar
           </button>
           <MensajeGuardado estado={estado} />
+        </div>
+        {mensaje && <p role="status" className={`text-xs ${estado === "error" ? "text-destructive" : "text-emerald-700"}`}>{mensaje}</p>}
+
+        <div className="rounded-md border border-border p-4">
+          <h3 className="text-sm font-semibold">Probar configuración</h3>
+          <p className="mt-1 text-xs text-muted-foreground">Encola un correo real para comprobar proveedor, remitente y entrega.</p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input type="email" aria-label="Destinatario de prueba" value={destinoPrueba} onChange={(e) => setDestinoPrueba(e.target.value)} placeholder="destinatario@empresa.com" className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm" />
+            <button type="button" onClick={probar} disabled={probando || !destinoPrueba} className="inline-flex items-center justify-center gap-1.5 rounded-md border border-primary px-3.5 py-2 text-sm font-medium text-primary hover:bg-primary/5 disabled:opacity-60">
+              {probando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Enviar prueba
+            </button>
+          </div>
         </div>
         <SaludCorreo salud={salud} />
       </div>
