@@ -8,6 +8,7 @@ import {
   Scale,
   Mail,
   Send,
+  TimerReset,
   Check,
   Loader2,
   Lock,
@@ -39,9 +40,65 @@ export function PanelConfiguracion({ config, modulos, normasDisponibles, saludCo
       <SeccionOrganizacion config={config} />
       <SeccionModulos modulos={modulos} />
       <SeccionNormas config={config} normasDisponibles={normasDisponibles} />
+      <SeccionReglasOperativas config={config} />
       <SeccionCorreo config={config} salud={saludCorreo} />
     </div>
   );
+}
+
+/* ----- Reglas operativas ----- */
+function SeccionReglasOperativas({ config }: { config: ConfiguracionSistema }) {
+  const router = useRouter();
+  const [aprobacion, setAprobacion] = useState(config.aprobacionPlazoDiasDefault);
+  const [nc, setNc] = useState(config.ncPlazoCierreDiasDefault);
+  const [requisitos, setRequisitos] = useState(config.requisitosAlertaDias);
+  const [estado, setEstado] = useState<"ok" | "error" | null>(null);
+  const [mensaje, setMensaje] = useState("");
+  const [pending, start] = useTransition();
+
+  function guardar() {
+    setEstado(null);
+    setMensaje("");
+    start(async () => {
+      const valores = [
+        ["aprobacion_plazo_dias_default", aprobacion],
+        ["nc_plazo_cierre_dias_default", nc],
+        ["requisitos_alerta_dias", requisitos],
+      ] as const;
+      for (const [clave, valor] of valores) {
+        const resultado = await setConfiguracion(clave, valor);
+        if (!resultado.ok) {
+          setEstado("error");
+          setMensaje(resultado.error);
+          return;
+        }
+      }
+      setEstado("ok");
+      setMensaje("Los nuevos valores se aplicarán a las próximas operaciones.");
+      router.refresh();
+    });
+  }
+
+  return (
+    <Bloque icon={<TimerReset className="h-5 w-5" />} titulo="Plazos y avisos" descripcion="Valores predeterminados para nuevas operaciones. Cero conserva el campo sin fecha automática.">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <CampoDias id="plazo-aprobacion" etiqueta="Aprobación documental" valor={aprobacion} onChange={setAprobacion} ayuda="Plazo sugerido si el usuario no indica otro." />
+        <CampoDias id="plazo-nc" etiqueta="Cierre de NC" valor={nc} onChange={setNc} ayuda="Fecha límite automática para nuevas NC." />
+        <CampoDias id="aviso-requisitos" etiqueta="Aviso legal anticipado" valor={requisitos} onChange={setRequisitos} ayuda="Cuándo aparece una próxima evaluación." minimo={1} />
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <button type="button" onClick={guardar} disabled={pending} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60">
+          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Guardar
+        </button>
+        <MensajeGuardado estado={estado} />
+      </div>
+      {mensaje && <p role="status" className={`mt-2 text-xs ${estado === "error" ? "text-destructive" : "text-emerald-700"}`}>{mensaje}</p>}
+    </Bloque>
+  );
+}
+
+function CampoDias({ id, etiqueta, valor, onChange, ayuda, minimo = 0 }: { id: string; etiqueta: string; valor: number; onChange: (valor: number) => void; ayuda: string; minimo?: number }) {
+  return <div className="space-y-1.5"><label htmlFor={id} className="text-sm font-medium">{etiqueta}</label><div className="flex items-center gap-2"><input id={id} type="number" min={minimo} max={90} value={valor} onChange={(e) => onChange(Math.max(minimo, Math.min(90, Number(e.target.value))))} className="w-24 rounded-md border border-input bg-background px-3 py-2 text-sm" /><span className="text-sm text-muted-foreground">días</span></div><p className="text-xs text-muted-foreground">{ayuda}</p></div>;
 }
 
 function Bloque({

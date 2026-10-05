@@ -38,6 +38,10 @@ export type ConfiguracionSistema = {
   correoAlertasTecnicas: string;
   resumenSemanalDia: number;
   resumenSemanalHora: string;
+  aprobacionPlazoDiasDefault: number;
+  ncPlazoCierreDiasDefault: number;
+  requisitosAlertaDias: number;
+  zonaHoraria: string;
   // crudo, por si hace falta
   raw: ConfigItem[];
 };
@@ -65,6 +69,10 @@ export async function obtenerConfiguracion(): Promise<ConfiguracionSistema> {
     correoAlertasTecnicas: val(items, "correo_alertas_tecnicas", ""),
     resumenSemanalDia: val(items, "resumen_semanal_dia", 1),
     resumenSemanalHora: val(items, "resumen_semanal_hora", "08:00"),
+    aprobacionPlazoDiasDefault: val(items, "aprobacion_plazo_dias_default", 0),
+    ncPlazoCierreDiasDefault: val(items, "nc_plazo_cierre_dias_default", 0),
+    requisitosAlertaDias: val(items, "requisitos_alerta_dias", 30),
+    zonaHoraria: val(items, "zona_horaria", "America/Argentina/Buenos_Aires"),
     raw: items,
   };
 }

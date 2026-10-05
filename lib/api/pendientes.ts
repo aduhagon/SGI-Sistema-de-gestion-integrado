@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
 import { obtenerZonaHoraria } from "@/lib/api/ajustes";
 import { listarRequisitosLegales } from "@/lib/api/requisitos-legales";
+import { obtenerConfiguracion } from "@/lib/api/config-sistema";
 
 export type NivelPendiente = "recordatorio" | "advertencia" | "vencido_hoy" | "vencido";
 
@@ -139,7 +140,8 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
     }));
 
   items.push(...(await obtenerPendientesControles(supabase, usuarioId, zona)));
-  items.push(...(await obtenerPendientesRequisitosLegales(zona)));
+  const config = await obtenerConfiguracion();
+  items.push(...(await obtenerPendientesRequisitosLegales(zona, config.requisitosAlertaDias)));
 
   // Agrupar por módulo respetando el orden de presentación.
   const grupos: GrupoPendientes[] = [];
@@ -157,7 +159,7 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
   return grupos;
 }
 
-async function obtenerPendientesRequisitosLegales(zona: string): Promise<Pendiente[]> {
+async function obtenerPendientesRequisitosLegales(zona: string, anticipacionDias: number): Promise<Pendiente[]> {
   const requisitos = await listarRequisitosLegales();
   const hoy = fechaCalendarioEnZona(zona);
   const sinEvaluacion = requisitos.filter((requisito) => !requisito.ultimaEvaluacion);
@@ -180,7 +182,7 @@ async function obtenerPendientesRequisitosLegales(zona: string): Promise<Pendien
   for (const requisito of requisitos) {
     if (!requisito.ultimaEvaluacion || !requisito.proximaEvaluacion) continue;
     const diasRestantes = diferenciaDias(hoy, requisito.proximaEvaluacion);
-    if (diasRestantes > 30) continue;
+    if (diasRestantes > anticipacionDias) continue;
     pendientes.push({
       modulo: "requisitos_legales",
       entidadId: requisito.id,
@@ -188,7 +190,7 @@ async function obtenerPendientesRequisitosLegales(zona: string): Promise<Pendien
       titulo: requisito.titulo,
       fechaLimite: requisito.proximaEvaluacion,
       diasRestantes,
-      nivel: diasRestantes < 0 ? "vencido" : diasRestantes === 0 ? "vencido_hoy" : diasRestantes <= 7 ? "advertencia" : "recordatorio",
+      nivel: diasRestantes < 0 ? "vencido" : diasRestantes === 0 ? "vencido_hoy" : diasRestantes <= Math.max(1, Math.ceil(anticipacionDias / 2)) ? "advertencia" : "recordatorio",
       urlDestino: `/requisitos-legales?evaluar=${requisito.id}`,
     });
   }

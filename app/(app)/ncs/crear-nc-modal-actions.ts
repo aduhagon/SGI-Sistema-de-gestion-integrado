@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { crearNCSchema } from "@/lib/schemas/nc";
 import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
 import { generarCodigoNC } from "@/lib/api/ncs";
+import { obtenerConfiguracion } from "@/lib/api/config-sistema";
+import { fechaLocalMasDias } from "@/lib/fechas";
 
 // Variante de crearNC pensada para el modal del listado: en vez de redirigir
 // del lado servidor (que rompe el flujo de useFormState en un modal), devuelve
@@ -48,6 +50,12 @@ export async function crearNCDesdeModal(
   const codigo = await generarCodigoNC();
   const hallazgoId = input.hallazgoId && input.hallazgoId !== "" ? input.hallazgoId : null;
   const procesoId = input.procesoId && input.procesoId !== "" ? input.procesoId : null;
+  const config = await obtenerConfiguracion();
+  const fechaLimite = input.fechaLimiteCierre && input.fechaLimiteCierre !== ""
+    ? input.fechaLimiteCierre
+    : config.ncPlazoCierreDiasDefault > 0
+      ? fechaLocalMasDias(config.ncPlazoCierreDiasDefault, config.zonaHoraria)
+      : null;
 
   const { data: nc, error } = await supabase
     .from("no_conformidades")
@@ -61,8 +69,7 @@ export async function crearNCDesdeModal(
       hallazgo_id: hallazgoId,
       origen_descripcion: input.origenDescripcion ?? null,
       proceso_id: procesoId,
-      fecha_limite_cierre:
-        input.fechaLimiteCierre && input.fechaLimiteCierre !== "" ? input.fechaLimiteCierre : null,
+      fecha_limite_cierre: fechaLimite,
       requiere_accion_inmediata: input.requiereAccionInmediata,
       accion_inmediata_descripcion: input.accionInmediataDescripcion ?? null,
       estado: "abierta",

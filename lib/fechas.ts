@@ -24,6 +24,14 @@ function diaEnZona(zona: string, fecha: Date = new Date()): string {
   return fmt.format(fecha);
 }
 
+/** Suma días calendario al día local del sistema y devuelve YYYY-MM-DD. */
+export function fechaLocalMasDias(dias: number, zona: string): string {
+  const hoy = diaEnZona(zona);
+  const fecha = new Date(`${hoy}T12:00:00Z`);
+  fecha.setUTCDate(fecha.getUTCDate() + dias);
+  return fecha.toISOString().slice(0, 10);
+}
+
 /**
  * Normaliza una fecha límite (string de la base, con o sin hora) a su día
  * calendario YYYY-MM-DD. Las fechas tipo "date" de Postgres llegan como

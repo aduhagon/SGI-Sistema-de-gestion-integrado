@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { enviarAprobacionSchema } from "@/lib/schemas/envio";
 import { obtenerUsuarioActualId } from "@/lib/api/aprobaciones";
+import { obtenerConfiguracion } from "@/lib/api/config-sistema";
 
 export type EstadoEnvio =
   | { ok: true }
@@ -151,8 +152,9 @@ export async function enviarAAprobacion(
     : null;
 
   const ahora = new Date();
-  const plazo = plazoDias
-    ? new Date(ahora.getTime() + plazoDias * 24 * 60 * 60 * 1000).toISOString()
+  const plazoConfigurado = plazoDias ?? (await obtenerConfiguracion()).aprobacionPlazoDiasDefault;
+  const plazo = plazoConfigurado > 0
+    ? new Date(ahora.getTime() + plazoConfigurado * 24 * 60 * 60 * 1000).toISOString()
     : null;
 
   // 1. Crear o reutilizar la aprobación. El trigger de segregación valida N1/N2 vs elaborador.
