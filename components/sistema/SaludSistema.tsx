@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Activity,
   Archive,
@@ -7,6 +8,7 @@ import {
   Database,
   HardDrive,
   MailCheck,
+  ShieldCheck,
 } from "lucide-react";
 import type { SaludCorreo } from "@/lib/api/correo-salud";
 import type { SaludSistema as SaludSistemaTipo } from "@/lib/api/sistema-salud";
@@ -25,8 +27,11 @@ export function SaludSistema({ salud, correo }: { salud: SaludSistemaTipo; corre
     : salud.automatizaciones.total > 0 && salud.automatizaciones.activas === salud.automatizaciones.total
       ? "ok"
       : "advertencia";
+  const problemasIntegridad = salud.integridad.riesgosPuestoVacante
+    + salud.integridad.ncsResponsableInactivo
+    + salud.integridad.acusesUsuarioInactivo;
   const hayError = !salud.baseDatos.operativa;
-  const hayAdvertencia = !correoOperativo || automatizacionesEstado !== "ok";
+  const hayAdvertencia = !correoOperativo || automatizacionesEstado !== "ok" || problemasIntegridad > 0;
 
   return (
     <section className="mb-8 rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6" aria-labelledby="salud-sistema-titulo">
@@ -47,8 +52,26 @@ export function SaludSistema({ salud, correo }: { salud: SaludSistemaTipo; corre
         <Tarjeta icono={MailCheck} titulo="Correo" estado={correoOperativo ? "ok" : "advertencia"} valor={correoOperativo ? "Operativo" : "Revisar"} detalle={correo.habilitado ? `${correo.semana.enviados} enviados esta semana` : "Envíos deshabilitados"} />
         <Tarjeta icono={HardDrive} titulo="Almacenamiento" estado="ok" valor={formatearBytes(salud.almacenamiento.bytes)} detalle={`${salud.almacenamiento.objetos} archivo(s)`} />
         <Tarjeta icono={Activity} titulo="Automatizaciones" estado={automatizacionesEstado} valor={`${salud.automatizaciones.activas} de ${salud.automatizaciones.total} activas`} detalle={salud.automatizaciones.fallosSieteDias > 0 ? `${salud.automatizaciones.fallosSieteDias} fallo(s) en 7 días` : "Sin fallos en 7 días"} />
+        <Tarjeta icono={ShieldCheck} titulo="Integridad operativa" estado={problemasIntegridad > 0 ? "advertencia" : "ok"} valor={problemasIntegridad > 0 ? `${problemasIntegridad} punto(s) a corregir` : "Sin observaciones"} detalle={salud.integridad.riesgosPuestoVacante > 0 ? `${salud.integridad.riesgosPuestoVacante} riesgo(s) con puesto vacante` : "Responsables y destinatarios consistentes"} />
         <Tarjeta icono={Archive} titulo="Respaldo" estado="advertencia" valor="Sin integración" detalle="La fecha del último backup aún no se puede verificar aquí" />
       </div>
+
+      {salud.integridad.alertas.length > 0 && (
+        <details className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+          <summary className="cursor-pointer text-sm font-medium text-amber-900">Ver puntos de integridad operativa</summary>
+          <ul className="mt-3 divide-y divide-amber-500/20">
+            {salud.integridad.alertas.map((alerta) => (
+              <li key={`${alerta.tipo}-${alerta.codigo}`} className="flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="font-medium">{alerta.codigo} — {alerta.titulo}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Puesto sin ocupante activo: {alerta.detalle}</p>
+                </div>
+                <Link href={alerta.url} className="shrink-0 text-xs font-medium text-primary hover:underline">Revisar</Link>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {salud.automatizaciones.jobs.length > 0 && (
         <details className="mt-4 rounded-lg border border-border px-4 py-3">

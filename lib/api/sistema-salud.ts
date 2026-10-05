@@ -17,6 +17,18 @@ export type SaludSistema = {
       ultimoMensaje: string | null;
     }>;
   };
+  integridad: {
+    riesgosPuestoVacante: number;
+    ncsResponsableInactivo: number;
+    acusesUsuarioInactivo: number;
+    alertas: Array<{
+      tipo: string;
+      codigo: string;
+      titulo: string;
+      detalle: string;
+      url: string;
+    }>;
+  };
   despliegue: {
     entorno: string;
     rama: string | null;
@@ -29,6 +41,12 @@ const VACIO: Omit<SaludSistema, "despliegue"> = {
   baseDatos: { operativa: false, horaServidor: null },
   almacenamiento: { objetos: 0, bytes: 0 },
   automatizaciones: { total: 0, activas: 0, fallosSieteDias: 0, jobs: [] },
+  integridad: {
+    riesgosPuestoVacante: 0,
+    ncsResponsableInactivo: 0,
+    acusesUsuarioInactivo: 0,
+    alertas: [],
+  },
 };
 
 export async function obtenerSaludSistema(): Promise<SaludSistema> {
