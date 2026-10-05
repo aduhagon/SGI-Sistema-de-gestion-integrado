@@ -358,15 +358,19 @@ function SeccionCorreo({ config, salud }: { config: ConfiguracionSistema; salud:
   function guardar() {
     setEstado(null);
     start(async () => {
-      const resultados = await Promise.all([
-        setConfiguracion("correo_envio_habilitado", habilitado),
-        setConfiguracion("correo_from", from),
-        setConfiguracion("correo_remitente_nombre", nombre),
-        setConfiguracion("correo_reply_to", replyTo),
-        setConfiguracion("correo_responsable_sgi", responsable),
-        setConfiguracion("correo_alertas_tecnicas", alertas),
-        configurarResumenSemanal(dia, hora),
-      ]);
+      // Guardar en serie conserva el encadenamiento cronológico de la bitácora.
+      const resultados = [];
+      for (const [clave, valor] of [
+        ["correo_envio_habilitado", habilitado],
+        ["correo_from", from],
+        ["correo_remitente_nombre", nombre],
+        ["correo_reply_to", replyTo],
+        ["correo_responsable_sgi", responsable],
+        ["correo_alertas_tecnicas", alertas],
+      ] as const) {
+        resultados.push(await setConfiguracion(clave, valor));
+      }
+      resultados.push(await configurarResumenSemanal(dia, hora));
       const fallo = resultados.find((resultado) => !resultado.ok);
       setEstado(fallo ? "error" : "ok");
       setMensaje(fallo && "error" in fallo ? fallo.error : "Configuración y programación actualizadas.");
