@@ -7,7 +7,9 @@ import {
   obtenerNormasDisponibles,
 } from "@/lib/api/config-sistema";
 import { obtenerSaludCorreo } from "@/lib/api/correo-salud";
+import { obtenerSaludSistema } from "@/lib/api/sistema-salud";
 import { PanelConfiguracion } from "@/components/sistema/PanelConfiguracion";
+import { SaludSistema } from "@/components/sistema/SaludSistema";
 
 export const dynamic = "force-dynamic";
 
@@ -34,11 +36,12 @@ export default async function SistemaPage() {
     );
   }
 
-  const [config, modulos, normasDisponibles, saludCorreo] = await Promise.all([
+  const [config, modulos, normasDisponibles, saludCorreo, saludSistema] = await Promise.all([
     obtenerConfiguracion(),
     obtenerModulos(),
     obtenerNormasDisponibles(),
     obtenerSaludCorreo(),
+    obtenerSaludSistema(),
   ]);
 
   return (
@@ -56,6 +59,8 @@ export default async function SistemaPage() {
           normas y correo. Estos ajustes afectan a todo el sistema.
         </p>
       </header>
+
+      <SaludSistema salud={saludSistema} correo={saludCorreo} />
 
       <PanelConfiguracion
         config={config}
