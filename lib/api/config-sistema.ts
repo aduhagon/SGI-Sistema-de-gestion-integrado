@@ -50,6 +50,8 @@ export type ConfiguracionSistema = {
   restorePeriodicidadDias: number;
   continuidadResponsable: string;
   continuidadProcedimientoUrl: string;
+  continuidadAlertasHabilitadas: boolean;
+  continuidadAlertaRepetirDias: number;
   // crudo, por si hace falta
   raw: ConfigItem[];
 };
@@ -88,6 +90,8 @@ export async function obtenerConfiguracion(): Promise<ConfiguracionSistema> {
     restorePeriodicidadDias: val(items, "restore_periodicidad_dias", 180),
     continuidadResponsable: val(items, "continuidad_responsable", ""),
     continuidadProcedimientoUrl: val(items, "continuidad_procedimiento_url", ""),
+    continuidadAlertasHabilitadas: val(items, "continuidad_alertas_habilitadas", false),
+    continuidadAlertaRepetirDias: val(items, "continuidad_alerta_repetir_dias", 7),
     raw: items,
   };
 }

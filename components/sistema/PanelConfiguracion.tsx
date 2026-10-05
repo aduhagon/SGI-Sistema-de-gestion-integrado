@@ -58,6 +58,8 @@ function SeccionContinuidad({ config }: { config: ConfiguracionSistema }) {
   const [restoreDias, setRestoreDias] = useState(config.restorePeriodicidadDias);
   const [responsable, setResponsable] = useState(config.continuidadResponsable);
   const [procedimiento, setProcedimiento] = useState(config.continuidadProcedimientoUrl);
+  const [alertas, setAlertas] = useState(config.continuidadAlertasHabilitadas);
+  const [repetirDias, setRepetirDias] = useState(config.continuidadAlertaRepetirDias);
   const [estado, setEstado] = useState<"ok" | "error" | null>(null);
   const [mensaje, setMensaje] = useState("");
   const [pending, start] = useTransition();
@@ -74,6 +76,8 @@ function SeccionContinuidad({ config }: { config: ConfiguracionSistema }) {
         ["restore_periodicidad_dias", restoreDias],
         ["continuidad_responsable", responsable],
         ["continuidad_procedimiento_url", procedimiento],
+        ["continuidad_alertas_habilitadas", alertas],
+        ["continuidad_alerta_repetir_dias", repetirDias],
       ] as const) {
         const resultado = await setConfiguracion(clave, valor);
         if (!resultado.ok) {
@@ -119,6 +123,22 @@ function SeccionContinuidad({ config }: { config: ConfiguracionSistema }) {
       <div className="mt-4 space-y-1.5">
         <label htmlFor="continuidad-url" className="text-sm font-medium">Procedimiento de recuperación</label>
         <input id="continuidad-url" type="url" value={procedimiento} onChange={(e) => setProcedimiento(e.target.value)} placeholder="https://…" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+      </div>
+      <div className="mt-4 rounded-md border border-border bg-muted/20 p-4">
+        <label className="flex items-center justify-between gap-4">
+          <div>
+            <span className="text-sm font-medium">Alertas automáticas de continuidad</span>
+            <p className="text-xs text-muted-foreground">Revisión diaria; solo envía si encuentra evidencia faltante o vencida.</p>
+          </div>
+          <button type="button" role="switch" aria-checked={alertas} onClick={() => setAlertas((valor) => !valor)} className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${alertas ? "bg-emerald-500" : "bg-muted-foreground/30"}`}>
+            <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${alertas ? "translate-x-6" : "translate-x-1"}`} />
+          </button>
+        </label>
+        {alertas && (
+          <div className="mt-3 max-w-sm">
+            <CampoDias id="continuidad-repetir" etiqueta="Repetir como máximo cada" valor={repetirDias} onChange={setRepetirDias} ayuda="Evita correos diarios por el mismo estado." minimo={1} maximo={30} />
+          </div>
+        )}
       </div>
       <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-800">
         Esta sección registra evidencia y genera el semáforo. No reemplaza la comprobación en Supabase ni una prueba real de restauración.
