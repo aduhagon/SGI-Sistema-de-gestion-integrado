@@ -42,6 +42,14 @@ export type ConfiguracionSistema = {
   ncPlazoCierreDiasDefault: number;
   requisitosAlertaDias: number;
   zonaHoraria: string;
+  // continuidad
+  backupUltimoVerificadoFecha: string;
+  backupPeriodicidadDias: number;
+  backupAlcance: "base_datos" | "base_datos_y_archivos";
+  restoreUltimaPruebaFecha: string;
+  restorePeriodicidadDias: number;
+  continuidadResponsable: string;
+  continuidadProcedimientoUrl: string;
   // crudo, por si hace falta
   raw: ConfigItem[];
 };
@@ -73,6 +81,13 @@ export async function obtenerConfiguracion(): Promise<ConfiguracionSistema> {
     ncPlazoCierreDiasDefault: val(items, "nc_plazo_cierre_dias_default", 0),
     requisitosAlertaDias: val(items, "requisitos_alerta_dias", 30),
     zonaHoraria: val(items, "zona_horaria", "America/Argentina/Buenos_Aires"),
+    backupUltimoVerificadoFecha: val(items, "backup_ultimo_verificado_fecha", ""),
+    backupPeriodicidadDias: val(items, "backup_periodicidad_dias", 1),
+    backupAlcance: val(items, "backup_alcance", "base_datos"),
+    restoreUltimaPruebaFecha: val(items, "restore_ultima_prueba_fecha", ""),
+    restorePeriodicidadDias: val(items, "restore_periodicidad_dias", 180),
+    continuidadResponsable: val(items, "continuidad_responsable", ""),
+    continuidadProcedimientoUrl: val(items, "continuidad_procedimiento_url", ""),
     raw: items,
   };
 }

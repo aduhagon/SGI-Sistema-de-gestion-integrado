@@ -12,10 +12,11 @@ import {
 } from "lucide-react";
 import type { SaludCorreo } from "@/lib/api/correo-salud";
 import type { SaludSistema as SaludSistemaTipo } from "@/lib/api/sistema-salud";
+import type { ConfiguracionSistema } from "@/lib/api/config-sistema";
 
 type Estado = "ok" | "advertencia" | "error";
 
-export function SaludSistema({ salud, correo }: { salud: SaludSistemaTipo; correo: SaludCorreo }) {
+export function SaludSistema({ salud, correo, continuidad }: { salud: SaludSistemaTipo; correo: SaludCorreo; continuidad: ConfiguracionSistema }) {
   const correoConErrores = correo.cola.fallidos + correo.cola.agotados > 0;
   const correoOperativo = correo.habilitado
     && correo.job.activo === true
@@ -30,7 +31,12 @@ export function SaludSistema({ salud, correo }: { salud: SaludSistemaTipo; corre
   const problemasIntegridad = salud.integridad.riesgosPuestoVacante
     + salud.integridad.ncsResponsableInactivo
     + salud.integridad.acusesUsuarioInactivo;
-  const hayError = !salud.baseDatos.operativa;
+  const estadoRespaldo = calcularEstadoFecha(continuidad.backupUltimoVerificadoFecha, continuidad.backupPeriodicidadDias, true);
+  const estadoRestauracion = calcularEstadoFecha(continuidad.restoreUltimaPruebaFecha, continuidad.restorePeriodicidadDias, false);
+  const continuidadEstado: Estado = estadoRespaldo.estado === "error"
+    ? "error"
+    : estadoRestauracion.estado === "ok" ? "ok" : "advertencia";
+  const hayError = !salud.baseDatos.operativa || continuidadEstado === "error";
   const hayAdvertencia = !correoOperativo || automatizacionesEstado !== "ok" || problemasIntegridad > 0;
 
   return (
@@ -53,7 +59,13 @@ export function SaludSistema({ salud, correo }: { salud: SaludSistemaTipo; corre
         <Tarjeta icono={HardDrive} titulo="Almacenamiento" estado="ok" valor={formatearBytes(salud.almacenamiento.bytes)} detalle={`${salud.almacenamiento.objetos} archivo(s)`} />
         <Tarjeta icono={Activity} titulo="Automatizaciones" estado={automatizacionesEstado} valor={`${salud.automatizaciones.activas} de ${salud.automatizaciones.total} activas`} detalle={salud.automatizaciones.fallosSieteDias > 0 ? `${salud.automatizaciones.fallosSieteDias} fallo(s) en 7 días` : "Sin fallos en 7 días"} />
         <Tarjeta icono={ShieldCheck} titulo="Integridad operativa" estado={problemasIntegridad > 0 ? "advertencia" : "ok"} valor={problemasIntegridad > 0 ? `${problemasIntegridad} punto(s) a corregir` : "Sin observaciones"} detalle={salud.integridad.riesgosPuestoVacante > 0 ? `${salud.integridad.riesgosPuestoVacante} riesgo(s) con puesto vacante` : "Responsables y destinatarios consistentes"} />
-        <Tarjeta icono={Archive} titulo="Respaldo" estado="advertencia" valor="Sin integración" detalle="La fecha del último backup aún no se puede verificar aquí" />
+        <Tarjeta
+          icono={Archive}
+          titulo="Respaldo y continuidad"
+          estado={continuidadEstado}
+          valor={estadoRespaldo.etiqueta}
+          detalle={`${continuidad.backupAlcance === "base_datos_y_archivos" ? "Base y archivos" : "Solo base de datos"} · Restauración: ${estadoRestauracion.etiqueta.toLowerCase()}`}
+        />
       </div>
 
       {salud.integridad.alertas.length > 0 && (
@@ -90,7 +102,7 @@ export function SaludSistema({ salud, correo }: { salud: SaludSistemaTipo; corre
         </details>
       )}
 
-      <p className="mt-4 text-[11px] text-muted-foreground">Actualizado {formatearFecha(salud.consultadoEn)}. El respaldo figura como pendiente hasta conectar una fuente verificable.</p>
+      <p className="mt-4 text-[11px] text-muted-foreground">Actualizado {formatearFecha(salud.consultadoEn)}. Las evidencias de continuidad son declaradas y quedan auditadas al guardarse.</p>
     </section>
   );
 }
@@ -137,4 +149,13 @@ function traducirEstado(estado?: string | null) {
 
 function capitalizar(valor: string) {
   return valor.charAt(0).toUpperCase() + valor.slice(1);
+}
+
+function calcularEstadoFecha(fecha: string, periodicidadDias: number, esRespaldo: boolean): { estado: Estado; etiqueta: string } {
+  if (!fecha) return { estado: esRespaldo ? "error" : "advertencia", etiqueta: "Sin evidencia" };
+  const instante = new Date(`${fecha}T12:00:00Z`).getTime();
+  if (Number.isNaN(instante)) return { estado: "error", etiqueta: "Fecha inválida" };
+  const antiguedad = Math.max(0, Math.floor((Date.now() - instante) / 86_400_000));
+  if (antiguedad > periodicidadDias) return { estado: esRespaldo ? "error" : "advertencia", etiqueta: `Vencido hace ${antiguedad - periodicidadDias} día(s)` };
+  return { estado: "ok", etiqueta: antiguedad === 0 ? "Verificado hoy" : `Verificado hace ${antiguedad} día(s)` };
 }

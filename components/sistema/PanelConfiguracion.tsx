@@ -13,6 +13,7 @@ import {
   Loader2,
   Lock,
   AlertCircle,
+  ArchiveRestore,
 } from "lucide-react";
 import type {
   ConfiguracionSistema,
@@ -41,8 +42,95 @@ export function PanelConfiguracion({ config, modulos, normasDisponibles, saludCo
       <SeccionModulos modulos={modulos} />
       <SeccionNormas config={config} normasDisponibles={normasDisponibles} />
       <SeccionReglasOperativas config={config} />
+      <SeccionContinuidad config={config} />
       <SeccionCorreo config={config} salud={saludCorreo} />
     </div>
+  );
+}
+
+/* ----- Respaldo y continuidad ----- */
+function SeccionContinuidad({ config }: { config: ConfiguracionSistema }) {
+  const router = useRouter();
+  const [backupFecha, setBackupFecha] = useState(config.backupUltimoVerificadoFecha);
+  const [backupDias, setBackupDias] = useState(config.backupPeriodicidadDias);
+  const [alcance, setAlcance] = useState(config.backupAlcance);
+  const [restoreFecha, setRestoreFecha] = useState(config.restoreUltimaPruebaFecha);
+  const [restoreDias, setRestoreDias] = useState(config.restorePeriodicidadDias);
+  const [responsable, setResponsable] = useState(config.continuidadResponsable);
+  const [procedimiento, setProcedimiento] = useState(config.continuidadProcedimientoUrl);
+  const [estado, setEstado] = useState<"ok" | "error" | null>(null);
+  const [mensaje, setMensaje] = useState("");
+  const [pending, start] = useTransition();
+
+  function guardar() {
+    setEstado(null);
+    setMensaje("");
+    start(async () => {
+      for (const [clave, valor] of [
+        ["backup_ultimo_verificado_fecha", backupFecha],
+        ["backup_periodicidad_dias", backupDias],
+        ["backup_alcance", alcance],
+        ["restore_ultima_prueba_fecha", restoreFecha],
+        ["restore_periodicidad_dias", restoreDias],
+        ["continuidad_responsable", responsable],
+        ["continuidad_procedimiento_url", procedimiento],
+      ] as const) {
+        const resultado = await setConfiguracion(clave, valor);
+        if (!resultado.ok) {
+          setEstado("error");
+          setMensaje(resultado.error);
+          return;
+        }
+      }
+      setEstado("ok");
+      setMensaje("Evidencias y umbrales de continuidad actualizados.");
+      router.refresh();
+    });
+  }
+
+  return (
+    <Bloque icon={<ArchiveRestore className="h-5 w-5" />} titulo="Respaldo y continuidad" descripcion="Registrá evidencia verificable y la vigencia esperada. Guardar una fecha no ejecuta un backup ni una restauración.">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <label htmlFor="backup-fecha" className="text-sm font-medium">Último respaldo verificado</label>
+          <input id="backup-fecha" type="date" max={fechaHoy()} value={backupFecha} onChange={(e) => setBackupFecha(e.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+          <p className="text-xs text-muted-foreground">Fecha comprobada en el proveedor o evidencia externa.</p>
+        </div>
+        <CampoDias id="backup-dias" etiqueta="Frecuencia esperada" valor={backupDias} onChange={setBackupDias} ayuda="Antigüedad máxima aceptable." minimo={1} maximo={365} />
+        <div className="space-y-1.5">
+          <label htmlFor="backup-alcance" className="text-sm font-medium">Alcance verificado</label>
+          <select id="backup-alcance" value={alcance} onChange={(e) => setAlcance(e.target.value as typeof alcance)} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+            <option value="base_datos">Solo base de datos</option>
+            <option value="base_datos_y_archivos">Base de datos y archivos</option>
+          </select>
+          <p className="text-xs text-muted-foreground">Los archivos de Storage deben verificarse por separado.</p>
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="continuidad-responsable" className="text-sm font-medium">Responsable técnico</label>
+          <input id="continuidad-responsable" type="email" value={responsable} onChange={(e) => setResponsable(e.target.value)} placeholder="soporte@empresa.com" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="restore-fecha" className="text-sm font-medium">Última prueba de restauración</label>
+          <input id="restore-fecha" type="date" max={fechaHoy()} value={restoreFecha} onChange={(e) => setRestoreFecha(e.target.value)} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+          <p className="text-xs text-muted-foreground">Fecha en que se comprobó que el respaldo podía recuperarse.</p>
+        </div>
+        <CampoDias id="restore-dias" etiqueta="Vigencia de la prueba" valor={restoreDias} onChange={setRestoreDias} ayuda="Frecuencia máxima entre simulacros." minimo={30} maximo={730} />
+      </div>
+      <div className="mt-4 space-y-1.5">
+        <label htmlFor="continuidad-url" className="text-sm font-medium">Procedimiento de recuperación</label>
+        <input id="continuidad-url" type="url" value={procedimiento} onChange={(e) => setProcedimiento(e.target.value)} placeholder="https://…" className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+      </div>
+      <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-800">
+        Esta sección registra evidencia y genera el semáforo. No reemplaza la comprobación en Supabase ni una prueba real de restauración.
+      </div>
+      <div className="mt-4 flex items-center gap-3">
+        <button type="button" onClick={guardar} disabled={pending} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60">
+          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Guardar evidencia
+        </button>
+        <MensajeGuardado estado={estado} />
+      </div>
+      {mensaje && <p role="status" className={`mt-2 text-xs ${estado === "error" ? "text-destructive" : "text-emerald-700"}`}>{mensaje}</p>}
+    </Bloque>
   );
 }
 
@@ -97,8 +185,12 @@ function SeccionReglasOperativas({ config }: { config: ConfiguracionSistema }) {
   );
 }
 
-function CampoDias({ id, etiqueta, valor, onChange, ayuda, minimo = 0 }: { id: string; etiqueta: string; valor: number; onChange: (valor: number) => void; ayuda: string; minimo?: number }) {
-  return <div className="space-y-1.5"><label htmlFor={id} className="text-sm font-medium">{etiqueta}</label><div className="flex items-center gap-2"><input id={id} type="number" min={minimo} max={90} value={valor} onChange={(e) => onChange(Math.max(minimo, Math.min(90, Number(e.target.value))))} className="w-24 rounded-md border border-input bg-background px-3 py-2 text-sm" /><span className="text-sm text-muted-foreground">días</span></div><p className="text-xs text-muted-foreground">{ayuda}</p></div>;
+function CampoDias({ id, etiqueta, valor, onChange, ayuda, minimo = 0, maximo = 90 }: { id: string; etiqueta: string; valor: number; onChange: (valor: number) => void; ayuda: string; minimo?: number; maximo?: number }) {
+  return <div className="space-y-1.5"><label htmlFor={id} className="text-sm font-medium">{etiqueta}</label><div className="flex items-center gap-2"><input id={id} type="number" min={minimo} max={maximo} value={valor} onChange={(e) => onChange(Math.max(minimo, Math.min(maximo, Number(e.target.value))))} className="w-24 rounded-md border border-input bg-background px-3 py-2 text-sm" /><span className="text-sm text-muted-foreground">días</span></div><p className="text-xs text-muted-foreground">{ayuda}</p></div>;
+}
+
+function fechaHoy() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
 }
 
 function Bloque({

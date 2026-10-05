@@ -60,7 +60,7 @@ export default async function SistemaPage() {
         </p>
       </header>
 
-      <SaludSistema salud={saludSistema} correo={saludCorreo} />
+      <SaludSistema salud={saludSistema} correo={saludCorreo} continuidad={config} />
 
       <PanelConfiguracion
         config={config}
