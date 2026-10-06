@@ -59,6 +59,14 @@ Alcance: Centro de pendientes, sin crear registros ficticios en producción ni u
 
 ## Registro para siguientes cambios
 
+### Bloque de acciones y plazos preparado el 06/10
+
+- Cada tarjeta presenta la acción correspondiente al módulo, manteniendo el destino existente; aprobar o cerrar requiere la revisión del circuito habitual.
+- La búsqueda incluye el nombre de la acción. Fecha concreta y plazo relativo visibles; sin fecha se informa explícitamente, sin aparentar vencimiento.
+- Los requisitos legales se identifican como visibles por permisos y no como asignaciones personales comprobadas. El helper actual no filtra un responsable explícito. La revisión con dos perfiles sigue pendiente; no se cambiaron permisos ni responsabilidades.
+- Verificación: TypeScript, codificación y render estático con datos locales; fechas de calendario sin desplazamiento, timestamps en Buenos Aires y fallback para módulo nuevo.
+- Estado: preparado, pendiente de publicación y aceptación visual en celular y escritorio.
+
 ### Bloque P-01 / P-02 preparado el 06/10
 
 - Módulos desconocidos se conservan al final del listado con una etiqueta de fallback.
