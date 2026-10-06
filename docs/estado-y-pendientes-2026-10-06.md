@@ -59,6 +59,16 @@ Alcance: Centro de pendientes, sin crear registros ficticios en producción ni u
 
 ## Registro para siguientes cambios
 
+### Responsables de evaluación legal: preparado el 06/10
+
+- Migración `20261006120504_responsables_evaluacion_legal.sql`: puesto opcional, FK e índice, validación de puesto activo, guardado atómico compatible con frontend anterior y contexto con SECURITY INVOKER, acceso autenticado y RLS existente.
+- Formulario y tarjeta móvil presentan el puesto responsable. No se asignan requisitos históricos automáticamente.
+- La tarea personal se obtiene por ocupación vigente, persona y usuario activos. Si hay varios ocupantes habilitados, todos reciben la tarea; no se elige uno arbitrariamente.
+- Gestión (roles SGI/auditor o administrador existentes) recibe aviso de requisitos sin asignar, puesto inactivo o sin usuario habilitado. Esta última condición puede ser vacancia o falta de acceso; no se la etiqueta falsamente como vacancia confirmada.
+- La asignación define la bandeja, no restringe ni amplía permisos de evaluación existentes. El resumen semanal de correo no se modifica en este bloque; armonizar su cobertura debe revisarse por separado.
+- Verificación: estructura y privilegios SQL dentro de transacción con rollback, sin asignaciones nuevas; TypeScript, codificación y cinco casos de bandeja simulados (A/B, gestor, lector y falla de contexto).
+- Migración aplicada el 06/10 y consulta verificada con rol authenticated (118 requisitos visibles). Publicación del frontend iniciada. Piloto: Ale elige los requisitos y puestos; validar con ocupantes reales, sin datos ficticios. Aceptación visual y flujo de cambio de ocupación pendientes.
+
 ### Bloque de acciones y plazos preparado el 06/10
 
 - Cada tarjeta presenta la acción correspondiente al módulo, manteniendo el destino existente; aprobar o cerrar requiere la revisión del circuito habitual.

@@ -42,6 +42,7 @@ type MarcoLegal = {
 };
 
 type Props = {
+  puestos: Array<{ id: string; codigo: string; nombre: string }>;
   requisitos: RequisitoLegal[];
   procesos: Selector[];
   normas: NormaSelector[];
@@ -74,6 +75,7 @@ function SubmitButton({ label }: { label: string }) {
 }
 
 export function GestionRequisitosLegales({
+  puestos,
   requisitos,
   procesos,
   normas,
@@ -358,6 +360,7 @@ export function GestionRequisitosLegales({
                 ) : (
                   <span className="rounded-full border border-dashed border-border px-2 py-1">Sin marco legal</span>
                 )}
+                <span className="rounded-full bg-muted px-2 py-1">Responsable: {r.responsableEvaluacionPuestoId ? puestos.find((p) => p.id === r.responsableEvaluacionPuestoId)?.nombre ?? "Puesto no disponible" : "Sin asignar"}</span>
                 {r.normas.map((n) => <span key={n.id} className="rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">Certificación: {n.nombre}</span>)}
                 {mostrarProcesos && r.procesos.map((p) => <span key={p.id} className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">{p.codigo || p.nombre}</span>)}
               </div>
@@ -840,6 +843,15 @@ export function GestionRequisitosLegales({
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <label htmlFor="responsableEvaluacionPuestoId" className="text-sm font-medium">Puesto responsable de evaluación</label>
+                  <select id="responsableEvaluacionPuestoId" name="responsableEvaluacionPuestoId" defaultValue={editando?.responsableEvaluacionPuestoId ?? ""} className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="">Sin responsable asignado</option>
+                    {editando?.responsableEvaluacionPuestoId && !puestos.some((p) => p.id === editando.responsableEvaluacionPuestoId) && <option value={editando.responsableEvaluacionPuestoId}>Puesto anterior no disponible</option>}
+                    {puestos.map((p) => <option key={p.id} value={p.id}>{p.codigo} · {p.nombre}</option>)}
+                  </select>
+                  <p className="text-xs text-muted-foreground">La tarea se dirige a los ocupantes vigentes del puesto con usuario activo. Asignar responsabilidad no cambia los permisos de evaluación.</p>
+                </div>
                 {/* Multi-select de procesos */}
                 <div className="space-y-2">
                   <span className="text-sm font-medium">Procesos a los que aplica</span>

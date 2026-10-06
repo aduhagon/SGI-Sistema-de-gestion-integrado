@@ -8,6 +8,7 @@ export type EstadoCumplimiento =
   | "pendiente_evaluacion";
 
 export type RequisitoLegal = {
+  responsableEvaluacionPuestoId?: string | null;
   normaLegalId: string | null;
   normaLegalNombre: string | null;
   id: string;
@@ -40,7 +41,7 @@ export async function listarRequisitosLegales(
   const { data, error } = await supabase
     .from("requisitos_legales")
     .select(
-      "id, norma_id, codigo, titulo, descripcion, tipo, jurisdiccion, organismo_emisor, referencia, fecha_vigencia_desde, url_fuente, criticidad, observaciones",
+      "id, norma_id, codigo, titulo, descripcion, tipo, jurisdiccion, organismo_emisor, referencia, fecha_vigencia_desde, url_fuente, criticidad, observaciones, responsable_evaluacion_puesto_id",
     )
     .is("eliminado_en", null)
     .order("codigo", { ascending: true });
@@ -171,6 +172,7 @@ export async function listarRequisitosLegales(
     return {
       id: r.id,
       normaLegalId: r.norma_id,
+      responsableEvaluacionPuestoId: r.responsable_evaluacion_puesto_id,
       normaLegalNombre: r.norma_id ? (nombreNormaLegal.get(r.norma_id) ?? null) : null,
       codigo: r.codigo,
       titulo: r.titulo,

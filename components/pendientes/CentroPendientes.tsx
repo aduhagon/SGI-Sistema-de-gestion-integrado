@@ -28,6 +28,7 @@ const ACCION: Record<string, string> = {
   controles: "Ejecutar control",
   controles_observados: "Tratar resultado del control",
   requisitos_legales: "Evaluar requisito legal",
+  asignaciones_legales: "Gestionar responsables legales",
   documentacion: "Revisar cambio documental y lecturas",
   tratamiento: "Planificar tratamiento",
   verificaciones: "Verificar eficacia",
@@ -79,7 +80,7 @@ export function CentroPendientes({ grupos }: { grupos: GrupoPendientes[] }) {
           <span className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs text-muted-foreground">{item.codigo}</span><span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground">{item.grupo}</span></span>
           <span className="mt-1 block break-words text-sm font-medium">{item.titulo}</span>
           <span className="mt-1 block text-xs text-muted-foreground">{fechaLimitePendiente(item.fechaLimite)}</span>
-          {item.modulo === "requisitos_legales" && <span className="mt-1 block text-xs text-muted-foreground">Requisito visible según tus permisos; esta lista no confirma una asignación personal.</span>}
+          {item.modulo === "requisitos_legales" && <span className="mt-1 block text-xs text-muted-foreground">Asignado por tu puesto vigente.</span>}
         </span>
         <span className="flex min-w-0 flex-wrap items-center justify-between gap-3 sm:max-w-56 sm:justify-end">
           <span className="text-xs font-semibold text-muted-foreground">{plazo}</span>

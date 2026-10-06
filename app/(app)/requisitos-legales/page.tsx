@@ -6,18 +6,20 @@ import {
   sugerirCodigoRequisitoLegal,
 } from "@/lib/api/requisitos-legales";
 import { GestionRequisitosLegales } from "@/components/requisitos-legales/GestionRequisitosLegales";
+import { listarPuestos } from "@/lib/api/configuracion";
 import { AlertTriangle, CircleHelp, Scale } from "lucide-react";
 import { MetricCard, MetricGrid, PageContainer, PageHeader } from "@/components/ui/page";
 
 export const dynamic = "force-dynamic";
 
 export default async function RequisitosLegalesPage() {
-  const [requisitos, procesos, normas, codigoSugerido, marcoLegal] = await Promise.all([
+  const [requisitos, procesos, normas, codigoSugerido, marcoLegal, puestos] = await Promise.all([
     listarRequisitosLegales(),
     listarProcesosParaSelector(),
     listarNormasParaSelector(),
     sugerirCodigoRequisitoLegal(),
     listarMarcoLegal(),
+    listarPuestos(),
   ]);
   const hoy = new Date().toISOString().slice(0, 10);
   const sinEvaluar = requisitos.filter((r) => !r.ultimoEstado).length;
@@ -44,6 +46,7 @@ export default async function RequisitosLegalesPage() {
 
       <GestionRequisitosLegales
         requisitos={requisitos}
+        puestos={puestos}
         procesos={procesos}
         normas={normas}
         marcoLegal={marcoLegal}

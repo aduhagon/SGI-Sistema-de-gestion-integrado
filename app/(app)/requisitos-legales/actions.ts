@@ -47,6 +47,7 @@ export async function guardarRequisitoLegal(
   const parsed = requisitoLegalSchema.safeParse({
     id: formData.get("id") || undefined,
     normaLegalId: formData.get("normaLegalId") || "",
+    responsableEvaluacionPuestoId: formData.get("responsableEvaluacionPuestoId") || "",
     codigo: formData.get("codigo"),
     titulo: formData.get("titulo"),
     descripcion: formData.get("descripcion") || "",
@@ -82,6 +83,7 @@ export async function guardarRequisitoLegal(
     url_fuente: limpio(i.urlFuente),
     criticidad: limpio(i.criticidad),
     observaciones: limpio(i.observaciones),
+    responsable_evaluacion_puesto_id: limpio(i.responsableEvaluacionPuestoId),
   };
 
   const { error } = await supabase.rpc("guardar_requisito_legal_atomico", {
@@ -93,6 +95,8 @@ export async function guardarRequisitoLegal(
   if (error) return { ok: false, error: traducir(error.message) };
 
   revalidatePath("/requisitos-legales");
+  revalidatePath("/mis-pendientes");
+  revalidatePath("/dashboard");
   return { ok: true };
 }
 

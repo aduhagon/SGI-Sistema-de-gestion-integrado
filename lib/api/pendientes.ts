@@ -36,6 +36,7 @@ const MODULO_LABEL: Record<string, string> = {
   controles: "Controles por ejecutar",
   controles_observados: "Resultados de controles por tratar",
   requisitos_legales: "Requisitos legales por evaluar",
+  asignaciones_legales: "Responsables legales por configurar",
   documentacion: "Cambios documentales y lecturas",
   tratamiento: "Tratamientos por planificar",
   verificaciones: "Verificaciones de eficacia",
@@ -139,7 +140,7 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
 
   items.push(...(await obtenerPendientesControles(supabase, usuarioId, zona)));
   const config = await obtenerConfiguracion();
-  items.push(...(await obtenerPendientesRequisitosLegales(zona, config.requisitosAlertaDias)));
+  items.push(...(await obtenerPendientesRequisitosLegales(supabase, zona, config.requisitosAlertaDias)));
 
   // Agrupar por módulo respetando el orden de presentación.
   const grupos: GrupoPendientes[] = [];
@@ -158,27 +159,39 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
   return grupos;
 }
 
-async function obtenerPendientesRequisitosLegales(zona: string, anticipacionDias: number): Promise<Pendiente[]> {
+async function obtenerPendientesRequisitosLegales(supabase: ReturnType<typeof createClient>, zona: string, anticipacionDias: number): Promise<Pendiente[]> {
   const requisitos = await listarRequisitosLegales(undefined, true);
+  const { data: contexto, error } = await supabase.rpc("fn_contexto_responsables_legales");
+  if (error || !contexto) throw new Error("No se pudo verificar la asignación de los requisitos legales. Actualizá la bandeja.");
+  const resultado = contexto as { gestion: boolean; requisitos: Array<{ id: string; esResponsable: boolean; estado: string; puestoNombre: string | null }> };
+  const asignaciones = new Map(resultado.requisitos.map((r) => [r.id, r]));
   const hoy = fechaCalendarioEnZona(zona);
-  const sinEvaluacion = requisitos.filter((requisito) => !requisito.ultimaEvaluacion);
+  const propios = requisitos.filter((r) => asignaciones.get(r.id)?.esResponsable);
+  const sinEvaluacion = propios.filter((requisito) => !requisito.ultimaEvaluacion);
   const pendientes: Pendiente[] = [];
 
-  if (sinEvaluacion.length > 0) {
-    const criticos = sinEvaluacion.filter((requisito) => requisito.criticidad === "alta").length;
+  const sinResponsable = requisitos.filter((r) => asignaciones.get(r.id)?.estado !== "asignado");
+  if (resultado.gestion && sinResponsable.length > 0) {
     pendientes.push({
-      modulo: "requisitos_legales",
-      entidadId: "sin-evaluacion-inicial",
+      modulo: "asignaciones_legales",
+      entidadId: "sin-responsable-operativo",
       codigo: "LEGAL",
-      titulo: `${sinEvaluacion.length} requisitos sin evaluación inicial${criticos > 0 ? ` · ${criticos} de criticidad alta` : ""}`,
+      titulo: `${sinResponsable.length} requisitos sin responsable operativo: asigná un puesto o revisá sus ocupantes y accesos`,
       fechaLimite: null,
       diasRestantes: null,
-      nivel: criticos > 0 ? "advertencia" : "recordatorio",
-      urlDestino: "/requisitos-legales?estado=sin-evaluar",
+      nivel: "advertencia",
+      urlDestino: "/requisitos-legales",
     });
   }
 
-  for (const requisito of requisitos) {
+  for (const requisito of sinEvaluacion) pendientes.push({
+    modulo: "requisitos_legales", entidadId: requisito.id, codigo: requisito.codigo,
+    titulo: `${requisito.titulo} · Evaluación inicial`, fechaLimite: null, diasRestantes: null,
+    nivel: ["alto", "critico"].includes(requisito.criticidad ?? "") ? "advertencia" : "recordatorio",
+    urlDestino: `/requisitos-legales?evaluar=${requisito.id}`,
+  });
+
+  for (const requisito of propios) {
     if (!requisito.ultimaEvaluacion || !requisito.proximaEvaluacion) continue;
     const diasRestantes = diferenciaDias(hoy, requisito.proximaEvaluacion);
     if (diasRestantes > anticipacionDias) continue;
