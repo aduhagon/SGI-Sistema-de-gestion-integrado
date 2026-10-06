@@ -57,7 +57,7 @@ export async function reintentarCorreosSemana(): Promise<ResultadoConfig> {
   if (reactivados === 0) {
     return { ok: true, mensaje: "No había correos fallidos de esta semana para reintentar." };
   }
-  return { ok: true, mensaje: `Se reactivaron ${reactivados} correo(s) y se iniciaron ${reintentados} reintento(s).` };
+  return { ok: true, mensaje: `Reintento iniciado para ${reactivados} correo(s); ${reintentados} solicitud(es) iniciadas. Todavía no confirma el envío. El panel actualizará el resultado automáticamente durante un minuto.` };
 }
 
 /** Actualiza el horario funcional y la programación técnica del resumen semanal. */
