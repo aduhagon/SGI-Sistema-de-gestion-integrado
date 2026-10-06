@@ -33,6 +33,7 @@ export type RequisitoLegal = {
 
 export async function listarRequisitosLegales(
   filtroVersionNormaId?: string,
+  exigirConsultaCompleta = false,
 ): Promise<RequisitoLegal[]> {
   const supabase = createClient();
 
@@ -44,7 +45,10 @@ export async function listarRequisitosLegales(
     .is("eliminado_en", null)
     .order("codigo", { ascending: true });
 
-  if (error) return [];
+  if (error) {
+    if (exigirConsultaCompleta) throw new Error("No se pudieron consultar los requisitos legales pendientes.");
+    return [];
+  }
   const filas = (data ?? []) as any[];
   if (filas.length === 0) return [];
 
@@ -139,12 +143,14 @@ export async function listarRequisitosLegales(
   }
 
   // Última evaluación por requisito.
-  const { data: evals } = await supabase
+  const { data: evals, error: errorEvaluaciones } = await supabase
     .from("evaluaciones_cumplimiento")
     .select("requisito_legal_id, estado, fecha_evaluacion, proxima_evaluacion")
     .in("requisito_legal_id", ids)
     .is("eliminado_en", null)
     .order("fecha_evaluacion", { ascending: false });
+
+  if (errorEvaluaciones && exigirConsultaCompleta) throw new Error("No se pudieron consultar las evaluaciones legales; la bandeja no está completa.");
 
   const ultimaEval = new Map<
     string,

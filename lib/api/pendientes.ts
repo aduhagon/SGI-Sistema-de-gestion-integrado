@@ -44,10 +44,7 @@ const MODULO_LABEL: Record<string, string> = {
 
 // Orden de presentación de las secciones en la pantalla.
 //
-// OJO: el agrupado de abajo itera sobre esta lista, así que un módulo que
-// fn_pendientes_usuario devuelva pero que no figure acá se descarta en
-// silencio. Al sumar un módulo nuevo en la función SQL hay que agregarlo
-// también en esta constante y en MODULO_LABEL.
+// Los módulos nuevos se agregan al final, sin perder sus tareas.
 const ORDEN_MODULO = [
   "aprobaciones",
   "acuses",
@@ -96,7 +93,7 @@ function destinoAccion(modulo: string, url: string, entidadId: string): string {
  */
 export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
   const usuarioId = await obtenerUsuarioActualId();
-  if (!usuarioId) return [];
+  if (!usuarioId) throw new Error("No se pudo identificar al usuario para consultar sus pendientes. Volvé a iniciar sesión.");
 
   const supabase = createClient();
   const zona = await obtenerZonaHoraria();
@@ -109,6 +106,7 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
 
   if (error) {
     console.error("[SGI:pendientes] obtenerMisPendientes", error);
+    throw new Error("No se pudo cargar la bandeja completa de pendientes. Actualizá para volver a consultar; tus tareas se conservan.");
   }
 
   const mejoraFilas = mejora.data ?? [];
@@ -145,12 +143,13 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
 
   // Agrupar por módulo respetando el orden de presentación.
   const grupos: GrupoPendientes[] = [];
-  for (const modulo of ORDEN_MODULO) {
+  const modulos = [...ORDEN_MODULO, ...Array.from(new Set(items.map((item) => item.modulo))).filter((modulo) => !ORDEN_MODULO.includes(modulo))];
+  for (const modulo of modulos) {
     const delModulo = items.filter((i) => i.modulo === modulo);
     if (delModulo.length > 0) {
       grupos.push({
         modulo,
-        label: MODULO_LABEL[modulo] ?? modulo,
+        label: MODULO_LABEL[modulo] ?? `Otras tareas · ${modulo.replace(/_/g, " ")}`,
         items: delModulo,
       });
     }
@@ -160,7 +159,7 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
 }
 
 async function obtenerPendientesRequisitosLegales(zona: string, anticipacionDias: number): Promise<Pendiente[]> {
-  const requisitos = await listarRequisitosLegales();
+  const requisitos = await listarRequisitosLegales(undefined, true);
   const hoy = fechaCalendarioEnZona(zona);
   const sinEvaluacion = requisitos.filter((requisito) => !requisito.ultimaEvaluacion);
   const pendientes: Pendiente[] = [];
@@ -208,14 +207,15 @@ async function obtenerPendientesControles(
     .eq("id", usuarioId)
     .eq("activo", true)
     .maybeSingle();
-  if (errorUsuario || !usuario?.persona_id) return [];
+  if (errorUsuario) throw new Error("No se pudo consultar el perfil responsable de controles. Actualizá la bandeja; tus tareas se conservan.");
+  if (!usuario?.persona_id) return [];
 
   const { data: asignaciones, error: errorAsignaciones } = await supabase
     .from("persona_puesto")
     .select("puesto_id")
     .eq("persona_id", usuario.persona_id)
     .is("vigente_hasta", null);
-  if (errorAsignaciones) return [];
+  if (errorAsignaciones) throw new Error("No se pudieron consultar los puestos responsables de controles. Actualizá la bandeja; tus tareas se conservan.");
 
   const puestos = Array.from(new Set((asignaciones ?? []).map((fila) => fila.puesto_id)));
   if (puestos.length === 0) return [];
@@ -234,7 +234,7 @@ async function obtenerPendientesControles(
     .order("proxima_ejecucion");
   if (error) {
     console.error("[SGI:pendientes] controles", error);
-    return [];
+    throw new Error("No se pudieron consultar los controles pendientes. Actualizá la bandeja; tus tareas se conservan.");
   }
 
   const hoy = fechaCalendarioEnZona(zona);
