@@ -270,7 +270,7 @@ async function obtenerPendientesControles(
       fechaLimite: control.proxima_ejecucion,
       diasRestantes,
       nivel,
-      urlDestino: `/controles?control=${control.id}`,
+      urlDestino: `/controles/${control.id}/ejecuciones`,
     });
   }
   return pendientes;
