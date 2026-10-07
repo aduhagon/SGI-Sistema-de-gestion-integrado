@@ -82,6 +82,9 @@ function destinoAccion(modulo: string, url: string, entidadId: string): string {
   if (modulo === "auditorias" && url.startsWith("/auditorias/")) {
     return `${url.split("#")[0]}#acciones-auditoria`;
   }
+  if (modulo === "controles_observados" && url.startsWith("/controles/")) {
+    return `${url.split("#")[0]}#ejecucion-${entidadId}`;
+  }
   const seccion = SECCION_POR_MODULO[modulo];
   if (!seccion || !url.startsWith("/ncs/")) return url;
   return `${url.split("#")[0]}#${seccion}`;
