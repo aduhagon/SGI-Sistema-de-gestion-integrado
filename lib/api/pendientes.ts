@@ -96,6 +96,35 @@ function motivoPorPuesto(prefijo: string, puesto?: string | null): string | null
   return nombre ? `${prefijo}: ${nombre}.` : null;
 }
 
+function motivoPorFilaPendiente(modulo: string, titulo: string): string | null {
+  switch (modulo) {
+    case "aprobaciones":
+      return "Asignado por aprobación documental pendiente.";
+    case "acuses":
+      return "Asignado por lectura obligatoria del documento vigente.";
+    case "acciones":
+      return "Asignado por responsabilidad o participación en la acción.";
+    case "hallazgos":
+      return "Asignado por tratamiento de hallazgo de auditoría.";
+    case "auditorias":
+      return "Asignado por responsabilidad en la auditoría programada.";
+    case "tratamiento":
+      return titulo.startsWith("Planificar tratamiento:")
+        ? "Asignado por gestión SGI o tratamiento pendiente de planificar."
+        : "Asignado por responsabilidad de tratamiento: completar causa, acciones o eficacia.";
+    case "verificaciones":
+      return "Asignado por verificación independiente de eficacia.";
+    case "cierres":
+      return "Asignado por responsabilidad de tratamiento: eficacia verificada y cierre disponible.";
+    case "documentacion":
+      return "Asignado por cambio documental pendiente dentro del tratamiento.";
+    case "controles_observados":
+      return "Asignado por gestión del control observado o del proceso vinculado.";
+    default:
+      return null;
+  }
+}
+
 /**
  * Devuelve los pendientes del usuario actual, agrupados por módulo.
  * La función fn_pendientes_usuario ya calcula el nivel de escalamiento
@@ -145,7 +174,7 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
       diasRestantes: f.dias_restantes,
       nivel: f.nivel as NivelPendiente,
       urlDestino: destinoAccion(f.modulo, f.url_destino, f.entidad_id),
-      motivo: null,
+      motivo: motivoPorFilaPendiente(f.modulo, f.titulo),
     }));
 
   items.push(...(await obtenerPendientesControles(supabase, usuarioId, zona)));
