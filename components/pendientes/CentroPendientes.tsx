@@ -67,10 +67,12 @@ export function CentroPendientes({ grupos }: { grupos: GrupoPendientes[] }) {
           {([['todos', 'Todos'], ['urgentes', 'Urgentes'], ['proximos', 'Próximos']] as const).map(([valor, label]) => <button key={valor} type="button" onClick={() => setFiltro(valor)} aria-pressed={filtro === valor} className={cn("min-h-9 rounded-md px-3 text-xs font-medium", filtro === valor ? "bg-background shadow-sm" : "text-muted-foreground")}>{label}</button>)}
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-start gap-2">
+      <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2 overflow-hidden">
         <Filter className="mt-2 h-4 w-4 shrink-0 text-muted-foreground" />
-        <button type="button" onClick={() => setModulo("todos")} className={cn("max-w-full rounded-full border px-3 py-1.5 text-left text-xs leading-tight", modulo === "todos" ? "border-primary bg-primary text-primary-foreground" : "border-border")}>Todos los módulos</button>
-        {grupos.map((grupo) => <button key={grupo.modulo} type="button" onClick={() => setModulo(grupo.modulo)} className={cn("max-w-full rounded-full border px-3 py-1.5 text-left text-xs leading-tight", modulo === grupo.modulo ? "border-primary bg-primary text-primary-foreground" : "border-border")}>{grupo.label} · {grupo.items.length}</button>)}
+        <div className="flex min-w-0 flex-wrap gap-2">
+          <button type="button" onClick={() => setModulo("todos")} className={cn("min-w-0 max-w-full whitespace-normal break-words rounded-full border px-3 py-1.5 text-left text-xs leading-tight", modulo === "todos" ? "border-primary bg-primary text-primary-foreground" : "border-border")}>Todos los módulos</button>
+          {grupos.map((grupo) => <button key={grupo.modulo} type="button" onClick={() => setModulo(grupo.modulo)} className={cn("min-w-0 max-w-full whitespace-normal break-words rounded-full border px-3 py-1.5 text-left text-xs leading-tight", modulo === grupo.modulo ? "border-primary bg-primary text-primary-foreground" : "border-border")}>{grupo.label} · {grupo.items.length}</button>)}
+        </div>
       </div>
     </div>
     <div className="mb-3 flex items-center justify-between"><p className="text-sm text-muted-foreground"><strong className="text-foreground">{visibles.length}</strong> tareas visibles</p>{(filtro !== "todos" || modulo !== "todos" || busqueda) && <button type="button" onClick={() => { setFiltro("todos"); setModulo("todos"); setBusqueda(""); }} className="text-xs text-primary hover:underline">Limpiar filtros</button>}</div>
