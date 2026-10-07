@@ -22,7 +22,7 @@ export default async function EjecucionesPage({ params, searchParams }: { params
     <Link href={`/controles?control=${control.id}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground"><ArrowLeft className="h-4 w-4" />Volver al control</Link>
     <header className="my-6"><p className="font-mono text-xs text-muted-foreground">{control.codigo}</p><h1 className="text-2xl font-semibold break-words">{control.nombre}</h1><p className="mt-2 text-sm text-muted-foreground">Ejecuciones ({total})</p></header>
     <div className="divide-y border-y border-border">
-      {ejecuciones.map((e) => <article key={e.id} className="py-5">
+      {ejecuciones.map((e) => <article key={e.id} id={`ejecucion-${e.id}`} className="scroll-mt-24 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div><p className="text-sm font-medium">{formatearFechaLarga(e.fecha_ejecucion, zona)}</p><span className={`text-xs ${e.resultado === "inefectivo" ? "text-red-700" : e.resultado === "parcial" ? "text-amber-700" : "text-emerald-700"}`}>{e.resultado === "no_aplica" ? "No aplica" : e.resultado}</span></div>
           {e.nc ? <Link className="text-sm text-primary underline" href={`/ncs/${e.nc.id}`}>{e.nc.codigo} · {e.nc.estado.replaceAll("_", " ")}</Link> : ["parcial", "inefectivo"].includes(e.resultado) ? <AbrirNCControl ejecucionId={e.id} /> : null}
