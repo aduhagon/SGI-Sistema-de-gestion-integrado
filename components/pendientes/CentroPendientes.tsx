@@ -59,8 +59,9 @@ export function accionPendiente(modulo: string): string {
   return ACCION[modulo] ?? "Revisar tarea";
 }
 
-export function motivoPendiente(modulo: string): string {
-  return MOTIVO[modulo] ?? "Asignado por una regla operativa del sistema.";
+export function motivoPendiente(modulo: string, motivo?: string | null): string {
+  const especifico = motivo?.trim();
+  return especifico || MOTIVO[modulo] || "Asignado por una regla operativa del sistema.";
 }
 
 export function fechaLimitePendiente(valor: string | null): string {
@@ -80,7 +81,7 @@ export function CentroPendientes({ grupos }: { grupos: GrupoPendientes[] }) {
   const visibles = useMemo(() => items
     .filter((item) => modulo === "todos" || item.modulo === modulo)
     .filter((item) => filtro === "todos" || (filtro === "urgentes" && ["vencido", "vencido_hoy"].includes(item.nivel)) || (filtro === "proximos" && ["advertencia", "recordatorio"].includes(item.nivel)))
-    .filter((item) => `${item.codigo} ${item.titulo} ${item.grupo} ${accionPendiente(item.modulo)} ${motivoPendiente(item.modulo)}`.toLocaleLowerCase("es").includes(busqueda.trim().toLocaleLowerCase("es")))
+    .filter((item) => `${item.codigo} ${item.titulo} ${item.grupo} ${accionPendiente(item.modulo)} ${motivoPendiente(item.modulo, item.motivo)}`.toLocaleLowerCase("es").includes(busqueda.trim().toLocaleLowerCase("es")))
     .sort((a, b) => NIVEL[a.nivel].orden - NIVEL[b.nivel].orden || (a.diasRestantes ?? 9999) - (b.diasRestantes ?? 9999)), [items, modulo, filtro, busqueda]);
 
   return <section aria-label="Listado de pendientes">
@@ -104,7 +105,7 @@ export function CentroPendientes({ grupos }: { grupos: GrupoPendientes[] }) {
       const meta = NIVEL[item.nivel];
       const plazo = item.diasRestantes == null ? (item.fechaLimite ? meta.label : "Sin plazo definido") : item.diasRestantes < 0 ? `Vencido hace ${Math.abs(item.diasRestantes)} día${Math.abs(item.diasRestantes) === 1 ? "" : "s"}` : item.diasRestantes === 0 ? "Vence hoy" : `En ${item.diasRestantes} día${item.diasRestantes === 1 ? "" : "s"}`;
       const accion = accionPendiente(item.modulo);
-      const motivo = motivoPendiente(item.modulo);
+      const motivo = motivoPendiente(item.modulo, item.motivo);
       return <Link key={`${item.modulo}-${item.entidadId}`} href={item.urlDestino} aria-label={`${accion}: ${item.codigo} ${item.titulo}. ${motivo}`} className={cn("group grid min-w-0 gap-3 rounded-xl border p-4 transition-all hover:-translate-y-0.5 hover:shadow-sm sm:grid-cols-[auto_1fr_auto] sm:items-center", meta.card)}>
         <span className={cn("mt-1 h-2.5 w-2.5 rounded-full sm:mt-0", meta.dot)} />
         <span className="min-w-0">
