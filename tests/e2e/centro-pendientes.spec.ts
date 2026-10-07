@@ -56,6 +56,7 @@ test.describe("Centro de pendientes", () => {
 
     const listado = page.getByRole("region", { name: "Listado de pendientes" });
     await expect(listado).toBeVisible();
+    await expect(listado.getByText(/Asignado por/i).first()).toBeVisible();
 
     const buscador = page.getByPlaceholder("Buscar por código, tarea o módulo");
     await expect(buscador).toBeEditable();
