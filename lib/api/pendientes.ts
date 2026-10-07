@@ -15,6 +15,7 @@ export type Pendiente = {
   diasRestantes: number | null;
   nivel: NivelPendiente;
   urlDestino: string;
+  motivo?: string | null;
 };
 
 export type GrupoPendientes = {
@@ -90,6 +91,11 @@ function destinoAccion(modulo: string, url: string, entidadId: string): string {
   return `${url.split("#")[0]}#${seccion}`;
 }
 
+function motivoPorPuesto(prefijo: string, puesto?: string | null): string | null {
+  const nombre = puesto?.trim();
+  return nombre ? `${prefijo}: ${nombre}.` : null;
+}
+
 /**
  * Devuelve los pendientes del usuario actual, agrupados por módulo.
  * La función fn_pendientes_usuario ya calcula el nivel de escalamiento
@@ -139,6 +145,7 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
       diasRestantes: f.dias_restantes,
       nivel: f.nivel as NivelPendiente,
       urlDestino: destinoAccion(f.modulo, f.url_destino, f.entidad_id),
+      motivo: null,
     }));
 
   items.push(...(await obtenerPendientesControles(supabase, usuarioId, zona)));
@@ -184,20 +191,26 @@ async function obtenerPendientesRequisitosLegales(supabase: ReturnType<typeof cr
       diasRestantes: null,
       nivel: "advertencia",
       urlDestino: "/requisitos-legales",
+      motivo: "Asignado por rol de gestión SGI/legal.",
     });
   }
 
-  for (const requisito of sinEvaluacion) pendientes.push({
-    modulo: "requisitos_legales", entidadId: requisito.id, codigo: requisito.codigo,
-    titulo: `${requisito.titulo} · Evaluación inicial`, fechaLimite: null, diasRestantes: null,
-    nivel: ["alto", "critico"].includes(requisito.criticidad ?? "") ? "advertencia" : "recordatorio",
-    urlDestino: `/requisitos-legales?evaluar=${requisito.id}`,
-  });
+  for (const requisito of sinEvaluacion) {
+    const asignacion = asignaciones.get(requisito.id);
+    pendientes.push({
+      modulo: "requisitos_legales", entidadId: requisito.id, codigo: requisito.codigo,
+      titulo: `${requisito.titulo} · Evaluación inicial`, fechaLimite: null, diasRestantes: null,
+      nivel: ["alto", "critico"].includes(requisito.criticidad ?? "") ? "advertencia" : "recordatorio",
+      urlDestino: `/requisitos-legales?evaluar=${requisito.id}`,
+      motivo: motivoPorPuesto("Asignado por tu puesto vigente", asignacion?.puestoNombre),
+    });
+  }
 
   for (const requisito of propios) {
     if (!requisito.ultimaEvaluacion || !requisito.proximaEvaluacion) continue;
     const diasRestantes = diferenciaDias(hoy, requisito.proximaEvaluacion);
     if (diasRestantes > anticipacionDias) continue;
+    const asignacion = asignaciones.get(requisito.id);
     pendientes.push({
       modulo: "requisitos_legales",
       entidadId: requisito.id,
@@ -207,6 +220,7 @@ async function obtenerPendientesRequisitosLegales(supabase: ReturnType<typeof cr
       diasRestantes,
       nivel: diasRestantes < 0 ? "vencido" : diasRestantes === 0 ? "vencido_hoy" : diasRestantes <= Math.max(1, Math.ceil(anticipacionDias / 2)) ? "advertencia" : "recordatorio",
       urlDestino: `/requisitos-legales?evaluar=${requisito.id}`,
+      motivo: motivoPorPuesto("Asignado por tu puesto vigente", asignacion?.puestoNombre),
     });
   }
   return pendientes;
@@ -239,8 +253,9 @@ async function obtenerPendientesControles(
   const { data, error } = await supabase
     .from("controles")
     .select(
-      `id, codigo, nombre, proxima_ejecucion, anticipacion_dias,
-       proceso:procesos!controles_proceso_id_fkey (codigo, nombre)`,
+      `id, codigo, nombre, responsable_puesto_id, proxima_ejecucion, anticipacion_dias,
+       proceso:procesos!controles_proceso_id_fkey (codigo, nombre),
+       responsable:puestos!controles_responsable_puesto_id_fkey (nombre)`,
     )
     .in("responsable_puesto_id", puestos)
     .eq("estado", "activo")
@@ -274,6 +289,7 @@ async function obtenerPendientesControles(
       diasRestantes,
       nivel,
       urlDestino: `/controles/${control.id}/ejecuciones`,
+      motivo: motivoPorPuesto("Asignado por puesto responsable vigente", control.responsable?.nombre),
     });
   }
   return pendientes;
