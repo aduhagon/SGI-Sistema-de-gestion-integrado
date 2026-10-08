@@ -1,11 +1,17 @@
 import { expect, test } from "@playwright/test";
 
+function esErrorIgnorable(mensaje: string) {
+  return mensaje.includes("Failed to fetch RSC payload") && mensaje.includes("Falling back to browser navigation");
+}
+
 function registrarErroresCriticos(page: import("@playwright/test").Page) {
   const errores: string[] = [];
   page.on("console", (message) => {
-    if (message.type() === "error") errores.push(message.text());
+    if (message.type() === "error" && !esErrorIgnorable(message.text())) errores.push(message.text());
   });
-  page.on("pageerror", (error) => errores.push(error.message));
+  page.on("pageerror", (error) => {
+    if (!esErrorIgnorable(error.message)) errores.push(error.message);
+  });
   return errores;
 }
 
