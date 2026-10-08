@@ -12,6 +12,10 @@ function texto(formData: FormData, nombre: string): string {
   return typeof valor === "string" ? valor.trim() : "";
 }
 
+function rutaTablero(valor: string): string {
+  return valor.startsWith("/mis-pendientes/gerencial") ? valor : "/mis-pendientes/gerencial";
+}
+
 export async function guardarSeguimientoPendienteGerencial(formData: FormData): Promise<void> {
   const modulo = texto(formData, "modulo");
   const entidadId = texto(formData, "entidadId");
@@ -19,7 +23,7 @@ export async function guardarSeguimientoPendienteGerencial(formData: FormData): 
   const responsableNombre = texto(formData, "responsableNombre") || "Sin responsable";
   const estado = texto(formData, "estado") as EstadoSeguimientoPendiente;
   const nota = texto(formData, "nota");
-  const volverA = texto(formData, "volverA") || "/mis-pendientes/gerencial";
+  const volverA = rutaTablero(texto(formData, "volverA"));
 
   if (!modulo || !entidadId || !responsableClave || !ESTADOS.includes(estado)) {
     redirect(volverA);
