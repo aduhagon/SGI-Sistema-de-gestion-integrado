@@ -78,6 +78,9 @@ export function CentroPendientes({ grupos }: { grupos: GrupoPendientes[] }) {
   const [modulo, setModulo] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
   const items = useMemo(() => grupos.flatMap((grupo) => grupo.items.map((item): ItemConGrupo => ({ ...item, grupo: grupo.label }))), [grupos]);
+  const moduloActivo = modulo === "todos"
+    ? { label: "Todos los módulos", cantidad: items.length }
+    : grupos.find((grupo) => grupo.modulo === modulo);
   const visibles = useMemo(() => items
     .filter((item) => modulo === "todos" || item.modulo === modulo)
     .filter((item) => filtro === "todos" || (filtro === "urgentes" && ["vencido", "vencido_hoy"].includes(item.nivel)) || (filtro === "proximos" && ["advertencia", "recordatorio"].includes(item.nivel)))
@@ -94,9 +97,17 @@ export function CentroPendientes({ grupos }: { grupos: GrupoPendientes[] }) {
       </div>
       <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2 overflow-hidden">
         <Filter className="mt-2 h-4 w-4 shrink-0 text-muted-foreground" />
-        <div className="flex min-w-0 flex-wrap gap-2">
-          <button type="button" onClick={() => setModulo("todos")} className={cn("min-w-0 max-w-full whitespace-normal break-words rounded-full border px-3 py-1.5 text-left text-xs leading-tight", modulo === "todos" ? "border-primary bg-primary text-primary-foreground" : "border-border")}>Todos los módulos</button>
-          {grupos.map((grupo) => <button key={grupo.modulo} type="button" onClick={() => setModulo(grupo.modulo)} className={cn("min-w-0 max-w-full whitespace-normal break-words rounded-full border px-3 py-1.5 text-left text-xs leading-tight", modulo === grupo.modulo ? "border-primary bg-primary text-primary-foreground" : "border-border")}>{grupo.label} · {grupo.items.length}</button>)}
+        <div className="min-w-0">
+          <p className="mb-2 text-xs text-muted-foreground">
+            Módulo activo: <strong className="font-semibold text-foreground">{moduloActivo?.label ?? "Módulo seleccionado"}</strong>
+            <span className="ml-1">({moduloActivo?.cantidad ?? moduloActivo?.items.length ?? 0})</span>
+          </p>
+          <div className="overflow-x-auto pb-1">
+            <div className="flex w-max min-w-full gap-2">
+              <button type="button" onClick={() => setModulo("todos")} className={cn("shrink-0 rounded-full border px-3 py-1.5 text-xs leading-tight transition-colors", modulo === "todos" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted")}>Todos los módulos</button>
+              {grupos.map((grupo) => <button key={grupo.modulo} type="button" onClick={() => setModulo(grupo.modulo)} aria-label={`Filtrar módulo: ${grupo.label}`} className={cn("max-w-[15rem] shrink-0 truncate rounded-full border px-3 py-1.5 text-xs leading-tight transition-colors", modulo === grupo.modulo ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted")}>{grupo.label} · {grupo.items.length}</button>)}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -110,12 +121,15 @@ export function CentroPendientes({ grupos }: { grupos: GrupoPendientes[] }) {
         <span className={cn("mt-1 h-2.5 w-2.5 rounded-full sm:mt-0", meta.dot)} />
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs text-muted-foreground">{item.codigo}</span><span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground">{item.grupo}</span></span>
-          <span className="mt-1 block break-words text-sm font-medium">{item.titulo}</span>
+          <span className="mt-1 block break-words text-sm font-medium leading-snug">{item.titulo}</span>
           <span className="mt-1 block text-xs text-muted-foreground">{fechaLimitePendiente(item.fechaLimite)}</span>
-          <span className="mt-1 block text-xs text-muted-foreground">{motivo}</span>
+          <span className="mt-3 block rounded-lg border border-border/70 bg-background/70 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+            <span className="block font-semibold text-foreground">Motivo</span>
+            <span className="mt-0.5 block break-words">{motivo}</span>
+          </span>
         </span>
-        <span className="flex min-w-0 flex-wrap items-center justify-between gap-3 sm:max-w-56 sm:justify-end">
-          <span className="text-xs font-semibold text-muted-foreground">{plazo}</span>
+        <span className="flex min-w-0 flex-wrap items-center justify-between gap-3 sm:max-w-56 sm:justify-end sm:self-start">
+          <span className="rounded-full bg-background/80 px-2 py-1 text-xs font-semibold text-muted-foreground">{plazo}</span>
           <span className="inline-flex items-center gap-2 text-xs font-semibold text-primary">{accion}<ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-1" /></span>
         </span>
       </Link>;
