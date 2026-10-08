@@ -124,6 +124,139 @@ function motivoPorFilaPendiente(modulo: string, titulo: string): string | null {
       return null;
   }
 }
+const MODULOS_MEJORA_NC = new Set(["tratamiento", "verificaciones", "cierres", "documentacion"]);
+
+function nombreUsuario(usuario: any): string | null {
+  if (!usuario) return null;
+  const persona = usuario.personas ?? usuario.persona;
+  const nombre = persona ? `${persona.nombre ?? ""} ${persona.apellido ?? ""}`.trim() : "";
+  return nombre || usuario.username || null;
+}
+
+function agregarProceso(motivo: string, proceso?: { nombre?: string | null } | null): string {
+  const nombre = proceso?.nombre?.trim();
+  return nombre ? `${motivo} Proceso: ${nombre}.` : motivo;
+}
+
+async function enriquecerMotivosMejora(
+  supabase: ReturnType<typeof createClient>,
+  items: Pendiente[],
+): Promise<void> {
+  const ncIds = Array.from(new Set(
+    items
+      .filter((item) => MODULOS_MEJORA_NC.has(item.modulo))
+      .map((item) => item.entidadId),
+  ));
+  const accionIds = Array.from(new Set(
+    items
+      .filter((item) => item.modulo === "acciones")
+      .map((item) => item.entidadId),
+  ));
+
+  try {
+    const ncsPorId = new Map<string, any>();
+    const accionesDocumentalesPorNc = new Map<string, any>();
+    const accionesPorId = new Map<string, any>();
+
+    if (ncIds.length > 0) {
+      const [{ data: ncs, error: errorNcs }, { data: accionesDocumentales, error: errorAccionesDocumentales }] = await Promise.all([
+        supabase
+          .from("no_conformidades")
+          .select(`
+            id, responsable_tratamiento_id, verificador_eficacia_id,
+            proceso:procesos!no_conformidades_proceso_id_fkey(nombre),
+            responsable:usuarios!no_conformidades_responsable_tratamiento_id_fkey(
+              username, personas:personas!usuarios_persona_id_fkey(nombre, apellido)
+            ),
+            verificador:usuarios!no_conformidades_verificador_eficacia_id_fkey(
+              username, personas:personas!usuarios_persona_id_fkey(nombre, apellido)
+            )
+          `)
+          .in("id", ncIds),
+        supabase
+          .from("acciones")
+          .select(`
+            id, codigo, titulo, no_conformidad_id, fecha_limite,
+            responsable:usuarios!acciones_responsable_id_fkey(
+              username, personas:personas!usuarios_persona_id_fkey(nombre, apellido)
+            )
+          `)
+          .in("no_conformidad_id", ncIds)
+          .eq("requiere_cambio_documental", true)
+          .neq("estado", "cancelada")
+          .eq("activo", true)
+          .is("eliminado_en", null)
+          .order("fecha_limite", { ascending: true }),
+      ]);
+
+      if (errorNcs) console.error("[SGI:pendientes] motivos mejora NC", errorNcs);
+      else for (const nc of (ncs ?? []) as any[]) ncsPorId.set(nc.id, nc);
+
+      if (errorAccionesDocumentales) console.error("[SGI:pendientes] motivos mejora documentacion", errorAccionesDocumentales);
+      else {
+        for (const accion of (accionesDocumentales ?? []) as any[]) {
+          if (!accionesDocumentalesPorNc.has(accion.no_conformidad_id)) {
+            accionesDocumentalesPorNc.set(accion.no_conformidad_id, accion);
+          }
+        }
+      }
+    }
+
+    if (accionIds.length > 0) {
+      const { data: acciones, error } = await supabase
+        .from("acciones")
+        .select(`
+          id, codigo, titulo, no_conformidad_id,
+          responsable:usuarios!acciones_responsable_id_fkey(
+            username, personas:personas!usuarios_persona_id_fkey(nombre, apellido)
+          )
+        `)
+        .in("id", accionIds)
+        .eq("activo", true)
+        .is("eliminado_en", null);
+
+      if (error) console.error("[SGI:pendientes] motivos acciones", error);
+      else for (const accion of (acciones ?? []) as any[]) accionesPorId.set(accion.id, accion);
+    }
+
+    for (const item of items) {
+      if (MODULOS_MEJORA_NC.has(item.modulo)) {
+        const nc = ncsPorId.get(item.entidadId);
+        if (!nc) continue;
+        const responsable = nombreUsuario(nc.responsable);
+        const verificador = nombreUsuario(nc.verificador);
+
+        if (item.modulo === "tratamiento") {
+          item.motivo = responsable
+            ? agregarProceso(`Asignado como responsable de tratamiento: ${responsable}.`, nc.proceso)
+            : agregarProceso("Asignado por gestión SGI: tratamiento sin responsable o planificación completa.", nc.proceso);
+        } else if (item.modulo === "verificaciones") {
+          item.motivo = verificador
+            ? agregarProceso(`Asignado como verificador independiente: ${verificador}.`, nc.proceso)
+            : agregarProceso("Asignado por verificación independiente pendiente.", nc.proceso);
+        } else if (item.modulo === "cierres") {
+          item.motivo = responsable
+            ? agregarProceso(`Asignado como responsable de tratamiento: eficacia verificada y cierre disponible para ${responsable}.`, nc.proceso)
+            : agregarProceso("Asignado por cierre disponible tras eficacia verificada.", nc.proceso);
+        } else if (item.modulo === "documentacion") {
+          const accion = accionesDocumentalesPorNc.get(item.entidadId);
+          const responsableAccion = nombreUsuario(accion?.responsable);
+          item.motivo = accion
+            ? `Asignado por cambio documental de la acción ${accion.codigo}${responsableAccion ? `; responsable: ${responsableAccion}` : ""}.`
+            : agregarProceso("Asignado por cambio documental pendiente dentro del tratamiento.", nc.proceso);
+        }
+      } else if (item.modulo === "acciones") {
+        const accion = accionesPorId.get(item.entidadId);
+        if (!accion) continue;
+        const responsable = nombreUsuario(accion.responsable);
+        item.motivo = `Asignado por acción de tratamiento ${accion.codigo}${responsable ? `; responsable: ${responsable}` : ""}.`;
+      }
+    }
+  } catch (error) {
+    console.error("[SGI:pendientes] enriquecimiento de motivos", error);
+  }
+}
+
 
 /**
  * Devuelve los pendientes del usuario actual, agrupados por módulo.
@@ -176,6 +309,8 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
       urlDestino: destinoAccion(f.modulo, f.url_destino, f.entidad_id),
       motivo: motivoPorFilaPendiente(f.modulo, f.titulo),
     }));
+
+  await enriquecerMotivosMejora(supabase, items);
 
   items.push(...(await obtenerPendientesControles(supabase, usuarioId, zona)));
   const config = await obtenerConfiguracion();
