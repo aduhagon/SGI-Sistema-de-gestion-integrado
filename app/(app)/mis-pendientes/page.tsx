@@ -1,13 +1,16 @@
 import Link from "next/link";
-import { AlertTriangle, Bell, CalendarClock, CheckSquare, PenSquare } from "lucide-react";
-import { obtenerMisPendientes } from "@/lib/api/pendientes";
+import { AlertTriangle, Bell, CalendarClock, CheckSquare, PenSquare, Users } from "lucide-react";
+import { obtenerMisPendientes, obtenerTableroPendientesResponsables } from "@/lib/api/pendientes";
 import { CentroPendientes } from "@/components/pendientes/CentroPendientes";
 import { MetricCard, MetricGrid, PageContainer, PageHeader } from "@/components/ui/page";
 
 export const dynamic = "force-dynamic";
 
 export default async function MisPendientesPage() {
-  const grupos = await obtenerMisPendientes();
+  const [grupos, tableroGestion] = await Promise.all([
+    obtenerMisPendientes(),
+    obtenerTableroPendientesResponsables(),
+  ]);
   const items = grupos.flatMap((grupo) => grupo.items);
   const total = items.length;
   const vencidos = items.filter((item) => item.nivel === "vencido").length;
@@ -26,6 +29,31 @@ export default async function MisPendientesPage() {
         <MetricCard value={proximos} label="Próximos" tone="info" icon={<CalendarClock className="h-4 w-4" />} />
       </MetricGrid>
     </PageHeader>
+
+    {tableroGestion && tableroGestion.length > 0 ? <section aria-label="Tablero gerencial de pendientes" className="mb-6 rounded-xl border border-border bg-card p-3 sm:p-4">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 text-base font-semibold"><Users className="h-4 w-4 text-primary" />Tablero gerencial</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Carga de pendientes por usuario y responsable operativo para roles de gestión.</p>
+        </div>
+        <span className="w-fit rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">{tableroGestion.length} responsables con carga</span>
+      </div>
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        {tableroGestion.slice(0, 8).map((fila) => {
+          const contenido = <>
+            <span className="line-clamp-1 text-sm font-semibold">{fila.responsable}</span>
+            <span className="mt-1 block text-2xl font-bold">{fila.total}</span>
+            <span className="mt-1 block text-xs text-muted-foreground">{fila.vencidos} vencidos · {fila.vencenHoy} hoy · {fila.proximos} próximos</span>
+            <span className="mt-2 line-clamp-1 text-[11px] text-muted-foreground">{fila.modulos.join(", ") || "Sin módulo informado"}</span>
+          </>;
+
+          return fila.primerUrl
+            ? <Link key={fila.usuarioId ?? fila.responsable} href={fila.primerUrl} className="rounded-lg border border-border bg-background p-3 transition hover:border-primary/40 hover:bg-muted/50">{contenido}</Link>
+            : <div key={fila.usuarioId ?? fila.responsable} className="rounded-lg border border-border bg-background p-3">{contenido}</div>;
+        })}
+      </div>
+    </section> : null}
+
     {total === 0 ? <div className="rounded-xl border border-dashed py-16 text-center"><Bell className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" /><p className="font-medium">No tenés pendientes</p><p className="mt-1 text-sm text-muted-foreground">El sistema no detecta tareas próximas ni vencidas.</p></div> : <CentroPendientes grupos={grupos} />}
   </PageContainer>;
 }
