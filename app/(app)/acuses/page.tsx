@@ -21,6 +21,9 @@ export default async function AcusesPage({ searchParams }: { searchParams?: { fi
 
   const { pendientes, completados } = await obtenerBandejaAcuses(usuarioId);
   const perfil = await obtenerPerfilMenu();
+  const acuseObjetivo = searchParams?.firmar
+    ? pendientes.find((acuse) => acuse.acuseId === searchParams.firmar)
+    : null;
 
   return (
     <div className="mx-auto max-w-4xl p-6 sm:p-8 lg:p-10">
@@ -48,6 +51,14 @@ export default async function AcusesPage({ searchParams }: { searchParams?: { fi
           </Link>
         )}
       </header>
+
+      {searchParams?.firmar && (
+        <div className={acuseObjetivo ? "mb-5 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary" : "mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"}>
+          {acuseObjetivo
+            ? "Abrimos el acuse seleccionado desde el Centro de pendientes. Confirmá la lectura para cerrar la tarea."
+            : "El acuse seleccionado ya no está pendiente para tu usuario. Puede haber sido firmado o reasignado."}
+        </div>
+      )}
 
       <section className="mb-12">
         <h2 className="mb-4 flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
