@@ -34,8 +34,97 @@ async function verificarSinOverflowHorizontal(page: import("@playwright/test").P
     `La pantalla tiene overflow horizontal. Candidatos: ${JSON.stringify(overflow.offenders)}`,
   ).toBeLessThanOrEqual(overflow.clientWidth + 4);
 }
+function normalizarDestino(href: string) {
+  const url = new URL(href, "http://sgi.local");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+async function seleccionarDestinosProfundos(page: import("@playwright/test").Page) {
+  const listado = page.getByRole("region", { name: "Listado de pendientes" });
+  const hrefs = await listado.locator('a[href*="#"], a[href*="?evaluar="]').evaluateAll((links) =>
+    links
+      .map((link) => link.getAttribute("href"))
+      .filter((href): href is string => Boolean(href)),
+  );
+
+  const nc = hrefs.find((href) => href.includes("/ncs/") && href.includes("#"));
+  const control = hrefs.find((href) => href.includes("/controles/") && href.includes("#ejecucion-"));
+  const requisito = hrefs.find((href) => href.includes("/requisitos-legales") && href.includes("evaluar="));
+
+  return [nc, control, requisito].filter((href): href is string => Boolean(href));
+}
+
+async function esperarClaseEnId(page: import("@playwright/test").Page, id: string, clase: string) {
+  await page.waitForFunction(
+    ({ id, clase }) => document.getElementById(id)?.classList.contains(clase),
+    { id, clase },
+  );
+}
+
+async function esperarResaltadoRequisito(page: import("@playwright/test").Page, id: string) {
+  await page.waitForFunction((id) => {
+    const elementos = Array.from(document.querySelectorAll<HTMLElement>(`[data-requisito-id="${id}"]`));
+    return elementos.some((elemento) =>
+      elemento.classList.contains("bg-primary/5") ||
+      elemento.classList.contains("ring-2") ||
+      elemento.classList.contains("border-primary"),
+    );
+  }, id);
+}
+
 
 test.describe("Centro de pendientes", () => {
+
+  test("abre destinos profundos con aviso y resaltado", async ({ page }) => {
+    const errores = registrarErroresCriticos(page);
+
+    const response = await page.goto("/mis-pendientes", { waitUntil: "domcontentloaded" });
+
+    expect(response, "No hubo respuesta HTTP para /mis-pendientes").not.toBeNull();
+    expect(response?.status(), "/mis-pendientes respondio con error HTTP").toBeLessThan(400);
+    await expect(page.getByRole("heading", { name: "Centro de pendientes" })).toBeVisible();
+
+    if (await page.getByText(/No ten.s pendientes/).isVisible()) {
+      test.skip(true, "No hay pendientes disponibles para validar destinos profundos.");
+    }
+
+    const listado = page.getByRole("region", { name: "Listado de pendientes" });
+    await expect(listado).toBeVisible();
+
+    const destinos = await seleccionarDestinosProfundos(page);
+    if (destinos.length === 0) {
+      test.skip(true, "No hay pendientes con ancla o evaluacion directa para validar.");
+    }
+
+    for (const href of destinos) {
+      const destino = normalizarDestino(href);
+      const destinoUrl = new URL(destino, "http://sgi.local");
+      const destinoResponse = await page.goto(destino, { waitUntil: "domcontentloaded" });
+
+      expect(destinoResponse, `No hubo respuesta HTTP para ${destino}`).not.toBeNull();
+      expect(destinoResponse?.status(), `${destino} respondio con error HTTP`).toBeLessThan(400);
+
+      if (destinoUrl.hash) {
+        const id = decodeURIComponent(destinoUrl.hash.slice(1));
+        await esperarClaseEnId(page, id, "ring-2");
+
+        if (destinoUrl.pathname.startsWith("/controles/")) {
+          await expect(page.getByText("Ubicamos la ejecución indicada desde el Centro de pendientes.")).toBeVisible();
+        } else {
+          await expect(page.getByText("Ubicamos la sección indicada desde el Centro de pendientes.")).toBeVisible();
+        }
+      }
+
+      const requisitoId = destinoUrl.searchParams.get("evaluar");
+      if (requisitoId) {
+        await expect(page.getByText("Abrimos la evaluación indicada desde el Centro de pendientes")).toBeVisible();
+        await esperarResaltadoRequisito(page, requisitoId);
+      }
+    }
+
+    expect(errores, `Errores criticos: ${errores.join(" | ")}`).toEqual([]);
+  });
+
   test("carga, filtra y mantiene links accionables", async ({ page }) => {
     const errores = registrarErroresCriticos(page);
 
