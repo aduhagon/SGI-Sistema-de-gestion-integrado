@@ -124,6 +124,7 @@ function motivoPorFilaPendiente(modulo: string, titulo: string): string | null {
       return null;
   }
 }
+
 const MODULOS_MEJORA_NC = new Set(["tratamiento", "verificaciones", "cierres", "documentacion"]);
 
 function nombreUsuario(usuario: any): string | null {
@@ -136,6 +137,129 @@ function nombreUsuario(usuario: any): string | null {
 function agregarProceso(motivo: string, proceso?: { nombre?: string | null } | null): string {
   const nombre = proceso?.nombre?.trim();
   return nombre ? `${motivo} Proceso: ${nombre}.` : motivo;
+}
+
+function primero<T>(valor: T | T[] | null | undefined): T | null {
+  if (Array.isArray(valor)) return valor[0] ?? null;
+  return valor ?? null;
+}
+
+function documentoVersion(codigo?: string | null, numeroVersion?: string | null): string {
+  const base = codigo?.trim() || "Documento";
+  const version = numeroVersion?.trim();
+  return version ? `${base} v${version}` : base;
+}
+
+async function enriquecerMotivosDocumentales(
+  supabase: ReturnType<typeof createClient>,
+  usuarioId: string,
+  items: Pendiente[],
+): Promise<void> {
+  const aprobacionIds = Array.from(new Set(
+    items
+      .filter((item) => item.modulo === "aprobaciones")
+      .map((item) => item.entidadId),
+  ));
+  const acuseIds = Array.from(new Set(
+    items
+      .filter((item) => item.modulo === "acuses")
+      .map((item) => item.entidadId),
+  ));
+
+  try {
+    if (aprobacionIds.length > 0) {
+      const { data, error } = await supabase
+        .from("aprobaciones")
+        .select(`
+          id,
+          aprobador_n1_id,
+          aprobador_n2_id,
+          decision_n1,
+          decision_n2,
+          versiones:versiones!aprobaciones_version_id_fkey (
+            numero_version,
+            documentos:documentos!versiones_documento_id_fkey (
+              codigo,
+              titulo,
+              tipos_documentales (codigo, nombre),
+              procesos:procesos!documentos_proceso_principal_id_fkey (codigo, nombre)
+            )
+          )
+        `)
+        .in("id", aprobacionIds)
+        .or(`aprobador_n1_id.eq.${usuarioId},aprobador_n2_id.eq.${usuarioId}`);
+
+      if (error) console.error("[SGI:pendientes] motivos aprobaciones", error);
+      else {
+        const aprobacionesPorId = new Map<string, any>();
+        for (const aprobacion of (data ?? []) as any[]) aprobacionesPorId.set(aprobacion.id, aprobacion);
+
+        for (const item of items.filter((pendiente) => pendiente.modulo === "aprobaciones")) {
+          const aprobacion = aprobacionesPorId.get(item.entidadId);
+          if (!aprobacion) continue;
+
+          const version = primero<any>(aprobacion.versiones);
+          const documento = primero<any>(version?.documentos);
+          const tipo = primero<any>(documento?.tipos_documentales);
+          const proceso = primero<any>(documento?.procesos);
+          const nivel = aprobacion.aprobador_n1_id === usuarioId && aprobacion.decision_n1 === "pendiente"
+            ? 1
+            : 2;
+          const nombreDocumento = documentoVersion(documento?.codigo ?? item.codigo, version?.numero_version);
+          const tipoTexto = tipo?.nombre ? ` (${tipo.nombre})` : "";
+
+          item.motivo = agregarProceso(
+            `Asignado como aprobador documental de nivel ${nivel}: ${nombreDocumento}${tipoTexto}.`,
+            proceso,
+          );
+        }
+      }
+    }
+
+    if (acuseIds.length > 0) {
+      const { data, error } = await supabase
+        .from("acuses_lectura")
+        .select(`
+          id,
+          versiones:versiones!acuses_lectura_version_id_fkey (
+            numero_version,
+            documentos:documentos!versiones_documento_id_fkey (
+              codigo,
+              titulo,
+              tipos_documentales (codigo, nombre),
+              procesos:procesos!documentos_proceso_principal_id_fkey (codigo, nombre)
+            )
+          )
+        `)
+        .in("id", acuseIds)
+        .eq("usuario_id", usuarioId);
+
+      if (error) console.error("[SGI:pendientes] motivos acuses", error);
+      else {
+        const acusesPorId = new Map<string, any>();
+        for (const acuse of (data ?? []) as any[]) acusesPorId.set(acuse.id, acuse);
+
+        for (const item of items.filter((pendiente) => pendiente.modulo === "acuses")) {
+          const acuse = acusesPorId.get(item.entidadId);
+          if (!acuse) continue;
+
+          const version = primero<any>(acuse.versiones);
+          const documento = primero<any>(version?.documentos);
+          const tipo = primero<any>(documento?.tipos_documentales);
+          const proceso = primero<any>(documento?.procesos);
+          const nombreDocumento = documentoVersion(documento?.codigo ?? item.codigo, version?.numero_version);
+          const tipoTexto = tipo?.nombre ? ` (${tipo.nombre})` : "";
+
+          item.motivo = agregarProceso(
+            `Asignado como destinatario de lectura: ${nombreDocumento}${tipoTexto}.`,
+            proceso,
+          );
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[SGI:pendientes] enriquecimiento de motivos documentales", error);
+  }
 }
 
 async function enriquecerMotivosMejora(
@@ -310,6 +434,7 @@ export async function obtenerMisPendientes(): Promise<GrupoPendientes[]> {
       motivo: motivoPorFilaPendiente(f.modulo, f.titulo),
     }));
 
+  await enriquecerMotivosDocumentales(supabase, usuarioId, items);
   await enriquecerMotivosMejora(supabase, items);
 
   items.push(...(await obtenerPendientesControles(supabase, usuarioId, zona)));
