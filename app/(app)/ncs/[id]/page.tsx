@@ -19,6 +19,7 @@ import { formatearFechaLarga } from "@/lib/fechas";
 import { obtenerEstadoTratamiento, obtenerVerificadoresMejora, obtenerCambiosDocumentales } from "@/lib/api/mejora";
 import { PlanTratamiento } from "@/components/ncs/PlanTratamiento";
 import { BotonCerrar } from "@/components/ncs/BotonCerrar";
+import { ResaltarDestinoPendiente } from "@/components/pendientes/ResaltarDestinoPendiente";
 import { cerrarNC } from "./cerrar-nc-actions";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +82,11 @@ export default async function NCDetallePage({ params, searchParams }: Props) {
           <span>No conformidad abierta correctamente. Cargá el análisis de causa raíz para avanzar.</span>
         </div>
       )}
+
+      <ResaltarDestinoPendiente
+        encontradoMensaje="Ubicamos la sección indicada desde el Centro de pendientes. Revisá ese bloque de la NC para cerrar la tarea."
+        faltanteMensaje="No encontramos la sección exacta indicada por el pendiente. Puede haber sido resuelta o la pantalla cambió."
+      />
 
       <nav aria-label="Breadcrumb" className="mb-8">
         <Link href="/ncs" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
