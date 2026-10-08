@@ -64,6 +64,19 @@ export type SeguimientoPendienteGerencial = {
   actualizadoPor: string | null;
 };
 
+export type HistorialSeguimientoPendienteGerencial = {
+  modulo: string;
+  entidadId: string;
+  responsableClave: string;
+  estadoAnterior: EstadoSeguimientoPendiente | null;
+  estadoNuevo: EstadoSeguimientoPendiente;
+  notaAnterior: string | null;
+  notaNueva: string | null;
+  cambiadoEn: string;
+  cambiadoPor: string | null;
+  cambiadoPorNombre: string | null;
+};
+
 const MODULO_LABEL: Record<string, string> = {
   aprobaciones: "Aprobaciones de documentos",
   acuses: "Acuses de lectura",
@@ -457,6 +470,46 @@ export async function obtenerSeguimientosPendientesGerenciales(): Promise<Seguim
     nota: fila.nota,
     actualizadoEn: fila.actualizado_en,
     actualizadoPor: fila.actualizado_por,
+  }));
+}
+
+
+export async function obtenerHistorialSeguimientosPendientesGerenciales(): Promise<HistorialSeguimientoPendienteGerencial[] | null> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase.rpc("fn_historial_seguimiento_pendientes_gerencial");
+  if (error) {
+    const mensaje = error.message ?? "";
+    const codigo = error.code ?? "";
+    const sinPermiso = ["42501", "P0001", "PGRST202"].includes(codigo)
+      || /Solo un administrador|responsable del SGI|permission denied|Could not find/i.test(mensaje);
+
+    if (!sinPermiso) console.error("[SGI:pendientes] historial seguimientos gerenciales", error);
+    return null;
+  }
+
+  return ((data ?? []) as Array<{
+    modulo: string;
+    entidad_id: string;
+    responsable_clave: string;
+    estado_anterior: EstadoSeguimientoPendiente | null;
+    estado_nuevo: EstadoSeguimientoPendiente;
+    nota_anterior: string | null;
+    nota_nueva: string | null;
+    cambiado_en: string;
+    cambiado_por: string | null;
+    cambiado_por_nombre: string | null;
+  }>).map((fila) => ({
+    modulo: fila.modulo,
+    entidadId: fila.entidad_id,
+    responsableClave: fila.responsable_clave,
+    estadoAnterior: fila.estado_anterior,
+    estadoNuevo: fila.estado_nuevo,
+    notaAnterior: fila.nota_anterior,
+    notaNueva: fila.nota_nueva,
+    cambiadoEn: fila.cambiado_en,
+    cambiadoPor: fila.cambiado_por,
+    cambiadoPorNombre: fila.cambiado_por_nombre,
   }));
 }
 
