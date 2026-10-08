@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Clock, FileText, PenLine, CheckCircle2 } from "lucide-react";
 import type { AcusePendiente, AcuseCompletado } from "@/lib/api/acuses";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { FirmaDialog } from "./FirmaDialog";
 
 type Props =
@@ -12,10 +13,14 @@ type Props =
   | { acuse: AcuseCompletado; completado: true; autoAbrir?: false };
 
 export function AcuseCard({ acuse, completado, autoAbrir = false }: Props) {
+  const cardRef = useRef<HTMLDivElement>(null);
   const [abierto, setAbierto] = useState(false);
 
   useEffect(() => {
-    if (!completado && autoAbrir) setAbierto(true);
+    if (completado || !autoAbrir) return;
+    cardRef.current?.scrollIntoView({ block: "center" });
+    cardRef.current?.focus({ preventScroll: true });
+    setAbierto(true);
   }, [autoAbrir, completado]);
 
   const vencido =
@@ -23,7 +28,15 @@ export function AcuseCard({ acuse, completado, autoAbrir = false }: Props) {
 
   return (
     <>
-      <div id={`acuse-${acuse.acuseId}`} className="scroll-mt-24 rounded-lg border border-border bg-card p-5 transition-shadow hover:shadow-sm">
+      <div
+        ref={cardRef}
+        id={`acuse-${acuse.acuseId}`}
+        tabIndex={autoAbrir ? -1 : undefined}
+        className={cn(
+          "scroll-mt-24 rounded-lg border bg-card p-5 transition-shadow hover:shadow-sm focus:outline-none",
+          autoAbrir ? "border-primary shadow-md ring-2 ring-primary/20" : "border-border",
+        )}
+      >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">
