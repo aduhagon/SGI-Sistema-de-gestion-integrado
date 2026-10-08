@@ -1,0 +1,2 @@
+create index if not exists idx_seguimiento_pendientes_gerencial_actualizado_por
+  on public.seguimiento_pendientes_gerencial(actualizado_por);
