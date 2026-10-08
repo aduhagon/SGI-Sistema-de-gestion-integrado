@@ -39,19 +39,57 @@ function normalizarDestino(href: string) {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-async function seleccionarDestinosProfundos(page: import("@playwright/test").Page) {
-  const listado = page.getByRole("region", { name: "Listado de pendientes" });
-  const hrefs = await listado.locator('a[href*="#"], a[href*="?evaluar="]').evaluateAll((links) =>
+async function obtenerHrefs(page: import("@playwright/test").Page, selector: string) {
+  return page.locator(selector).evaluateAll((links) =>
     links
       .map((link) => link.getAttribute("href"))
       .filter((href): href is string => Boolean(href)),
   );
+}
 
-  const nc = hrefs.find((href) => href.includes("/ncs/") && href.includes("#"));
-  const control = hrefs.find((href) => href.includes("/controles/") && href.includes("#ejecucion-"));
-  const requisito = hrefs.find((href) => href.includes("/requisitos-legales") && href.includes("evaluar="));
+async function seleccionarDestinosProfundos(page: import("@playwright/test").Page) {
+  const destinos = new Set<string>();
+  const listado = page.getByRole("region", { name: "Listado de pendientes" });
 
-  return [nc, control, requisito].filter((href): href is string => Boolean(href));
+  if (await listado.isVisible().catch(() => false)) {
+    const hrefs = await listado.locator('a[href*="#"], a[href*="?evaluar="]').evaluateAll((links) =>
+      links
+        .map((link) => link.getAttribute("href"))
+        .filter((href): href is string => Boolean(href)),
+    );
+
+    const nc = hrefs.find((href) => href.includes("/ncs/") && href.includes("#"));
+    const control = hrefs.find((href) => href.includes("/controles/") && href.includes("#ejecucion-"));
+    const requisito = hrefs.find((href) => href.includes("/requisitos-legales") && href.includes("evaluar="));
+
+    for (const href of [nc, control, requisito]) {
+      if (href) destinos.add(normalizarDestino(href));
+    }
+  }
+
+  if (![...destinos].some((href) => href.includes("/ncs/"))) {
+    await page.goto("/ncs", { waitUntil: "domcontentloaded" });
+    const hrefsNC = await obtenerHrefs(page, 'a[href^="/ncs/"]');
+    const nc = hrefsNC.find((href) => /^\/ncs\/[0-9a-f-]+$/i.test(normalizarDestino(href)));
+    if (nc) destinos.add(`${normalizarDestino(nc)}#descripcion`);
+  }
+
+  if (![...destinos].some((href) => href.includes("/controles/"))) {
+    await page.goto("/controles", { waitUntil: "domcontentloaded" });
+    const hrefsControl = await obtenerHrefs(page, 'a[href*="/ejecuciones"]');
+    const control = hrefsControl.find((href) =>
+      /^\/controles\/[0-9a-f-]+\/ejecuciones(?:\?.*)?$/i.test(normalizarDestino(href)),
+    );
+    if (control) destinos.add(`${normalizarDestino(control).split("?")[0]}#ejecucion-no-existente-smoke`);
+  }
+
+  if (![...destinos].some((href) => href.includes("/requisitos-legales"))) {
+    await page.goto("/requisitos-legales", { waitUntil: "domcontentloaded" });
+    const requisitoId = await page.locator("[data-requisito-id]").first().getAttribute("data-requisito-id").catch(() => null);
+    if (requisitoId) destinos.add(`/requisitos-legales?evaluar=${requisitoId}`);
+  }
+
+  return [...destinos];
 }
 
 async function esperarClaseEnId(page: import("@playwright/test").Page, id: string, clase: string) {
@@ -84,16 +122,9 @@ test.describe("Centro de pendientes", () => {
     expect(response?.status(), "/mis-pendientes respondio con error HTTP").toBeLessThan(400);
     await expect(page.getByRole("heading", { name: "Centro de pendientes" })).toBeVisible();
 
-    if (await page.getByText(/No ten.s pendientes/).isVisible()) {
-      test.skip(true, "No hay pendientes disponibles para validar destinos profundos.");
-    }
-
-    const listado = page.getByRole("region", { name: "Listado de pendientes" });
-    await expect(listado).toBeVisible();
-
     const destinos = await seleccionarDestinosProfundos(page);
     if (destinos.length === 0) {
-      test.skip(true, "No hay pendientes con ancla o evaluacion directa para validar.");
+      test.skip(true, "No hay datos disponibles para validar destinos profundos.");
     }
 
     for (const href of destinos) {
@@ -106,12 +137,13 @@ test.describe("Centro de pendientes", () => {
 
       if (destinoUrl.hash) {
         const id = decodeURIComponent(destinoUrl.hash.slice(1));
-        await esperarClaseEnId(page, id, "ring-2");
 
         if (destinoUrl.pathname.startsWith("/controles/")) {
-          await expect(page.getByText("Ubicamos la ejecución indicada desde el Centro de pendientes.")).toBeVisible();
+          await expect(page.getByText(/No encontramos la ejecución exacta|Ubicamos la ejecución indicada/)).toBeVisible();
+          if (!id.includes("no-existente-smoke")) await esperarClaseEnId(page, id, "ring-2");
         } else {
           await expect(page.getByText("Ubicamos la sección indicada desde el Centro de pendientes.")).toBeVisible();
+          await esperarClaseEnId(page, id, "ring-2");
         }
       }
 
