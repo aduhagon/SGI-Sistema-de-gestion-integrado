@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, Bell, Filter, ListChecks, Search, Users } from "lucide-react";
-import { obtenerDetalleTableroPendientesResponsables, obtenerHistorialSeguimientosPendientesGerenciales, obtenerSeguimientosPendientesGerenciales, type EstadoSeguimientoPendiente } from "@/lib/api/pendientes";
+import { obtenerDetalleTableroPendientesResponsables, obtenerHistorialSeguimientosPendientesGerenciales, obtenerSeguimientosPendientesGerenciales, type EstadoSeguimientoPendiente, type NivelPendiente } from "@/lib/api/pendientes";
 import { MetricCard, MetricGrid, PageContainer, PageHeader } from "@/components/ui/page";
 import { guardarSeguimientoPendienteGerencial } from "./actions";
 
@@ -36,6 +36,20 @@ const SEGUIMIENTO_CLASE: Record<EstadoSeguimientoPendiente, string> = {
   contactado: "bg-emerald-50 text-emerald-700 ring-emerald-100",
 };
 
+type ExcepcionPendiente = "critico" | "atencion" | "normal";
+
+const EXCEPCION_TEXTO: Record<ExcepcionPendiente, string> = {
+  critico: "Critico",
+  atencion: "Atencion",
+  normal: "Normal",
+};
+
+const EXCEPCION_CLASE: Record<ExcepcionPendiente, string> = {
+  critico: "bg-red-50 text-red-700 ring-red-100",
+  atencion: "bg-amber-50 text-amber-700 ring-amber-100",
+  normal: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+};
+
 function valorParametro(searchParams: SearchParams, clave: string): string {
   const valor = searchParams[clave];
   return Array.isArray(valor) ? valor[0] ?? "" : valor ?? "";
@@ -66,6 +80,54 @@ function fechaCorta(fecha: string): string {
   }).format(new Date(fecha));
 }
 
+function diasDesde(fecha: string | null, ahoraMs: number): number | null {
+  if (!fecha) return null;
+  return Math.floor((ahoraMs - new Date(fecha).getTime()) / 86_400_000);
+}
+
+function calcularExcepcion(
+  nivel: NivelPendiente,
+  seguimientoEstado: EstadoSeguimientoPendiente,
+  seguimientoActualizadoEn: string | null,
+  ahoraMs: number,
+): { estado: ExcepcionPendiente; motivo: string } {
+  const diasSinMovimiento = diasDesde(seguimientoActualizadoEn, ahoraMs);
+
+  if (seguimientoEstado === "bloqueado") {
+    return { estado: "critico", motivo: "Bloqueado por gestion" };
+  }
+
+  if (nivel === "vencido" && seguimientoEstado === "sin_revisar") {
+    return { estado: "critico", motivo: "Vencido sin revisar" };
+  }
+
+  if (nivel === "vencido" && seguimientoEstado !== "contactado") {
+    return { estado: "atencion", motivo: "Vencido sin contacto confirmado" };
+  }
+
+  if (nivel === "vencido") {
+    return { estado: "atencion", motivo: "Vencido con contacto registrado" };
+  }
+
+  if (seguimientoEstado === "en_curso" && diasSinMovimiento !== null && diasSinMovimiento >= 7) {
+    return { estado: "atencion", motivo: `En curso sin cambios hace ${diasSinMovimiento} d` };
+  }
+
+  if (seguimientoEstado === "contactado" && diasSinMovimiento !== null && diasSinMovimiento >= 5) {
+    return { estado: "atencion", motivo: `Contactado sin avance hace ${diasSinMovimiento} d` };
+  }
+
+  if (nivel === "vencido_hoy" && seguimientoEstado === "sin_revisar") {
+    return { estado: "atencion", motivo: "Vence hoy sin revisar" };
+  }
+
+  if (nivel === "advertencia" && seguimientoEstado === "sin_revisar") {
+    return { estado: "atencion", motivo: "Proximo sin revisar" };
+  }
+
+  return { estado: "normal", motivo: "Sin excepcion activa" };
+}
+
 function queryActual(searchParams: SearchParams): string {
   const params = new URLSearchParams();
   for (const [clave, valor] of Object.entries(searchParams)) {
@@ -87,8 +149,10 @@ export default async function TableroGerencialPendientesPage({ searchParams }: {
   const modulo = valorParametro(searchParams, "modulo");
   const estado = valorParametro(searchParams, "estado");
   const seguimientoFiltro = valorParametro(searchParams, "seguimiento");
+  const excepcionFiltro = valorParametro(searchParams, "excepcion");
   const busqueda = valorParametro(searchParams, "q").trim().toLowerCase();
   const volverA = queryActual(searchParams);
+  const ahoraMs = Date.now();
 
   if (detalle === null) {
     return <PageContainer width="wide">
@@ -123,13 +187,18 @@ export default async function TableroGerencialPendientesPage({ searchParams }: {
     const responsableClave = claveResponsable(item.usuarioId, item.responsable);
     const seguimientoClave = claveSeguimiento(responsableClave, item.modulo, item.entidadId);
     const seguimiento = seguimientoPorClave.get(seguimientoClave);
+    const seguimientoEstado = (seguimiento?.estado ?? "sin_revisar") as EstadoSeguimientoPendiente;
+    const seguimientoActualizadoEn = seguimiento?.actualizadoEn ?? null;
+    const excepcion = calcularExcepcion(item.nivel, seguimientoEstado, seguimientoActualizadoEn, ahoraMs);
     return {
       ...item,
       responsableClave,
-      seguimientoEstado: (seguimiento?.estado ?? "sin_revisar") as EstadoSeguimientoPendiente,
+      seguimientoEstado,
       seguimientoNota: seguimiento?.nota ?? "",
-      seguimientoActualizadoEn: seguimiento?.actualizadoEn ?? null,
+      seguimientoActualizadoEn,
       seguimientoHistorial: historialPorClave.get(seguimientoClave) ?? [],
+      excepcionEstado: excepcion.estado,
+      excepcionMotivo: excepcion.motivo,
     };
   });
 
@@ -140,9 +209,10 @@ export default async function TableroGerencialPendientesPage({ searchParams }: {
     if (estado === "hoy" && item.nivel !== "vencido_hoy") return false;
     if (estado === "proximos" && !["advertencia", "recordatorio"].includes(item.nivel)) return false;
     if (seguimientoFiltro && item.seguimientoEstado !== seguimientoFiltro) return false;
+    if (excepcionFiltro && item.excepcionEstado !== excepcionFiltro) return false;
     if (busqueda) {
       const historialTexto = item.seguimientoHistorial.map((evento) => `${evento.notaAnterior ?? ""} ${evento.notaNueva ?? ""}`).join(" ");
-      const texto = `${item.responsable} ${item.moduloLabel} ${item.codigo} ${item.titulo} ${item.seguimientoNota} ${historialTexto}`.toLowerCase();
+      const texto = `${item.responsable} ${item.moduloLabel} ${item.codigo} ${item.titulo} ${item.seguimientoNota} ${item.excepcionMotivo} ${historialTexto}`.toLowerCase();
       if (!texto.includes(busqueda)) return false;
     }
     return true;
@@ -152,6 +222,7 @@ export default async function TableroGerencialPendientesPage({ searchParams }: {
   const vencidos = filtrados.filter((item) => item.nivel === "vencido").length;
   const hoy = filtrados.filter((item) => item.nivel === "vencido_hoy").length;
   const bloqueados = filtrados.filter((item) => item.seguimientoEstado === "bloqueado").length;
+  const criticos = filtrados.filter((item) => item.excepcionEstado === "critico").length;
 
   return <PageContainer width="wide">
     <PageHeader eyebrow="Tablero gerencial" title="Pendientes por responsable" description="Vista completa para priorizar, contactar responsables y registrar bloqueos operativos." actions={<Link href="/mis-pendientes" className="inline-flex min-h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium hover:bg-muted"><ArrowLeft className="h-4 w-4" />Volver</Link>}>
@@ -160,10 +231,11 @@ export default async function TableroGerencialPendientesPage({ searchParams }: {
         <MetricCard value={vencidos} label="Vencidos" tone={vencidos ? "danger" : "success"} icon={<AlertTriangle className="h-4 w-4" />} />
         <MetricCard value={hoy} label="Vencen hoy" tone={hoy ? "warning" : "success"} icon={<Bell className="h-4 w-4" />} />
         <MetricCard value={bloqueados} label="Bloqueados" tone={bloqueados ? "danger" : "success"} icon={<Bell className="h-4 w-4" />} />
+        <MetricCard value={criticos} label="Criticos" tone={criticos ? "danger" : "success"} icon={<AlertTriangle className="h-4 w-4" />} />
       </MetricGrid>
     </PageHeader>
 
-    <form className="mb-4 grid gap-2 rounded-xl border border-border bg-card p-3 md:grid-cols-[1.2fr_1fr_1fr_1fr_1fr_auto]" action="/mis-pendientes/gerencial">
+    <form className="mb-4 grid gap-2 rounded-xl border border-border bg-card p-3 md:grid-cols-[1.2fr_1fr_1fr_1fr_1fr_1fr_auto]" action="/mis-pendientes/gerencial">
       <label className="relative block">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input name="q" defaultValue={valorParametro(searchParams, "q")} placeholder="Buscar por responsable, codigo, tarea o nota" className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" />
@@ -186,13 +258,17 @@ export default async function TableroGerencialPendientesPage({ searchParams }: {
         <option value="">Todo seguimiento</option>
         {Object.entries(SEGUIMIENTO_TEXTO).map(([clave, nombre]) => <option key={clave} value={clave}>{nombre}</option>)}
       </select>
+      <select name="excepcion" defaultValue={excepcionFiltro} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+        <option value="">Toda excepcion</option>
+        {Object.entries(EXCEPCION_TEXTO).map(([clave, nombre]) => <option key={clave} value={clave}>{nombre}</option>)}
+      </select>
       <button type="submit" className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"><Filter className="h-4 w-4" />Filtrar</button>
     </form>
 
     {filtrados.length === 0 ? <div className="rounded-xl border border-dashed py-16 text-center">
       <ListChecks className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
       <p className="font-medium">No hay pendientes con esos filtros</p>
-      <p className="mt-1 text-sm text-muted-foreground">Proba limpiar responsable, modulo, estado, seguimiento o busqueda.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Proba limpiar responsable, modulo, estado, seguimiento, excepcion o busqueda.</p>
     </div> : <div className="overflow-hidden rounded-xl border border-border bg-card">
       <div className="hidden grid-cols-[1fr_1fr_1.4fr_0.55fr_1.4fr_0.35fr] gap-3 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold text-muted-foreground md:grid">
         <span>Responsable</span>
@@ -214,9 +290,11 @@ export default async function TableroGerencialPendientesPage({ searchParams }: {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${NIVEL_CLASE[item.nivel]}`}>{NIVEL_TEXTO[item.nivel]}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${EXCEPCION_CLASE[item.excepcionEstado]}`}>{EXCEPCION_TEXTO[item.excepcionEstado]}</span>
               <span className="font-mono text-[11px] text-muted-foreground">{item.codigo}</span>
             </div>
             <p className="mt-1 line-clamp-2 text-sm font-medium">{item.titulo}</p>
+            {item.excepcionEstado !== "normal" ? <p className="mt-1 text-xs font-medium text-muted-foreground">{item.excepcionMotivo}</p> : null}
           </div>
           <div>
             <p className="text-sm font-medium">{textoDias(item.diasRestantes)}</p>
