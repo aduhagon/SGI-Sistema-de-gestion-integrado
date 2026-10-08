@@ -100,8 +100,19 @@ function MisPendientes({
   enEsperaN1: Awaited<ReturnType<typeof obtenerBandejaAprobaciones>>["enEsperaN1"];
   resolverId?: string;
 }) {
+  const pendienteObjetivo = resolverId
+    ? paraDecidir.find((aprobacion) => aprobacion.aprobacionId === resolverId)
+    : null;
+
   return (
     <>
+      {resolverId && (
+        <div className={pendienteObjetivo ? "mb-5 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary" : "mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"}>
+          {pendienteObjetivo
+            ? "Abrimos la aprobación seleccionada desde el Centro de pendientes. Revisá el documento y registrá tu decisión."
+            : "La aprobación seleccionada ya no está pendiente para tu usuario. Puede haber sido resuelta o reasignada."}
+        </div>
+      )}
       <section className="mb-12">
         <h2 className="mb-4 flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground">
           Esperan tu decisión
