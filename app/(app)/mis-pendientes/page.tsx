@@ -57,7 +57,10 @@ export default async function MisPendientesPage() {
           <h2 className="flex items-center gap-2 text-base font-semibold"><Users className="h-4 w-4 text-primary" />Tablero gerencial</h2>
           <p className="mt-1 text-xs text-muted-foreground">Carga de pendientes por usuario y responsable operativo para roles de gestión.</p>
         </div>
-        <span className="w-fit rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">{tableroGestion.length} responsables con carga</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="w-fit rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">{tableroGestion.length} responsables con carga</span>
+          <Link href="/mis-pendientes/gerencial" className="inline-flex min-h-9 items-center rounded-md border border-border bg-background px-3 text-xs font-medium hover:bg-muted">Ver tablero completo</Link>
+        </div>
       </div>
       <div className="space-y-2">
         {tableroGestion.slice(0, 8).map((fila, indice) => {
