@@ -185,6 +185,10 @@ test.describe("Centro de pendientes", () => {
     await expect(listado).toBeVisible();
     await expect(listado.getByText(/Asignado por/i).first()).toBeVisible();
 
+    const tableroResponsables = page.getByRole("region", { name: "Tablero por responsable" });
+    await expect(tableroResponsables).toBeVisible();
+    await expect(tableroResponsables.getByText(/responsables? visibles?/i)).toBeVisible();
+
     const buscador = page.getByPlaceholder("Buscar por código, tarea o módulo");
     await expect(buscador).toBeEditable();
     await expect(page.getByRole("button", { name: "Todos" })).toBeVisible();
