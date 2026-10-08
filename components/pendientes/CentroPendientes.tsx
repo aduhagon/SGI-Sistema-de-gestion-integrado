@@ -78,9 +78,11 @@ export function CentroPendientes({ grupos }: { grupos: GrupoPendientes[] }) {
   const [modulo, setModulo] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
   const items = useMemo(() => grupos.flatMap((grupo) => grupo.items.map((item): ItemConGrupo => ({ ...item, grupo: grupo.label }))), [grupos]);
-  const moduloActivo = modulo === "todos"
-    ? { label: "Todos los módulos", cantidad: items.length }
-    : grupos.find((grupo) => grupo.modulo === modulo);
+  const moduloActivo = useMemo(() => {
+    if (modulo === "todos") return { label: "Todos los módulos", cantidad: items.length };
+    const grupo = grupos.find((actual) => actual.modulo === modulo);
+    return { label: grupo?.label ?? "Módulo seleccionado", cantidad: grupo?.items.length ?? 0 };
+  }, [grupos, items.length, modulo]);
   const visibles = useMemo(() => items
     .filter((item) => modulo === "todos" || item.modulo === modulo)
     .filter((item) => filtro === "todos" || (filtro === "urgentes" && ["vencido", "vencido_hoy"].includes(item.nivel)) || (filtro === "proximos" && ["advertencia", "recordatorio"].includes(item.nivel)))
@@ -100,7 +102,7 @@ export function CentroPendientes({ grupos }: { grupos: GrupoPendientes[] }) {
         <div className="min-w-0">
           <p className="mb-2 text-xs text-muted-foreground">
             Módulo activo: <strong className="font-semibold text-foreground">{moduloActivo?.label ?? "Módulo seleccionado"}</strong>
-            <span className="ml-1">({moduloActivo?.cantidad ?? moduloActivo?.items.length ?? 0})</span>
+            <span className="ml-1">({moduloActivo.cantidad})</span>
           </p>
           <div className="overflow-x-auto pb-1">
             <div className="flex w-max min-w-full gap-2">
