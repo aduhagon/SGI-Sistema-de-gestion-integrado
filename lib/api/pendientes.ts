@@ -24,6 +24,18 @@ export type GrupoPendientes = {
   items: Pendiente[];
 };
 
+export type ResponsablePendientesSistema = {
+  usuarioId: string | null;
+  responsable: string;
+  username: string | null;
+  total: number;
+  vencidos: number;
+  vencenHoy: number;
+  proximos: number;
+  modulos: string[];
+  primerUrl: string | null;
+};
+
 const MODULO_LABEL: Record<string, string> = {
   aprobaciones: "Aprobaciones de documentos",
   acuses: "Acuses de lectura",
@@ -381,6 +393,45 @@ async function enriquecerMotivosMejora(
   }
 }
 
+
+
+export async function obtenerTableroPendientesResponsables(): Promise<ResponsablePendientesSistema[] | null> {
+  const supabase = createClient();
+  const zona = await obtenerZonaHoraria();
+
+  const { data, error } = await supabase.rpc("fn_tablero_pendientes_responsables", { p_zona: zona });
+  if (error) {
+    const mensaje = error.message ?? "";
+    const codigo = error.code ?? "";
+    const sinPermiso = ["42501", "P0001", "PGRST202"].includes(codigo)
+      || /Solo un administrador|responsable del SGI|permission denied|Could not find/i.test(mensaje);
+
+    if (!sinPermiso) console.error("[SGI:pendientes] tablero responsables", error);
+    return null;
+  }
+
+  return ((data ?? []) as Array<{
+    usuario_id: string | null;
+    responsable: string | null;
+    username: string | null;
+    total: number | string | null;
+    vencidos: number | string | null;
+    vencen_hoy: number | string | null;
+    proximos: number | string | null;
+    modulos: string[] | null;
+    primer_url: string | null;
+  }>).map((fila) => ({
+    usuarioId: fila.usuario_id ?? null,
+    responsable: fila.responsable ?? "Sin responsable",
+    username: fila.username ?? null,
+    total: Number(fila.total ?? 0),
+    vencidos: Number(fila.vencidos ?? 0),
+    vencenHoy: Number(fila.vencen_hoy ?? 0),
+    proximos: Number(fila.proximos ?? 0),
+    modulos: Array.isArray(fila.modulos) ? fila.modulos : [],
+    primerUrl: fila.primer_url ?? null,
+  }));
+}
 
 /**
  * Devuelve los pendientes del usuario actual, agrupados por módulo.
