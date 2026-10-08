@@ -253,31 +253,31 @@ BEGIN
       AND private.fn_bloqueo_documental_nc(n.id) IS NOT NULL
   ),
   todos AS (
-    SELECT usuario_id, responsable, username, modulo, entidad_id, nivel, dias_restantes, url_destino FROM pendientes_base
-    UNION ALL SELECT usuario_id, responsable, username, modulo, entidad_id, nivel, dias_restantes, url_destino FROM controles
-    UNION ALL SELECT usuario_id, responsable, username, modulo, entidad_id, nivel, dias_restantes, url_destino FROM tratamiento
-    UNION ALL SELECT usuario_id, responsable, username, modulo, entidad_id, nivel, dias_restantes, url_destino FROM tratamiento_sin_responsable
-    UNION ALL SELECT usuario_id, responsable, username, modulo, entidad_id, nivel, dias_restantes, url_destino FROM verificaciones
-    UNION ALL SELECT usuario_id, responsable, username, modulo, entidad_id, nivel, dias_restantes, url_destino FROM cierres
-    UNION ALL SELECT usuario_id, responsable, username, modulo, entidad_id, nivel, dias_restantes, url_destino FROM documentacion
+    SELECT pb.usuario_id, pb.responsable, pb.username, pb.modulo, pb.entidad_id, pb.nivel, pb.dias_restantes, pb.url_destino FROM pendientes_base pb
+    UNION ALL SELECT c.usuario_id, c.responsable, c.username, c.modulo, c.entidad_id, c.nivel, c.dias_restantes, c.url_destino FROM controles c
+    UNION ALL SELECT tr.usuario_id, tr.responsable, tr.username, tr.modulo, tr.entidad_id, tr.nivel, tr.dias_restantes, tr.url_destino FROM tratamiento tr
+    UNION ALL SELECT tsr.usuario_id, tsr.responsable, tsr.username, tsr.modulo, tsr.entidad_id, tsr.nivel, tsr.dias_restantes, tsr.url_destino FROM tratamiento_sin_responsable tsr
+    UNION ALL SELECT v.usuario_id, v.responsable, v.username, v.modulo, v.entidad_id, v.nivel, v.dias_restantes, v.url_destino FROM verificaciones v
+    UNION ALL SELECT ci.usuario_id, ci.responsable, ci.username, ci.modulo, ci.entidad_id, ci.nivel, ci.dias_restantes, ci.url_destino FROM cierres ci
+    UNION ALL SELECT doc.usuario_id, doc.responsable, doc.username, doc.modulo, doc.entidad_id, doc.nivel, doc.dias_restantes, doc.url_destino FROM documentacion doc
   ),
   deduplicados AS (
-    SELECT DISTINCT ON (COALESCE(usuario_id::text, 'sin_responsable'), modulo, entidad_id)
-      usuario_id,
-      responsable,
-      username,
-      modulo,
-      entidad_id,
-      nivel,
-      dias_restantes,
-      url_destino
-    FROM todos
+    SELECT DISTINCT ON (COALESCE(t.usuario_id::text, 'sin_responsable'), t.modulo, t.entidad_id)
+      t.usuario_id,
+      t.responsable,
+      t.username,
+      t.modulo,
+      t.entidad_id,
+      t.nivel,
+      t.dias_restantes,
+      t.url_destino
+    FROM todos t
     ORDER BY
-      COALESCE(usuario_id::text, 'sin_responsable'),
-      modulo,
-      entidad_id,
-      CASE nivel WHEN 'vencido' THEN 0 WHEN 'vencido_hoy' THEN 1 WHEN 'advertencia' THEN 2 ELSE 3 END,
-      dias_restantes NULLS LAST
+      COALESCE(t.usuario_id::text, 'sin_responsable'),
+      t.modulo,
+      t.entidad_id,
+      CASE t.nivel WHEN 'vencido' THEN 0 WHEN 'vencido_hoy' THEN 1 WHEN 'advertencia' THEN 2 ELSE 3 END,
+      t.dias_restantes NULLS LAST
   )
   SELECT
     d.usuario_id,
@@ -297,7 +297,7 @@ BEGIN
     ))[1] AS primer_url
   FROM deduplicados d
   GROUP BY d.usuario_id, d.responsable, d.username
-  ORDER BY vencidos DESC, vencen_hoy DESC, total DESC, responsable;
+  ORDER BY 5 DESC, 6 DESC, 4 DESC, 2;
 END;
 $$;
 
