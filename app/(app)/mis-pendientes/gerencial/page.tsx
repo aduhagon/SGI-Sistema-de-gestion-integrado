@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowLeft, Bell, Filter, ListChecks, Search, Users } from "lucide-react";
-import { obtenerDetalleTableroPendientesResponsables, obtenerSeguimientosPendientesGerenciales, type EstadoSeguimientoPendiente } from "@/lib/api/pendientes";
+import { obtenerDetalleTableroPendientesResponsables, obtenerHistorialSeguimientosPendientesGerenciales, obtenerSeguimientosPendientesGerenciales, type EstadoSeguimientoPendiente } from "@/lib/api/pendientes";
 import { MetricCard, MetricGrid, PageContainer, PageHeader } from "@/components/ui/page";
 import { guardarSeguimientoPendienteGerencial } from "./actions";
 
@@ -56,6 +56,16 @@ function textoDias(dias: number | null): string {
   return `${dias} d`;
 }
 
+function fechaCorta(fecha: string): string {
+  return new Intl.DateTimeFormat("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(fecha));
+}
+
 function queryActual(searchParams: SearchParams): string {
   const params = new URLSearchParams();
   for (const [clave, valor] of Object.entries(searchParams)) {
@@ -67,9 +77,10 @@ function queryActual(searchParams: SearchParams): string {
 }
 
 export default async function TableroGerencialPendientesPage({ searchParams }: { searchParams: SearchParams }) {
-  const [detalle, seguimientos] = await Promise.all([
+  const [detalle, seguimientos, historial] = await Promise.all([
     obtenerDetalleTableroPendientesResponsables(),
     obtenerSeguimientosPendientesGerenciales(),
+    obtenerHistorialSeguimientosPendientesGerenciales(),
   ]);
 
   const responsable = valorParametro(searchParams, "responsable");
@@ -95,6 +106,14 @@ export default async function TableroGerencialPendientesPage({ searchParams }: {
     item,
   ]));
 
+  const historialPorClave = new Map<string, NonNullable<typeof historial>[number][]>();
+  for (const evento of historial ?? []) {
+    const clave = claveSeguimiento(evento.responsableClave, evento.modulo, evento.entidadId);
+    const eventos = historialPorClave.get(clave) ?? [];
+    eventos.push(evento);
+    historialPorClave.set(clave, eventos);
+  }
+
   const responsables = Array.from(new Map(detalle.map((item) => [claveResponsable(item.usuarioId, item.responsable), item.responsable])).entries())
     .sort((a, b) => a[1].localeCompare(b[1]));
   const modulos = Array.from(new Map(detalle.map((item) => [item.modulo, item.moduloLabel])).entries())
@@ -102,13 +121,15 @@ export default async function TableroGerencialPendientesPage({ searchParams }: {
 
   const enriquecidos = detalle.map((item) => {
     const responsableClave = claveResponsable(item.usuarioId, item.responsable);
-    const seguimiento = seguimientoPorClave.get(claveSeguimiento(responsableClave, item.modulo, item.entidadId));
+    const seguimientoClave = claveSeguimiento(responsableClave, item.modulo, item.entidadId);
+    const seguimiento = seguimientoPorClave.get(seguimientoClave);
     return {
       ...item,
       responsableClave,
-      seguimientoEstado: seguimiento?.estado ?? "sin_revisar" as EstadoSeguimientoPendiente,
+      seguimientoEstado: (seguimiento?.estado ?? "sin_revisar") as EstadoSeguimientoPendiente,
       seguimientoNota: seguimiento?.nota ?? "",
       seguimientoActualizadoEn: seguimiento?.actualizadoEn ?? null,
+      seguimientoHistorial: historialPorClave.get(seguimientoClave) ?? [],
     };
   });
 
@@ -120,7 +141,8 @@ export default async function TableroGerencialPendientesPage({ searchParams }: {
     if (estado === "proximos" && !["advertencia", "recordatorio"].includes(item.nivel)) return false;
     if (seguimientoFiltro && item.seguimientoEstado !== seguimientoFiltro) return false;
     if (busqueda) {
-      const texto = `${item.responsable} ${item.moduloLabel} ${item.codigo} ${item.titulo} ${item.seguimientoNota}`.toLowerCase();
+      const historialTexto = item.seguimientoHistorial.map((evento) => `${evento.notaAnterior ?? ""} ${evento.notaNueva ?? ""}`).join(" ");
+      const texto = `${item.responsable} ${item.moduloLabel} ${item.codigo} ${item.titulo} ${item.seguimientoNota} ${historialTexto}`.toLowerCase();
       if (!texto.includes(busqueda)) return false;
     }
     return true;
@@ -216,6 +238,18 @@ export default async function TableroGerencialPendientesPage({ searchParams }: {
               <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${SEGUIMIENTO_CLASE[item.seguimientoEstado]}`}>{SEGUIMIENTO_TEXTO[item.seguimientoEstado]}</span>
               <button type="submit" className="rounded-md border border-border px-2 py-1 text-xs font-medium hover:bg-muted">Guardar</button>
             </div>
+            {item.seguimientoActualizadoEn ? <p className="text-[11px] text-muted-foreground">Actualizado {fechaCorta(item.seguimientoActualizadoEn)}</p> : null}
+            {item.seguimientoHistorial.length > 0 ? <details className="rounded-md bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
+              <summary className="cursor-pointer font-medium text-foreground">Historial ({item.seguimientoHistorial.length})</summary>
+              <ol className="mt-1 space-y-1">
+                {item.seguimientoHistorial.slice(0, 3).map((evento) => <li key={`${evento.cambiadoEn}-${evento.estadoNuevo}`}>
+                  <span className="font-medium text-foreground">{fechaCorta(evento.cambiadoEn)}</span>
+                  {" · "}{evento.estadoAnterior ? SEGUIMIENTO_TEXTO[evento.estadoAnterior] : "Alta"} → {SEGUIMIENTO_TEXTO[evento.estadoNuevo]}
+                  {evento.cambiadoPorNombre ? ` · ${evento.cambiadoPorNombre}` : ""}
+                  {evento.notaNueva ? <span className="block truncate">Nota: {evento.notaNueva}</span> : null}
+                </li>)}
+              </ol>
+            </details> : null}
           </form>
           <div className="md:text-right">
             <Link href={item.urlDestino} className="inline-flex min-h-9 items-center rounded-md border border-border px-3 text-sm font-medium hover:bg-muted">Abrir</Link>
