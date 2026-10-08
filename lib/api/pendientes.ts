@@ -36,6 +36,21 @@ export type ResponsablePendientesSistema = {
   primerUrl: string | null;
 };
 
+export type ResponsablePendienteDetalleSistema = {
+  usuarioId: string | null;
+  responsable: string;
+  username: string | null;
+  modulo: string;
+  moduloLabel: string;
+  entidadId: string;
+  codigo: string;
+  titulo: string;
+  fechaLimite: string | null;
+  diasRestantes: number | null;
+  nivel: NivelPendiente;
+  urlDestino: string;
+};
+
 const MODULO_LABEL: Record<string, string> = {
   aprobaciones: "Aprobaciones de documentos",
   acuses: "Acuses de lectura",
@@ -394,6 +409,54 @@ async function enriquecerMotivosMejora(
 }
 
 
+
+
+export async function obtenerDetalleTableroPendientesResponsables(): Promise<ResponsablePendienteDetalleSistema[] | null> {
+  const supabase = createClient();
+  const zona = await obtenerZonaHoraria();
+
+  const { data, error } = await supabase.rpc("fn_tablero_pendientes_responsables_detalle", {
+    p_zona: zona,
+    p_usuario_id: null,
+  });
+
+  if (error) {
+    const mensaje = error.message ?? "";
+    const codigo = error.code ?? "";
+    const sinPermiso = ["42501", "P0001", "PGRST202"].includes(codigo)
+      || /Solo un administrador|responsable del SGI|permission denied|Could not find/i.test(mensaje);
+
+    if (!sinPermiso) console.error("[SGI:pendientes] detalle tablero responsables", error);
+    return null;
+  }
+
+  return ((data ?? []) as Array<{
+    usuario_id: string | null;
+    responsable: string | null;
+    username: string | null;
+    modulo: string | null;
+    entidad_id: string;
+    codigo: string | null;
+    titulo: string | null;
+    fecha_limite: string | null;
+    dias_restantes: number | null;
+    nivel: NivelPendiente | null;
+    url_destino: string | null;
+  }>).filter((fila) => fila.nivel !== null && fila.modulo !== null && fila.url_destino !== null).map((fila) => ({
+    usuarioId: fila.usuario_id ?? null,
+    responsable: fila.responsable ?? "Sin responsable",
+    username: fila.username ?? null,
+    modulo: fila.modulo ?? "otros",
+    moduloLabel: MODULO_LABEL[fila.modulo ?? ""] ?? (fila.modulo ?? "Otras tareas").replace(/_/g, " "),
+    entidadId: fila.entidad_id,
+    codigo: fila.codigo ?? "PEND",
+    titulo: fila.titulo ?? "Pendiente sin titulo",
+    fechaLimite: fila.fecha_limite ?? null,
+    diasRestantes: fila.dias_restantes ?? null,
+    nivel: fila.nivel as NivelPendiente,
+    urlDestino: destinoAccion(fila.modulo ?? "", fila.url_destino ?? "#", fila.entidad_id),
+  }));
+}
 
 export async function obtenerTableroPendientesResponsables(): Promise<ResponsablePendientesSistema[] | null> {
   const supabase = createClient();
