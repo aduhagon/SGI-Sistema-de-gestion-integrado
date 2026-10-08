@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Filter, Search } from "lucide-react";
+import { ArrowRight, Filter, Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { GrupoPendientes, NivelPendiente, Pendiente } from "@/lib/api/pendientes";
 
@@ -13,7 +13,16 @@ const NIVEL: Record<NivelPendiente, { orden: number; label: string; card: string
   recordatorio: { orden: 3, label: "Planificado", card: "border-border bg-card", dot: "bg-sky-500" },
 };
 
-type ItemConGrupo = Pendiente & { grupo: string };
+type ItemConGrupo = Pendiente & { grupo: string; responsableOperativo: string };
+
+type ResponsablePendientes = {
+  nombre: string;
+  total: number;
+  vencidos: number;
+  hoy: number;
+  proximos: number;
+  modulos: string[];
+};
 
 const ACCION: Record<string, string> = {
   aprobaciones: "Revisar aprobación",
@@ -55,6 +64,14 @@ const MOTIVO: Record<string, string> = {
   cierres: "Asignado por responsable de tratamiento con eficacia verificada.",
 };
 
+const PATRONES_RESPONSABLES: Array<{ regex: RegExp; prefijo?: string }> = [
+  { regex: /Asignado como responsable de tratamiento:\s*([^.;]+)/i },
+  { regex: /Asignado como verificador independiente:\s*([^.;]+)/i },
+  { regex: /responsable:\s*([^.;]+)/i },
+  { regex: /Asignado por tu puesto vigente:\s*([^.;]+)/i, prefijo: "Puesto: " },
+  { regex: /Asignado por puesto responsable vigente:\s*([^.;]+)/i, prefijo: "Puesto: " },
+];
+
 export function accionPendiente(modulo: string): string {
   return ACCION[modulo] ?? "Revisar tarea";
 }
@@ -62,6 +79,25 @@ export function accionPendiente(modulo: string): string {
 export function motivoPendiente(modulo: string, motivo?: string | null): string {
   const especifico = motivo?.trim();
   return especifico || MOTIVO[modulo] || "Asignado por una regla operativa del sistema.";
+}
+
+function normalizarResponsable(valor: string): string {
+  return valor.replace(/\s+/g, " ").trim();
+}
+
+function responsableOperativoPendiente(modulo: string, motivo?: string | null): string {
+  const texto = motivoPendiente(modulo, motivo);
+
+  for (const patron of PATRONES_RESPONSABLES) {
+    const match = texto.match(patron.regex);
+    const valor = match?.[1] ? normalizarResponsable(match[1]) : "";
+    if (valor) return `${patron.prefijo ?? ""}${valor}`;
+  }
+
+  if (/gesti[oó]n SGI\/legal/i.test(texto)) return "Gestión SGI/legal";
+  if (/aprobaci[oó]n documental/i.test(texto)) return "Aprobación documental";
+  if (/lectura pendiente|destinatario de lectura/i.test(texto)) return "Lectura documental";
+  return "Mi bandeja";
 }
 
 export function fechaLimitePendiente(valor: string | null): string {
@@ -76,18 +112,42 @@ export function fechaLimitePendiente(valor: string | null): string {
 export function CentroPendientes({ grupos }: { grupos: GrupoPendientes[] }) {
   const [filtro, setFiltro] = useState<"todos" | "urgentes" | "proximos">("todos");
   const [modulo, setModulo] = useState("todos");
+  const [responsable, setResponsable] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
-  const items = useMemo(() => grupos.flatMap((grupo) => grupo.items.map((item): ItemConGrupo => ({ ...item, grupo: grupo.label }))), [grupos]);
+  const items = useMemo(() => grupos.flatMap((grupo) => grupo.items.map((item): ItemConGrupo => ({ ...item, grupo: grupo.label, responsableOperativo: responsableOperativoPendiente(item.modulo, item.motivo) }))), [grupos]);
   const moduloActivo = useMemo(() => {
     if (modulo === "todos") return { label: "Todos los módulos", cantidad: items.length };
     const grupo = grupos.find((actual) => actual.modulo === modulo);
     return { label: grupo?.label ?? "Módulo seleccionado", cantidad: grupo?.items.length ?? 0 };
   }, [grupos, items.length, modulo]);
-  const visibles = useMemo(() => items
+  const itemsBase = useMemo(() => items
     .filter((item) => modulo === "todos" || item.modulo === modulo)
     .filter((item) => filtro === "todos" || (filtro === "urgentes" && ["vencido", "vencido_hoy"].includes(item.nivel)) || (filtro === "proximos" && ["advertencia", "recordatorio"].includes(item.nivel)))
-    .filter((item) => `${item.codigo} ${item.titulo} ${item.grupo} ${accionPendiente(item.modulo)} ${motivoPendiente(item.modulo, item.motivo)}`.toLocaleLowerCase("es").includes(busqueda.trim().toLocaleLowerCase("es")))
+    .filter((item) => `${item.codigo} ${item.titulo} ${item.grupo} ${item.responsableOperativo} ${accionPendiente(item.modulo)} ${motivoPendiente(item.modulo, item.motivo)}`.toLocaleLowerCase("es").includes(busqueda.trim().toLocaleLowerCase("es")))
     .sort((a, b) => NIVEL[a.nivel].orden - NIVEL[b.nivel].orden || (a.diasRestantes ?? 9999) - (b.diasRestantes ?? 9999)), [items, modulo, filtro, busqueda]);
+  const tableroResponsables = useMemo(() => {
+    const mapa = new Map<string, ResponsablePendientes>();
+
+    for (const item of itemsBase) {
+      const actual = mapa.get(item.responsableOperativo) ?? {
+        nombre: item.responsableOperativo,
+        total: 0,
+        vencidos: 0,
+        hoy: 0,
+        proximos: 0,
+        modulos: [],
+      };
+      actual.total += 1;
+      if (item.nivel === "vencido") actual.vencidos += 1;
+      if (item.nivel === "vencido_hoy") actual.hoy += 1;
+      if (["advertencia", "recordatorio"].includes(item.nivel)) actual.proximos += 1;
+      if (!actual.modulos.includes(item.grupo)) actual.modulos.push(item.grupo);
+      mapa.set(item.responsableOperativo, actual);
+    }
+
+    return [...mapa.values()].sort((a, b) => b.vencidos - a.vencidos || b.hoy - a.hoy || b.total - a.total || a.nombre.localeCompare(b.nombre, "es"));
+  }, [itemsBase]);
+  const visibles = useMemo(() => responsable === "todos" ? itemsBase : itemsBase.filter((item) => item.responsableOperativo === responsable), [itemsBase, responsable]);
 
   return <section aria-label="Listado de pendientes">
     <div className="mb-4 rounded-xl border border-border bg-card p-3 sm:p-4">
@@ -113,7 +173,35 @@ export function CentroPendientes({ grupos }: { grupos: GrupoPendientes[] }) {
         </div>
       </div>
     </div>
-    <div className="mb-3 flex items-center justify-between"><p className="text-sm text-muted-foreground"><strong className="text-foreground">{visibles.length}</strong> tareas visibles</p>{(filtro !== "todos" || modulo !== "todos" || busqueda) && <button type="button" onClick={() => { setFiltro("todos"); setModulo("todos"); setBusqueda(""); }} className="text-xs text-primary hover:underline">Limpiar filtros</button>}</div>
+
+    {tableroResponsables.length > 0 && <section aria-label="Tablero por responsable" className="mb-4 rounded-xl border border-border bg-card p-3 sm:p-4">
+      <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 text-sm font-semibold"><Users className="h-4 w-4 text-primary" />Tablero por responsable</h2>
+          <p className="text-xs text-muted-foreground">Agrupa las tareas visibles por responsable operativo o puesto detectado en la asignación.</p>
+        </div>
+        <span className="text-xs text-muted-foreground">{tableroResponsables.length} responsable{tableroResponsables.length === 1 ? "" : "s"} visible{tableroResponsables.length === 1 ? "" : "s"}</span>
+      </div>
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {tableroResponsables.map((actual) => <button key={actual.nombre} type="button" onClick={() => setResponsable(actual.nombre)} aria-pressed={responsable === actual.nombre} className={cn("min-w-0 rounded-lg border p-3 text-left transition-colors", responsable === actual.nombre ? "border-primary bg-primary/5" : "border-border bg-background hover:bg-muted/60")}>
+          <span className="flex items-start justify-between gap-3">
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold">{actual.nombre}</span>
+              <span className="mt-1 block truncate text-xs text-muted-foreground">{actual.modulos.join(" · ")}</span>
+            </span>
+            <span className="rounded-full bg-muted px-2 py-1 text-xs font-semibold text-foreground">{actual.total}</span>
+          </span>
+          <span className="mt-3 grid grid-cols-3 gap-2 text-xs">
+            <span className="rounded-md bg-red-50 px-2 py-1 text-red-700">{actual.vencidos} vencidos</span>
+            <span className="rounded-md bg-amber-50 px-2 py-1 text-amber-700">{actual.hoy} hoy</span>
+            <span className="rounded-md bg-sky-50 px-2 py-1 text-sky-700">{actual.proximos} próximos</span>
+          </span>
+        </button>)}
+      </div>
+      {responsable !== "todos" && <button type="button" onClick={() => setResponsable("todos")} className="mt-3 text-xs font-medium text-primary hover:underline">Ver todos los responsables</button>}
+    </section>}
+
+    <div className="mb-3 flex items-center justify-between"><p className="text-sm text-muted-foreground"><strong className="text-foreground">{visibles.length}</strong> tareas visibles</p>{(filtro !== "todos" || modulo !== "todos" || responsable !== "todos" || busqueda) && <button type="button" onClick={() => { setFiltro("todos"); setModulo("todos"); setResponsable("todos"); setBusqueda(""); }} className="text-xs text-primary hover:underline">Limpiar filtros</button>}</div>
     {visibles.length === 0 ? <div className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">No hay tareas que coincidan con los filtros.</div> : <div className="space-y-2">{visibles.map((item) => {
       const meta = NIVEL[item.nivel];
       const plazo = item.diasRestantes == null ? (item.fechaLimite ? meta.label : "Sin plazo definido") : item.diasRestantes < 0 ? `Vencido hace ${Math.abs(item.diasRestantes)} día${Math.abs(item.diasRestantes) === 1 ? "" : "s"}` : item.diasRestantes === 0 ? "Vence hoy" : `En ${item.diasRestantes} día${item.diasRestantes === 1 ? "" : "s"}`;
@@ -122,7 +210,7 @@ export function CentroPendientes({ grupos }: { grupos: GrupoPendientes[] }) {
       return <Link key={`${item.modulo}-${item.entidadId}`} href={item.urlDestino} aria-label={`${accion}: ${item.codigo} ${item.titulo}. ${motivo}`} className={cn("group grid min-w-0 gap-3 rounded-xl border p-4 transition-all hover:-translate-y-0.5 hover:shadow-sm sm:grid-cols-[auto_1fr_auto] sm:items-center", meta.card)}>
         <span className={cn("mt-1 h-2.5 w-2.5 rounded-full sm:mt-0", meta.dot)} />
         <span className="min-w-0">
-          <span className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs text-muted-foreground">{item.codigo}</span><span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground">{item.grupo}</span></span>
+          <span className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs text-muted-foreground">{item.codigo}</span><span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground">{item.grupo}</span><span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground">{item.responsableOperativo}</span></span>
           <span className="mt-1 block break-words text-sm font-medium leading-snug">{item.titulo}</span>
           <span className="mt-1 block text-xs text-muted-foreground">{fechaLimitePendiente(item.fechaLimite)}</span>
           <span className="mt-3 block rounded-lg border border-border/70 bg-background/70 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
