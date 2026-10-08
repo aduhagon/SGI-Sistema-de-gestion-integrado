@@ -51,6 +51,19 @@ export type ResponsablePendienteDetalleSistema = {
   urlDestino: string;
 };
 
+export type EstadoSeguimientoPendiente = "sin_revisar" | "en_curso" | "bloqueado" | "contactado";
+
+export type SeguimientoPendienteGerencial = {
+  modulo: string;
+  entidadId: string;
+  responsableClave: string;
+  responsableNombre: string;
+  estado: EstadoSeguimientoPendiente;
+  nota: string | null;
+  actualizadoEn: string;
+  actualizadoPor: string | null;
+};
+
 const MODULO_LABEL: Record<string, string> = {
   aprobaciones: "Aprobaciones de documentos",
   acuses: "Acuses de lectura",
@@ -410,6 +423,42 @@ async function enriquecerMotivosMejora(
 
 
 
+
+
+export async function obtenerSeguimientosPendientesGerenciales(): Promise<SeguimientoPendienteGerencial[] | null> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase.rpc("fn_seguimientos_pendientes_gerencial");
+  if (error) {
+    const mensaje = error.message ?? "";
+    const codigo = error.code ?? "";
+    const sinPermiso = ["42501", "P0001", "PGRST202"].includes(codigo)
+      || /Solo un administrador|responsable del SGI|permission denied|Could not find/i.test(mensaje);
+
+    if (!sinPermiso) console.error("[SGI:pendientes] seguimientos gerenciales", error);
+    return null;
+  }
+
+  return ((data ?? []) as Array<{
+    modulo: string;
+    entidad_id: string;
+    responsable_clave: string;
+    responsable_nombre: string;
+    estado: EstadoSeguimientoPendiente;
+    nota: string | null;
+    actualizado_en: string;
+    actualizado_por: string | null;
+  }>).map((fila) => ({
+    modulo: fila.modulo,
+    entidadId: fila.entidad_id,
+    responsableClave: fila.responsable_clave,
+    responsableNombre: fila.responsable_nombre,
+    estado: fila.estado,
+    nota: fila.nota,
+    actualizadoEn: fila.actualizado_en,
+    actualizadoPor: fila.actualizado_por,
+  }));
+}
 
 export async function obtenerDetalleTableroPendientesResponsables(): Promise<ResponsablePendienteDetalleSistema[] | null> {
   const supabase = createClient();
