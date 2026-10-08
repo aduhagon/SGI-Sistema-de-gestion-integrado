@@ -32,6 +32,7 @@ import {
   ETIQUETA_CUMPLIMIENTO,
 } from "@/lib/schemas/requisito-legal";
 import type { RequisitoLegal } from "@/lib/api/requisitos-legales";
+import { cn } from "@/lib/utils";
 
 type Selector = { id: string; codigo?: string; nombre: string };
 type NormaSelector = { id: string; nombre: string };
@@ -102,6 +103,8 @@ export function GestionRequisitosLegales({
   );
   const [hayCambiosForm, setHayCambiosForm] = useState(false);
   const [hayCambiosEval, setHayCambiosEval] = useState(false);
+  const [evaluarDesdePendiente, setEvaluarDesdePendiente] = useState<"sin-parametro" | "encontrado" | "faltante">("sin-parametro");
+  const requisitoObjetivoId = searchParams.get("evaluar");
 
   const [estadoForm, accionForm] = useFormState<EstadoReqLegal, FormData>(
     guardarRequisitoLegal,
@@ -152,9 +155,17 @@ export function GestionRequisitosLegales({
 
   useEffect(() => {
     const requisitoEditar = requisitos.find((item) => item.id === searchParams.get("requisito"));
-    const requisitoEvaluar = requisitos.find((item) => item.id === searchParams.get("evaluar"));
-    if (requisitoEvaluar) setEvaluando(requisitoEvaluar);
-    else if (requisitoEditar) abrirEdicion(requisitoEditar);
+    const requisitoEvaluarId = searchParams.get("evaluar");
+    const requisitoEvaluar = requisitos.find((item) => item.id === requisitoEvaluarId);
+
+    if (requisitoEvaluar) {
+      setEvaluarDesdePendiente("encontrado");
+      setEvaluando(requisitoEvaluar);
+    } else if (requisitoEvaluarId) {
+      setEvaluarDesdePendiente("faltante");
+    } else if (requisitoEditar) {
+      abrirEdicion(requisitoEditar);
+    }
     // El vínculo profundo se procesa solo al ingresar a la pantalla.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -163,6 +174,7 @@ export function GestionRequisitosLegales({
     const params = new URLSearchParams(searchParams.toString());
     params.delete("requisito");
     params.delete("evaluar");
+    setEvaluarDesdePendiente("sin-parametro");
     if (cambios.norma !== undefined) cambios.norma === "__todas__" ? params.delete("norma") : params.set("norma", cambios.norma);
     if (cambios.vista !== undefined) cambios.vista === "lista" ? params.delete("vista") : params.set("vista", cambios.vista);
     if (cambios.q !== undefined) cambios.q.trim() ? params.set("q", cambios.q.trim()) : params.delete("q");
@@ -237,7 +249,7 @@ export function GestionRequisitosLegales({
 
   function filaRequisito(r: RequisitoLegal, mostrarProcesos: boolean) {
     return (
-      <tr key={r.id} className="border-b border-border last:border-0">
+      <tr key={r.id} className={cn("border-b border-border transition-colors last:border-0", r.id === requisitoObjetivoId && "bg-primary/5")}>
         <td className="px-4 py-2.5">
           <div className="flex items-start gap-2">
             <Scale className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -344,7 +356,13 @@ export function GestionRequisitosLegales({
       <div>
         <div className="space-y-3 md:hidden">
           {items.map((r) => (
-            <article key={r.id} className="min-w-0 rounded-lg border border-border bg-card p-4">
+            <article
+              key={r.id}
+              className={cn(
+                "min-w-0 rounded-lg border bg-card p-4 transition-colors",
+                r.id === requisitoObjetivoId ? "border-primary shadow-sm ring-2 ring-primary/20" : "border-border",
+              )}
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="break-all font-mono text-xs text-muted-foreground">{r.codigo}</p>
                 <span className={`rounded-full px-2 py-1 text-xs ${r.ultimoEstado ? COLOR_ESTADO[r.ultimoEstado] ?? "bg-muted" : "bg-muted text-muted-foreground"}`}>
@@ -508,6 +526,22 @@ export function GestionRequisitosLegales({
           </Button>
         </div>
       </div>
+
+      {evaluarDesdePendiente !== "sin-parametro" && (
+        <div
+          className={cn(
+            "mb-4 rounded-md border px-4 py-3 text-sm",
+            evaluarDesdePendiente === "encontrado"
+              ? "border-primary/30 bg-primary/5 text-primary"
+              : "border-amber-500/30 bg-amber-500/5 text-amber-800",
+          )}
+          role="status"
+        >
+          {evaluarDesdePendiente === "encontrado"
+            ? "Abrimos la evaluación indicada desde el Centro de pendientes y resaltamos el requisito en el listado."
+            : "No encontramos el requisito legal indicado por el pendiente. Puede haber sido actualizado o eliminado."}
+        </div>
+      )}
 
       <label className="relative mb-4 block max-w-xl">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
