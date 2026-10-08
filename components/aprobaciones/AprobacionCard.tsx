@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Clock, FileText, ArrowRight, Hourglass, FileSearch } from "lucide-react";
 import type { AprobacionPendiente } from "@/lib/api/aprobaciones";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { DecisionDialog } from "./DecisionDialog";
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
 };
 
 export function AprobacionCard({ aprobacion, accionable, autoAbrir = false }: Props) {
+  const cardRef = useRef<HTMLDivElement>(null);
   const [dialogAbierto, setDialogAbierto] = useState(false);
   const [decisionInicial, setDecisionInicial] = useState<
     "aprobado" | "rechazado" | null
@@ -26,7 +28,10 @@ export function AprobacionCard({ aprobacion, accionable, autoAbrir = false }: Pr
   }
 
   useEffect(() => {
-    if (accionable && autoAbrir) abrir(null);
+    if (!accionable || !autoAbrir) return;
+    cardRef.current?.scrollIntoView({ block: "center" });
+    cardRef.current?.focus({ preventScroll: true });
+    abrir(null);
     // Solo se abre automáticamente al ingresar desde el pendiente.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -36,7 +41,15 @@ export function AprobacionCard({ aprobacion, accionable, autoAbrir = false }: Pr
 
   return (
     <>
-      <div id={`aprobacion-${aprobacion.aprobacionId}`} className="scroll-mt-24 rounded-lg border border-border bg-card p-5 transition-shadow hover:shadow-sm">
+      <div
+        ref={cardRef}
+        id={`aprobacion-${aprobacion.aprobacionId}`}
+        tabIndex={autoAbrir ? -1 : undefined}
+        className={cn(
+          "scroll-mt-24 rounded-lg border bg-card p-5 transition-shadow hover:shadow-sm focus:outline-none",
+          autoAbrir ? "border-primary shadow-md ring-2 ring-primary/20" : "border-border",
+        )}
+      >
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">
