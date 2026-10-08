@@ -249,7 +249,7 @@ export function GestionRequisitosLegales({
 
   function filaRequisito(r: RequisitoLegal, mostrarProcesos: boolean) {
     return (
-      <tr key={r.id} className={cn("border-b border-border transition-colors last:border-0", r.id === requisitoObjetivoId && "bg-primary/5")}>
+      <tr key={r.id} data-requisito-id={r.id} className={cn("border-b border-border transition-colors last:border-0", r.id === requisitoObjetivoId && "bg-primary/5")}>
         <td className="px-4 py-2.5">
           <div className="flex items-start gap-2">
             <Scale className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -358,6 +358,7 @@ export function GestionRequisitosLegales({
           {items.map((r) => (
             <article
               key={r.id}
+              data-requisito-id={r.id}
               className={cn(
                 "min-w-0 rounded-lg border bg-card p-4 transition-colors",
                 r.id === requisitoObjetivoId ? "border-primary shadow-sm ring-2 ring-primary/20" : "border-border",
